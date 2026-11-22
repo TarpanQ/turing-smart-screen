@@ -134,6 +134,8 @@ private:
     DisplayTab &add_display_tab(const config::DisplayConfig &display);
     /** @brief Set the controls of a tab to the settings of a display. */
     void apply_display(DisplayTab &tab, const config::DisplayConfig &display);
+    /** @brief With several displays, a tab cannot use the automatic COM port detection. */
+    void enforce_com_rule(DisplayTab &tab);
     /** @brief Name the tabs after their index (":0", ":1", ...). */
     void refresh_tab_labels();
     /** @brief Index of the tab under the position (in the notebook coordinates), -1 if none. */

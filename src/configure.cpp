@@ -441,6 +441,7 @@ TuringConfigWindow::TuringConfigWindow()
     place(layout, notebook, 370, 25, 440, 300);
     notebook.signal_switch_page().connect([this](Gtk::Widget *, guint) {
         if (!tabs.empty()) {
+            enforce_com_rule(current_tab());
             load_theme_preview();
         }
     });
@@ -597,6 +598,9 @@ void TuringConfigWindow::load_config_values()
     for (const auto &display: displays) {
         add_display_tab(display);
     }
+    for (const auto &tab: tabs) {
+        enforce_com_rule(*tab);
+    }
     notebook.set_current_page(0);
 
     if (const auto hwlib = map_value(hw_lib_map, config::get(conf, "HW_SENSORS", "AUTO"))) {
@@ -726,6 +730,7 @@ DisplayTab &TuringConfigWindow::add_display_tab(const config::DisplayConfig &dis
     t.model_cb.property_selected().signal_changed().connect([this, &t] { on_model_change(t); });
     t.size_cb.property_selected().signal_changed().connect([this, &t] { on_size_change(t); });
     t.theme_cb.property_selected().signal_changed().connect([this, &t] { on_theme_change(t); });
+    t.com_cb.property_selected().signal_changed().connect([this, &t] { enforce_com_rule(t); });
     t.brightness_slider.set_draw_value(false);
     t.brightness_slider.signal_value_changed().connect([this, &t] { on_brightness_change(t); });
     t.brightness_warning_label.set_markup("<span foreground=\"" + ORANGE_TEXT_COLOR +
@@ -816,6 +821,14 @@ void TuringConfigWindow::apply_display(DisplayTab &tab, const config::DisplayCon
     on_brightness_change(tab);
 }
 
+void TuringConfigWindow::enforce_com_rule(DisplayTab &tab)
+{
+    // With several displays, each display needs its own COM port: automatic detection is replaced by the first port
+    if (tabs.size() > 1 && tab.com_cb.current() == 0 && tab.com_cb.get_items().size() > 1) {
+        tab.com_cb.set_current(1);
+    }
+}
+
 void TuringConfigWindow::refresh_tab_labels()
 {
     for (int i = 0; i < notebook.get_n_pages(); i++) {
@@ -858,6 +871,9 @@ void TuringConfigWindow::on_tab_right_click(double x, double y)
 void TuringConfigWindow::on_add_display()
 {
     add_display_tab(config::DisplayConfig{});
+    for (const auto &tab: tabs) {
+        enforce_com_rule(*tab);
+    }
     notebook.set_current_page(static_cast<int>(tabs.size()) - 1);
 }
 
