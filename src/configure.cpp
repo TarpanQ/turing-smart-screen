@@ -444,7 +444,7 @@ TuringConfigWindow::TuringConfigWindow()
     auto *display_page = Gtk::make_managed<Gtk::Fixed>();
     auto *display_tabs = Gtk::make_managed<Gtk::Notebook>();
     display_tabs->append_page(*display_page, ":0");
-    place(layout, *display_tabs, 370, 25, 440, 250);
+    place(layout, *display_tabs, 370, 25, 440, 300);
 
     place(*display_page, *Gtk::make_managed<Gtk::Label>("Smart screen model"), 0, 10);
     model_cb.property_selected().signal_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_model_change));
@@ -469,29 +469,29 @@ TuringConfigWindow::TuringConfigWindow()
                                         "\">⚠ Turing 3.5\" displays can get hot at high brightness!</span>");
     place(*display_page, brightness_warning_label, 0, 200);
 
-    place(layout, *bold_label("System Monitor Configuration"), 370, 315);
+    place(layout, *bold_label("System Monitor Configuration"), 370, 335);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Theme"), 370, 283);
+    place(*display_page, *Gtk::make_managed<Gtk::Label>("Theme"), 0, 232);
     theme_cb.property_selected().signal_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_theme_change));
-    place(layout, theme_cb, 550, 278, 250);
+    place(*display_page, theme_cb, 180, 227, 250);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Hardware monitoring"), 370, 340);
+    place(layout, *Gtk::make_managed<Gtk::Label>("Hardware monitoring"), 370, 362);
     hwlib_cb.property_selected().signal_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_hwlib_change));
-    place(layout, hwlib_cb, 550, 335, 250);
+    place(layout, hwlib_cb, 550, 357, 250);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Ethernet interface"), 370, 380);
-    place(layout, eth_cb, 550, 375, 250);
+    place(layout, *Gtk::make_managed<Gtk::Label>("Ethernet interface"), 370, 402);
+    place(layout, eth_cb, 550, 397, 250);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Wi-Fi interface"), 370, 420);
-    place(layout, wl_cb, 550, 415, 250);
+    place(layout, *Gtk::make_managed<Gtk::Label>("Wi-Fi interface"), 370, 442);
+    place(layout, wl_cb, 550, 437, 250);
 
     cpu_fan_label.set_markup("<u>CPU fan (？)</u>");
     cpu_fan_label.set_tooltip_text("If \"None\" is selected, CPU fan was not auto-detected.\n"
                                    "Manually select your CPU fan from the list.\n\n"
                                    "Fans missing from the list? Install lm-sensors package\n"
                                    "and run 'sudo sensors-detect' command, then reboot.");
-    place(layout, cpu_fan_label, 370, 460);
-    place(layout, cpu_fan_cb, 550, 455, 250);
+    place(layout, cpu_fan_label, 370, 482);
+    place(layout, cpu_fan_cb, 550, 477, 250);
 
     auto *version_label = Gtk::make_managed<Gtk::Label>();
     version_label->set_markup("<span alpha=\"60%\">" + Glib::Markup::escape_text(get_version()) + "</span>");
