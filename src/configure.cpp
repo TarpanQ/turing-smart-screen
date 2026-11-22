@@ -572,7 +572,7 @@ void TuringConfigWindow::load_theme_preview()
     }
 
     const std::string author_name = theme_data ? config::get(*theme_data, "author", "unknown") : "unknown";
-    const std::string edit_credit = " - Edit : <a href=\"https://github.com/JDusart\">@JDusart</a>";
+    const std::string edit_credit = " - Edit : <a href=\"https://github.com/TarpanQ\">@TarpanQ</a>";
     if (author_name.starts_with("@")) {
         theme_author.set_markup("Author: <a href=\"https://github.com/" +
                                 Glib::Markup::escape_text(author_name.substr(1)) + "\">" +
