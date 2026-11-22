@@ -19,6 +19,14 @@
             "BRIGHTNESS": 41,
             "DISPLAY_REVERSE": true,
             "RESET_ON_STARTUP": true
+        },
+        {
+            "COM_PORT": "/dev/ttyACM1",
+            "THEME": "Cyberpunk",
+            "REVISION": "A",
+            "BRIGHTNESS": 50,
+            "DISPLAY_REVERSE": true,
+            "RESET_ON_STARTUP": true
         }
     ]
 }
