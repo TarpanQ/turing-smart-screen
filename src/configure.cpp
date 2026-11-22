@@ -572,12 +572,14 @@ void TuringConfigWindow::load_theme_preview()
     }
 
     const std::string author_name = theme_data ? config::get(*theme_data, "author", "unknown") : "unknown";
+    const std::string edit_credit = " - Edit : <a href=\"https://github.com/JDusart\">@JDusart</a>";
     if (author_name.starts_with("@")) {
         theme_author.set_markup("Author: <a href=\"https://github.com/" +
                                 Glib::Markup::escape_text(author_name.substr(1)) + "\">" +
-                                Glib::Markup::escape_text(author_name) + "</a>");
+                                Glib::Markup::escape_text(author_name) + "</a>" + edit_credit);
     } else {
-        theme_author.set_markup("<span alpha=\"60%\">Author: " + Glib::Markup::escape_text(author_name) + "</span>");
+        theme_author.set_markup("<span alpha=\"60%\">Author: " + Glib::Markup::escape_text(author_name) +
+                                edit_credit + "</span>");
     }
     layout.move(theme_author, 10, preview_height + 15);
 }
