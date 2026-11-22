@@ -26,6 +26,7 @@
 #include "configure.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <format>
@@ -77,8 +78,8 @@ const std::vector<std::string> size_list = {
 using RevisionSize = std::pair<std::string, std::string>;
 
 /**
- * @brief Maps between config.yaml values and GUI description
- * This map is used to select the correct smart screen model based on config.yaml "REVISION" and selected "THEME" size
+ * @brief Maps between config.json values and GUI description
+ * This map is used to select the correct smart screen model based on config.json "REVISION" and selected "THEME" size
  */
 const std::vector<std::pair<RevisionSize, std::string>> revision_and_size_to_model_map = {
     {{"A", SIZE_3_5_INCH}, TURING_MODEL},  // Can also be UsbPCMonitor 3.5, does not matter since protocol is the same
@@ -108,7 +109,7 @@ const std::vector<std::pair<RevisionSize, std::string>> revision_and_size_to_mod
     {{"SIMU", SIZE_8_8_INCH}, SIMULATED_MODEL},
 };
 
-/** @brief This map is used to write the correct config.yaml "REVISION" from selected smart screen model and size */
+/** @brief This map is used to write the correct config.json "REVISION" from selected smart screen model and size */
 const std::map<std::pair<std::string, std::string>, std::string> model_and_size_to_revision_map = {
     {{KIPYE_MODEL, SIZE_3_5_INCH}, "D"},
     {{TURING_MODEL, SIZE_2_x_INCH}, "C"},
@@ -577,21 +578,20 @@ void TuringConfigWindow::load_theme_preview()
 
 void TuringConfigWindow::load_config_values()
 {
-    YAML::Node cfg;
+    config::Json cfg;
     try {
-        cfg = YAML::LoadFile((main_directory() / "config.yaml").string());
-    } catch (const YAML::Exception &e) {
-        logger.error("Cannot load config.yaml: {}", e.what());
-        cfg = YAML::Node(YAML::NodeType::Map);
+        cfg = config::load_json(main_directory() / "config.json");
+    } catch (const std::exception &e) {
+        logger.error("Cannot load config.json: {}", e.what());
+        cfg = config::Json::object();
     }
-    const YAML::Node &c = cfg;
-    const YAML::Node conf = c["config"];
-    const YAML::Node display = c["display"];
+    const config::Json conf = config::section(cfg, "config");
+    const config::Json display = config::section(cfg, "display");
 
     // Check if theme is valid
     std::string theme = config::get(conf, "THEME", "");
     if (!get_theme_data(theme)) {
-        // Theme from config.yaml is not valid: use first theme available default size 3.5"
+        // Theme from config.json is not valid: use first theme available default size 3.5"
         const auto themes = get_themes(SIZE_3_5_INCH);
         theme = themes.empty() ? "" : themes.front();
     }
@@ -686,16 +686,16 @@ bool TuringConfigWindow::save_config_values()
     }
 
     try {
-        config::update_yaml_file(main_directory() / "config.yaml", {
-            {"config", "THEME", config::yaml_scalar(theme_cb.get_text())},
+        config::update_json_file(main_directory() / "config.json", {
+            {"config", "THEME", (theme_cb.get_text())},
             {"config", "HW_SENSORS", map_key(hw_lib_map, hwlib_cb.get_text()).value_or("AUTO")},
-            {"config", "ETH", config::yaml_scalar(eth_cb.current() == 0 ? "" : eth_cb.get_text())},
-            {"config", "WLO", config::yaml_scalar(wl_cb.current() == 0 ? "" : wl_cb.get_text())},
-            {"config", "COM_PORT", config::yaml_scalar(com_cb.current() == 0 ? "AUTO" : com_cb.get_text())},
-            {"config", "CPU_FAN", config::yaml_scalar(cpu_fan)},
+            {"config", "ETH", (eth_cb.current() == 0 ? "" : eth_cb.get_text())},
+            {"config", "WLO", (wl_cb.current() == 0 ? "" : wl_cb.get_text())},
+            {"config", "COM_PORT", (com_cb.current() == 0 ? "AUTO" : com_cb.get_text())},
+            {"config", "CPU_FAN", (cpu_fan)},
             {"display", "REVISION", revision->second},
-            {"display", "DISPLAY_REVERSE", map_key(reverse_map, orient_cb.get_text()).value_or(false) ? "true" : "false"},
-            {"display", "BRIGHTNESS", std::to_string(static_cast<int>(brightness_slider.get_value()))},
+            {"display", "DISPLAY_REVERSE", map_key(reverse_map, orient_cb.get_text()).value_or(false)},
+            {"display", "BRIGHTNESS", static_cast<int>(brightness_slider.get_value())},
         });
     } catch (const std::exception &e) {
         show_error(e.what());
@@ -704,18 +704,36 @@ bool TuringConfigWindow::save_config_values()
     return true;
 }
 
+namespace {
+
+// Coordinates are written as numbers in config.json, as long as they can be read as numbers
+config::Json coordinate_value(const std::string &text)
+{
+    try {
+        size_t pos = 0;
+        const double value = std::stod(text, &pos);
+        if (pos == text.size() && std::isfinite(value)) {
+            return value;
+        }
+    } catch (const std::exception &) {
+    }
+    return text;
+}
+
+}  // namespace
+
 void TuringConfigWindow::save_additional_config(const std::string &ping, const std::string &api_key,
                                                 const std::string &lat, const std::string &lon,
                                                 const std::string &unit, const std::string &lang)
 {
     try {
-        config::update_yaml_file(main_directory() / "config.yaml", {
-            {"config", "PING", config::yaml_scalar(ping)},
-            {"config", "WEATHER_API_KEY", config::yaml_scalar(api_key)},
-            {"config", "WEATHER_LATITUDE", config::yaml_scalar(lat)},
-            {"config", "WEATHER_LONGITUDE", config::yaml_scalar(lon)},
-            {"config", "WEATHER_UNITS", config::yaml_scalar(unit)},
-            {"config", "WEATHER_LANGUAGE", config::yaml_scalar(lang)},
+        config::update_json_file(main_directory() / "config.json", {
+            {"config", "PING", (ping)},
+            {"config", "WEATHER_API_KEY", (api_key)},
+            {"config", "WEATHER_LATITUDE", coordinate_value(lat)},
+            {"config", "WEATHER_LONGITUDE", coordinate_value(lon)},
+            {"config", "WEATHER_UNITS", (unit)},
+            {"config", "WEATHER_LANGUAGE", (lang)},
         });
     } catch (const std::exception &e) {
         show_error(e.what());
@@ -947,10 +965,9 @@ void MoreConfigWindow::show_window()
     present();
 }
 
-void MoreConfigWindow::load_config_values(const YAML::Node &cfg)
+void MoreConfigWindow::load_config_values(const config::Json &cfg)
 {
-    const YAML::Node &c = cfg;
-    const YAML::Node conf = c["config"];
+    const config::Json conf = config::section(cfg, "config");
     ping_entry.set_text(config::get(conf, "PING", "8.8.8.8"));
     api_entry.set_text(config::get(conf, "WEATHER_API_KEY", ""));
     lat_entry.set_text(config::get(conf, "WEATHER_LATITUDE", "45.75"));

@@ -845,7 +845,7 @@ sensors::Net::Stats Net::stats(const std::string &if_name, std::optional<double>
     }
 
     if (!pnic_after) {
-        logger.warning("Network interface '{}' not found. Check names in config.yaml.", if_name);
+        logger.warning("Network interface '{}' not found. Check names in config.json.", if_name);
         return result;
     }
 

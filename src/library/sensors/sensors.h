@@ -155,7 +155,7 @@ public:
     virtual Stats stats(const std::string &if_name, std::optional<double> interval) = 0;
 };
 
-/** @brief A set of sensors (selected by HW_SENSORS in config.yaml) */
+/** @brief A set of sensors (selected by HW_SENSORS in config.json) */
 struct Sensors
 {
     /** @brief CPU sensors. */

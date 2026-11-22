@@ -77,7 +77,7 @@ There are 2 possible uses of this project:
 Build dependencies (Ubuntu 26.04 LTS packages):
 
 ```bash
-sudo apt install build-essential pkg-config libyaml-cpp-dev libfreetype-dev libharfbuzz-dev libglib2.0-dev \
+sudo apt install build-essential pkg-config libyaml-cpp-dev nlohmann-json3-dev libfreetype-dev libharfbuzz-dev libglib2.0-dev \
   libpng-dev libjpeg-dev libusb-1.0-0-dev libcurl4-openssl-dev libicu-dev libgtkmm-4.0-dev libgtest-dev
 ```
 
@@ -85,7 +85,7 @@ Build every program and tool, then run them from the project directory:
 
 ```bash
 make                          # build into build/bin/
-build/bin/configure           # configuration GUI (writes config.yaml)
+build/bin/configure           # configuration GUI (writes config.json)
 build/bin/main                # system monitor
 build/bin/theme-editor        # theme editor
 build/bin/simple-program      # display API example
@@ -102,7 +102,7 @@ Some themes are already included for a quick start!
 <img src="res/docs/config_wizard.png"/>  
 
 * Linux only: tested on Ubuntu 26.04 LTS. Built from source with `make`.
-* Display configuration using GUI configuration wizard or `config.yaml` file: no code to edit.
+* Display configuration using GUI configuration wizard or `config.json` file: no code to edit. Every key is described in [README.config](README.config).
 * Compatible with [multiple smart screen models (Turing, XuanFang...)](https://github.com/mathoudebine/turing-smart-screen-python/wiki/Hardware-revisions). Backplate RGB LEDs are also supported for available models!
 * Support [multiple hardware sensors and metrics (CPU/GPU usage, temperatures, memory, disks, etc)](https://github.com/mathoudebine/turing-smart-screen-python/wiki/System-monitor-:-themes#stats-entry) with configurable refresh intervals.
 * Allow [creation of themes (see `res/themes`) with `theme.yaml` files using theme editor](https://github.com/mathoudebine/turing-smart-screen-python/wiki/System-monitor-:-themes) to be [shared with the community!](https://github.com/mathoudebine/turing-smart-screen-python/discussions/categories/themes)

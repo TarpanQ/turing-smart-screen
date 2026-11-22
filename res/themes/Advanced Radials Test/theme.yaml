@@ -4,7 +4,7 @@ display:
   # Specify the display size in inch for this theme: 3.5" (default) or 5"
   DISPLAY_SIZE: 3.5"
 
-  # Specify the display orientation for this theme: portrait or landscape (reverse orientation is managed in config.yaml)
+  # Specify the display orientation for this theme: portrait or landscape (reverse orientation is managed in config.json)
   DISPLAY_ORIENTATION: landscape
 
   # Backplate RGB LED color (for HW revision 'flagship' devices only), set one that match your theme dominant color

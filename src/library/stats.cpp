@@ -191,12 +191,12 @@ std::string format_datetime(std::time_t timestamp, const std::string &format, co
 
 void init()
 {
-    const YAML::Node &cfg = config::CONFIG_DATA;
-    ETH_CARD = config::get(cfg["config"], "ETH", "");
-    WLO_CARD = config::get(cfg["config"], "WLO", "");
-    HW_SENSORS = config::get(cfg["config"], "HW_SENSORS", "AUTO");
-    CPU_FAN = config::get(cfg["config"], "CPU_FAN", "AUTO");
-    PING_DEST = config::get(cfg["config"], "PING", "127.0.0.1");
+    const config::Json &cfg = config::CONFIG_DATA;
+    ETH_CARD = config::get(config::section(cfg, "config"), "ETH", "");
+    WLO_CARD = config::get(config::section(cfg, "config"), "WLO", "");
+    HW_SENSORS = config::get(config::section(cfg, "config"), "HW_SENSORS", "AUTO");
+    CPU_FAN = config::get(config::section(cfg, "config"), "CPU_FAN", "AUTO");
+    PING_DEST = config::get(config::section(cfg, "config"), "PING", "127.0.0.1");
 
     if (HW_SENSORS == "PYTHON" || HW_SENSORS == "AUTO") {
         sensors = sensors_python::create();
@@ -210,7 +210,7 @@ void init()
         logger.warning("Stub sensors, not real HW sensors");
         sensors = sensors_stub_static::create();
     } else {
-        logger.error("Unsupported HW_SENSORS value in config.yaml");
+        logger.error("Unsupported HW_SENSORS value in config.json");
         std::_Exit(1);
     }
 
@@ -951,12 +951,12 @@ void Weather::stats()
         humidity = "45%";
     } else {
         // API Parameters
-        const YAML::Node &cfg = config::CONFIG_DATA;
-        const std::string lat = config::get(cfg["config"], "WEATHER_LATITUDE", "");
-        const std::string lon = config::get(cfg["config"], "WEATHER_LONGITUDE", "");
-        const std::string api_key = config::get(cfg["config"], "WEATHER_API_KEY", "");
-        const std::string units = config::get(cfg["config"], "WEATHER_UNITS", "metric");
-        const std::string lang = config::get(cfg["config"], "WEATHER_LANGUAGE", "en");
+        const config::Json &cfg = config::CONFIG_DATA;
+        const std::string lat = config::get(config::section(cfg, "config"), "WEATHER_LATITUDE", "");
+        const std::string lon = config::get(config::section(cfg, "config"), "WEATHER_LONGITUDE", "");
+        const std::string api_key = config::get(config::section(cfg, "config"), "WEATHER_API_KEY", "");
+        const std::string units = config::get(config::section(cfg, "config"), "WEATHER_UNITS", "metric");
+        const std::string lang = config::get(config::section(cfg, "config"), "WEATHER_LANGUAGE", "en");
         const auto unit_it = WEATHER_UNITS.find(units);
         const std::string deg = unit_it != WEATHER_UNITS.end() ? unit_it->second : "°?";
         if (!api_key.empty()) {
@@ -1002,7 +1002,7 @@ void Weather::stats()
                 desc = "Error fetching OpenWeatherMap API";
             }
         } else {
-            logger.warning("No OpenWeatherMap API key provided in config.yaml");
+            logger.warning("No OpenWeatherMap API key provided in config.json");
             desc = "No OpenWeatherMap API key";
         }
     }

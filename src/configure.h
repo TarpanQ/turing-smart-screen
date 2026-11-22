@@ -20,7 +20,7 @@
 
 /**
  * @file configure.h
- * @brief The system monitor configuration GUI (GTK 4 with gtkmm). Values are written to config.yaml keeping its comments and formatting.
+ * @brief The system monitor configuration GUI (GTK 4 with gtkmm). Values are written to config.json, see README.config for their meaning.
  */
 
 #pragma once
@@ -31,6 +31,8 @@
 
 #include <gtkmm.h>
 #include <yaml-cpp/yaml.h>
+
+#include "library/config.h"
 
 /** @brief Drop-down list of strings (replaces ttk.Combobox in read-only mode) */
 class StringDropDown : public Gtk::DropDown
@@ -72,7 +74,7 @@ public:
     explicit MoreConfigWindow(TuringConfigWindow &main_window);
 
     /** @brief Fill the fields with the values of the configuration. */
-    void load_config_values(const YAML::Node &config);
+    void load_config_values(const config::Json &cfg);
     /** @brief Show the window. */
     void show_window();
 
@@ -107,7 +109,7 @@ class TuringConfigWindow : public Gtk::ApplicationWindow
 public:
     TuringConfigWindow();
 
-    /** @brief Save the additional settings (ping, weather) in config.yaml. */
+    /** @brief Save the additional settings (ping, weather) in config.json. */
     void save_additional_config(const std::string &ping, const std::string &api_key, const std::string &lat,
                                 const std::string &lon, const std::string &unit, const std::string &lang);
 

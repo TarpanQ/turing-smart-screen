@@ -40,7 +40,7 @@ namespace stats {
 /** @brief Default number of values kept for the line graphs. */
 constexpr int DEFAULT_HISTORY_SIZE = 10;
 
-/** @brief Select the sensors from HW_SENSORS in config.yaml. Exits the program if the value is not supported. */
+/** @brief Select the sensors from HW_SENSORS in config.json. Exits the program if the value is not supported. */
 void init();
 
 /** @brief Full path of a file of the theme, std::nullopt if no name */

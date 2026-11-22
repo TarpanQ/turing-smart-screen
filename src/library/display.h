@@ -20,7 +20,7 @@
 
 /**
  * @file display.h
- * @brief Creates the LCD driver selected by REVISION in config.yaml, and displays the static images and texts of the theme.
+ * @brief Creates the LCD driver selected by REVISION in config.json, and displays the static images and texts of the theme.
  */
 
 #pragma once
@@ -52,7 +52,7 @@ public:
     std::unique_ptr<LcdComm> lcd;
 };
 
-/** @brief Theme orientation, from the theme DISPLAY_ORIENTATION and config.yaml DISPLAY_REVERSE */
+/** @brief Theme orientation, from the theme DISPLAY_ORIENTATION and config.json DISPLAY_REVERSE */
 Orientation get_theme_orientation();
 
 /** @brief Display (width, height) in portrait orientation, from the theme DISPLAY_SIZE */

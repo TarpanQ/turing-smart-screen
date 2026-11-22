@@ -219,7 +219,7 @@ int main(int argc, char *argv[])
     }
 
     try {
-        // Load config.yaml and the theme
+        // Load config.json and the theme
         config::init();
 
         // Initialize the display
