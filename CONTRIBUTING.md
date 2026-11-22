@@ -43,7 +43,7 @@ If you then still feel the need to ask a question and need clarification, we rec
 
 - Open a [Discussion](https://github.com/mathoudebine/turing-smart-screen-python/discussions/new).
 - Provide as much context as you can about what you're running into.
-- Provide project and platform versions (Python, OS, etc), depending on what seems relevant.
+- Provide project and platform versions (compiler, OS, etc), depending on what seems relevant.
 
 ## I Want To Contribute
 
@@ -63,9 +63,9 @@ A good bug report shouldn't leave others needing to chase you up for more inform
 - You can also search for similar issues in the [Discussion space](https://github.com/mathoudebine/turing-smart-screen-python/discussions/) and check the [Troubleshooting guide](https://github.com/mathoudebine/turing-smart-screen-python/wiki/Troubleshooting)
 - Also make sure to search the internet (including Stack Overflow) to see if users outside of the GitHub community have discussed the issue.
 - Collect information about the bug:
-  - Stack trace (Traceback from console output)
-  - OS, Platform and Version (Windows, Linux, macOS, x86, ARM)
-  - Version of this project, Python interpreter.
+  - Error messages and the end of `log.log` or of the console output
+  - OS, Platform and Version (Ubuntu version, x86, ARM)
+  - Version of this project (commit or release), compiler version (`g++ --version`).
   - Can you reliably reproduce the issue? And can you also reproduce it with older versions?
 
 <!-- omit in toc -->
@@ -108,10 +108,16 @@ This section guides you through submitting an enhancement suggestion for Turing 
 
 
 ### Your First Code Contribution
-<!-- TODO
-include Setup of env, IDE and typical getting started instructions?
+The project is written in C++20 and targets Linux only (Ubuntu 26.04 LTS). To build and test it, follow the [Build and run](README.md#build-and-run) section of the README.
 
--->
+Before you change code, read [AGENTS.md](AGENTS.md), which describes the layout of the sources and the conventions:
+
+- Sources are in `src/`, unit tests in `tests/cpp/` (GoogleTest). Run `make test` before submitting.
+- Each `.h` / `.cpp` pair has the same base name as the file it replaces.
+- Comments use the [Doxygen](https://www.doxygen.nl/) format (`@file`, `@brief`, `@param`, `@return`, ...).
+- Every source file starts with the `SPDX-License-Identifier: GPL-3.0-or-later` header.
+- Keep each pull request small and focused on one topic.
+
 
 ### Improving The Documentation
 <!-- TODO

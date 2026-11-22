@@ -27,8 +27,8 @@ You can drag and drop photos here to add them to the description.
 
 **Environment:**  
  - Revision of this project [e.g. 3.7.0, `main` branch, specific commit]
- - OS with version [e.g. Windows 11, Ubuntu 22.04]
- - Python version [e.g. Python 3.13]
+ - OS with version [e.g. Ubuntu 26.04]
+ - g++ version [e.g. g++ 15.2]
  - Hardware [e.g. Intel CPU, Nvidia GPU, Raspberry Pi 5 ...]
 
 **Additional context**  

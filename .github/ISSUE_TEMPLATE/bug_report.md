@@ -37,8 +37,8 @@ You can drag and drop photos here to add them to the description.
 **Environment:**  
  - Smart screen model [e.g. Turing 5", XuanFang 3.5”]
  - Revision of this project [e.g. 3.0.0, `main` branch, specific commit]
- - OS with version [e.g. Windows 11, Ubuntu 22.04]
- - Python version [e.g. Python 3.10]
+ - OS with version [e.g. Ubuntu 26.04]
+ - g++ version [e.g. g++ 15.2]
  - Hardware [e.g. Intel CPU, Nvidia GPU, Raspberry Pi 3 B+ ...]
 
 **Additional context**  

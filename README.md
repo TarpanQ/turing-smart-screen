@@ -8,11 +8,11 @@
 > * for Turing Smart Screen, use the official forum here: http://discuz.turzx.com/
 > * for other smart screens, contact your reseller
 
-![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black) ![Windows](https://img.shields.io/badge/Windows%2010%2F11-0078D6?style=for-the-badge&logoColor=white&logo=data:image/svg%2bxml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+V2luZG93czwvdGl0bGU+PHBhdGggZmlsbCA9ICIjRkZGRkZGIiBkPSJNMCwwSDExLjM3N1YxMS4zNzJIMFpNMTIuNjIzLDBIMjRWMTEuMzcySDEyLjYyM1pNMCwxMi42MjNIMTEuMzc3VjI0SDBabTEyLjYyMywwSDI0VjI0SDEyLjYyMyIvPjwvc3ZnPg==) [![macOS](https://img.shields.io/badge/mac%20os%20(⚠️major%20bug)-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/mathoudebine/turing-smart-screen-python/issues/7) ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-A22846?style=for-the-badge&logo=Raspberry%20Pi&logoColor=white) ![Python](https://img.shields.io/badge/Python-3.X-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) [![Licence](https://img.shields.io/github/license/mathoudebine/turing-smart-screen-python?style=for-the-badge)](./LICENSE)
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black) ![C++](https://img.shields.io/badge/C%2B%2B20-00599C?style=for-the-badge&logo=cplusplus&logoColor=white) [![Licence](https://img.shields.io/github/license/mathoudebine/turing-smart-screen-python?style=for-the-badge)](./LICENSE)
   
-A Python system monitor program and an abstraction library for **small IPS USB-C displays.**    
+A C++ system monitor program and an abstraction library for **small IPS USB-C displays.**    
 
-Supported operating systems : macOS, Windows, Linux (incl. Raspberry Pi), basically all OS that support Python 3.9+  
+Supported operating system : Linux (Ubuntu 26.04 LTS target). Windows and macOS are not supported by the C++ version.  
 
 ### ✅ Supported smart screens models:
 
@@ -67,10 +67,32 @@ If you haven't received your screen yet but want to start developing your theme 
 
 ### [> Follow instructions on the wiki to configure and start this project.](https://github.com/mathoudebine/turing-smart-screen-python/wiki)
 
-There are 2 possible uses of this project Python code:
+There are 2 possible uses of this project:
 * **[as a System Monitor](#system-monitor)**, a standalone program working with themes to display your computer HW info and custom data in an elegant way.
 [Check if your hardware is supported.](https://github.com/mathoudebine/turing-smart-screen-python/wiki/System-monitor-:-hardware-support)
-* **[integrated in your project](#control-the-display-from-your-python-projects)**, to fully control the display from your own Python code.
+* **[integrated in your project](#control-the-display-from-your-c-projects)**, to fully control the display from your own C++ code.
+
+## Build and run
+
+Build dependencies (Ubuntu 26.04 LTS packages):
+
+```bash
+sudo apt install build-essential pkg-config libyaml-cpp-dev libfreetype-dev libharfbuzz-dev libglib2.0-dev \
+  libpng-dev libjpeg-dev libusb-1.0-0-dev libcurl4-openssl-dev libicu-dev libgtkmm-4.0-dev libgtest-dev
+```
+
+Build every program and tool, then run them from the project directory:
+
+```bash
+make                          # build into build/bin/
+build/bin/configure           # configuration GUI (writes config.yaml)
+build/bin/main                # system monitor
+build/bin/theme-editor        # theme editor
+build/bin/simple-program      # display API example
+make test                     # unit tests
+```
+
+`make deps` checks that all build dependencies are installed. The header of the `Makefile` lists all targets and options (for example `make DEBUG=1`).
 
 ## System monitor
 
@@ -79,14 +101,14 @@ Some themes are already included for a quick start!
 ### [> Configure and start system monitor](https://github.com/mathoudebine/turing-smart-screen-python/wiki/System-monitor-:-how-to-start)
 <img src="res/docs/config_wizard.png"/>  
 
-* Fully functional multi-OS code base (operates out of the box, tested on Windows, Linux & MacOS).
-* Display configuration using GUI configuration wizard or `config.yaml` file: no Python code to edit.
+* Linux only: tested on Ubuntu 26.04 LTS. Built from source with `make`.
+* Display configuration using GUI configuration wizard or `config.yaml` file: no code to edit.
 * Compatible with [multiple smart screen models (Turing, XuanFang...)](https://github.com/mathoudebine/turing-smart-screen-python/wiki/Hardware-revisions). Backplate RGB LEDs are also supported for available models!
 * Support [multiple hardware sensors and metrics (CPU/GPU usage, temperatures, memory, disks, etc)](https://github.com/mathoudebine/turing-smart-screen-python/wiki/System-monitor-:-themes#stats-entry) with configurable refresh intervals.
 * Allow [creation of themes (see `res/themes`) with `theme.yaml` files using theme editor](https://github.com/mathoudebine/turing-smart-screen-python/wiki/System-monitor-:-themes) to be [shared with the community!](https://github.com/mathoudebine/turing-smart-screen-python/discussions/categories/themes)
-* Easy to expand: [custom Python data sources](https://github.com/mathoudebine/turing-smart-screen-python/wiki/System-monitor-:-themes#add-custom-stats-to-a-theme) can be written to pull specific information and display it on themes like any other sensor.
+* Easy to expand: [custom data sources](https://github.com/mathoudebine/turing-smart-screen-python/wiki/System-monitor-:-themes#add-custom-stats-to-a-theme) can be written to pull specific information and display it on themes like any other sensor. In the C++ version they are classes in `src/library/sensors/sensors_custom.cpp`, registered in `custom_data_sources()`: rebuild after adding one.
 * Auto-detect COM port based on the selected smart screen model.
-* Tray icon with Exit option, useful when the program is running in background.
+* Tray icon with Configure and Exit options, useful when the program is running in background.
 
 ### [> List and preview of included themes](res/themes/themes.md)
 <img src="res/themes/3.5inchTheme2/preview.png" height="150" /> <img src="res/themes/Terminal/preview.png" height="150" /> <img src="res/themes/Cyberpunk-net/preview.png" height="150" /> <img src="res/themes/bash-dark-green-gpu/preview.png" height="150" /> <img src="res/themes/Landscape6Grid/preview.png" width="150" /> <img src="res/themes/LandscapeMagicBlue/preview.png" width="150" /> <img src="res/themes/LandscapeEarth/preview.png" width="150" /> ... [view full list](res/themes/themes.md)
@@ -95,9 +117,9 @@ Some themes are already included for a quick start!
 <img src="https://user-images.githubusercontent.com/79225820/203648707-6f043068-5c9d-454d-9c0a-3d9ea02ece77.jpg" height="150" /> <img src="https://user-images.githubusercontent.com/121983479/210663324-994c987a-6489-4482-8883-db74ef566014.jpg" height="150" />
 <img src="https://user-images.githubusercontent.com/120036534/208128675-897f60cd-5647-40b7-b074-b56b67e775dd.png" height="150" /> <img src="https://user-images.githubusercontent.com/65172896/217549510-149913ac-ef4e-4f61-8f5e-6d768483a02c.png" height="150" /> and more... Share yours!
 
-## Control the display from your Python projects
+## Control the display from your C++ projects
 
-If you don't want to use your screen for system monitoring, you can just use this project as a module from any Python code to do some simple operations on the display:
+If you don't want to use your screen for system monitoring, you can just use this project as a library from any C++ code to do some simple operations on the display:
 - **Display custom picture**
 - **Display text**
 - **Display horizontal / radial progress bar**
@@ -109,7 +131,7 @@ If you don't want to use your screen for system monitoring, you can just use thi
 - Set backplate RGB LEDs color (on supported hardware rev.) 
 
 This project will act as an abstraction library to handle specific protocols and capabilities of each supported smart screen models in a transparent way for the user.
-Check `simple-program.py` as an example.
+Check `src/simple-program.cpp` as an example. The library is built as `build/libturing.a`.
 
 ### [> Control the display from your code](https://github.com/mathoudebine/turing-smart-screen-python/wiki/Control-screen-from-your-own-code)
 

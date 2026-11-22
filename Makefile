@@ -6,9 +6,9 @@
 # Build system for the C++ port (target platform: Ubuntu 26.04 LTS).
 #
 #   make              build every program into build/bin/
-#   make main         build only the system monitor (main.py)
-#   make configure    build only the configuration GUI (configure.py)
-#   make tools        build only the tools (tools/, res/themes/scale_theme.py, res/fonts/font-preview.py)
+#   make main         build only the system monitor (src/main.cpp)
+#   make configure    build only the configuration GUI (src/configure.cpp)
+#   make tools        build only the tools (src/tools/)
 #   make test         build and run the unit tests
 #   make deps         check that all build dependencies are installed
 #   make clean        remove build/
@@ -55,12 +55,12 @@ ALL_CPPFLAGS = -I$(SRC_DIR) -MMD -MP $(CPPFLAGS)
 ALL_CXXFLAGS = $(CXXSTD) $(WARNINGS) $(OPTFLAGS) $(LIB_CFLAGS) $(CXXFLAGS)
 ALL_LDLIBS   = $(LDLIBS) $(LIB_LIBS) -pthread
 
-# Shared library code (library/ in Python), linked into every program
+# Shared library code (src/library/), linked into every program
 LIB_SRCS := $(shell find $(SRC_DIR)/library -name '*.cpp' 2>/dev/null)
 LIB_OBJS := $(LIB_SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 LIB_A    := $(BUILD_DIR)/libturing.a
 
-# Programs: one entry point per Python application file
+# Programs: one entry point per application
 MAIN_OBJS           := $(OBJ_DIR)/main.o
 CONFIGURE_OBJS      := $(OBJ_DIR)/configure.o
 THEME_EDITOR_OBJS   := $(OBJ_DIR)/theme-editor.o
@@ -72,7 +72,7 @@ PROGRAMS := $(BIN_DIR)/main $(BIN_DIR)/configure $(BIN_DIR)/theme-editor $(BIN_D
 TOOL_SRCS := $(wildcard $(SRC_DIR)/tools/*.cpp)
 TOOLS     := $(TOOL_SRCS:$(SRC_DIR)/tools/%.cpp=$(BIN_DIR)/%)
 
-# Unit tests (tests/ in Python)
+# Unit tests (tests/cpp/)
 TEST_SRCS := $(shell find $(TEST_DIR) -name '*.cpp' 2>/dev/null)
 TEST_OBJS := $(TEST_SRCS:$(TEST_DIR)/%.cpp=$(OBJ_DIR)/tests/%.o)
 TEST_BIN  := $(BIN_DIR)/unit-tests

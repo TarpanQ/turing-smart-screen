@@ -1,77 +1,84 @@
 # AGENTS.md
 
-## C++ Port (in progress)
-- The Python code is being converted to C++. Target platform: **Linux only (Ubuntu 26.04 LTS)**; Windows and macOS support is dropped in the C++ code.
-- C++ sources live in `src/` (`src/library/` mirrors `library/`, `src/tools/` mirrors `tools/`); C++ unit tests live in `tests/cpp/` (GoogleTest).
-- Wherever possible, one Python file becomes one `.h` + `.cpp` pair with the same base name (program entry points such as `main.cpp` have no header).
-- Build with the root `Makefile` (C++20, g++, dependencies found with `pkg-config`): `make deps`, `make`, `make test`, `make clean`. Programs are built into `build/bin/` (`main`, `configure`, `theme-editor`, `simple-program`, and the tools: `make tools`). Each `src/tools/*.cpp` file is a tool program; `res/themes/scale_theme.py` and `res/fonts/font-preview.py` are also ported there.
+## Project
+- System monitor for USB-C/TFT displays (Turing, XuanFang, Kipye, WeAct) with 3 programs: the system monitor (`main`), the configuration GUI (`configure`) and the theme editor (`theme-editor`), plus a display API example (`simple-program`).
+- Target platform: **Linux only (Ubuntu 26.04 LTS)**. Windows and macOS are not supported.
+- The design separates **sensor collection**, **theme rendering** and **hardware driver**, so display revisions can be added without changing business logic.
+
+## Layout
+- C++ sources live in `src/`. `src/library/` holds the shared library, linked into every program; `src/tools/` holds one program per file.
+- Entry points: `src/main.cpp`, `src/configure.cpp`, `src/theme-editor.cpp`, `src/simple-program.cpp` (no header).
+- Each other `.cpp` file has a `.h` file with the same base name, in the same directory.
+- Unit tests live in `tests/cpp/` (GoogleTest), with the same layout as `src/library/`.
+- `config.yaml` and `res/` (themes, fonts, images) are user data and resources, used as-is by the programs.
+- Not converted and kept: `library/pythoncheck.py`, `library/sensors/sensors_librehardwaremonitor.py` (Windows only), `tools/windows-installer/`, `external/LibreHardwareMonitor/`.
+
+## Build and tests
+- Build with the root `Makefile` (C++20, g++, dependencies found with `pkg-config`): `make deps` checks the dependencies, `make` builds everything, `make test` runs the unit tests, `make clean` removes `build/`.
+- Programs are built into `build/bin/`: `main`, `configure`, `theme-editor`, `simple-program`, and the tools (`make tools`).
+- `make DEBUG=1` builds without optimizations and with debug symbols.
 - GUI programs (`configure`, `theme-editor`) use GTK 4 through gtkmm-4.0.
-- Files without Python counterpart replace Python dependencies: `src/library/lcd/image` (Pillow `Image`/`ImageDraw`), `src/library/lcd/font` (Pillow `ImageFont` with raqm: FreeType + HarfBuzz), `src/library/lcd/serial_port` (pyserial, termios), `src/library/ping` (ping3, ICMP socket), `src/library/tray_icon` (pystray: StatusNotifierItem + dbusmenu over D-Bus with GIO).
-- `src/library/sensors/sensors_python` keeps its name (selected by `HW_SENSORS: PYTHON`/`AUTO`) but reads Linux `/proc` and `/sys` directly instead of psutil/GPUtil/pyamdgpuinfo, plus NVIDIA NVML loaded at runtime. Custom sensors (`sensors_custom`) are C++ classes registered in `custom_data_sources()`: adding one requires rebuilding.
-- The library is initialized explicitly with `config::init()` (Python loads it on import); theme values are read with `config::get()` / `config::get_color()`, which return the default value for missing or empty keys.
-- `configure` writes `config.yaml` with `config::update_yaml_file()`, which only replaces the changed values and keeps comments and formatting (like ruamel.yaml in Python).
-- The rendering does not need to be pixel-identical to the Python/Pillow version, only close to it.
-- `config.yaml` and `res/` (themes, fonts, images) are shared, unchanged, by the Python and C++ versions.
-- The Python code stays complete and working until the C++ programs work end-to-end; then every converted Python file is deleted in one cleanup step. Until then, the Python sections below still describe the reference implementation, and the cross-platform rule applies to Python code only.
-- Display drivers are tested without hardware: `LcdComm::serial_factory` replaces the serial port by `MockSerial` (`tests/cpp/library/lcd/serial_mock.h`), and the recorded data is compared with the Python golden files (`tests/library/lcd/golden/`, revisions A, B, D) or with FNV-1a hashes of the current Python drivers output (revision C, whose golden files are outdated, and WeAct A/B).
-- Not converted: `library/pythoncheck.py`, `library/sensors/sensors_librehardwaremonitor.py` (Windows only), `tools/windows-installer/`, and the H.264 video / file upload helpers of `library/lcd/lcd_comm_turing_usb.py` (not used by the programs).
+- Build dependencies (Ubuntu packages): see the `Makefile` header and the README.
 
-## Project Goal
-- Python system monitor for USB-C/TFT displays (Turing, XuanFang, Kipye, WeAct) with 3 usage modes: main app (`main.py`), config tool (`configure.py`), and theme editor (`theme-editor.py`).
-- The design clearly separates **sensor collection**, **theme rendering**, and **hardware driver** so multiple display revisions can be supported without changing business logic.
+## Essential architecture (read before coding)
+- **Entry point**: `src/main.cpp` loads the configuration, initializes the display, starts the scheduler, the tray icon and the OS signal handling.
+- **Central config**: `src/library/config.cpp` loads `config.yaml`, then `res/themes/<THEME>/theme.yaml`, with default values for missing keys. The library is initialized explicitly with `config::init()`. Theme values are read with `config::get()` / `config::get_color()`, which return the default value for missing or empty keys.
+- **Configuration writing**: `config::update_yaml_file()` replaces only the changed values and keeps comments and formatting.
+- **LCD driver factory**: `src/library/display.cpp` selects the implementation via `REVISION` (`A/B/C/D/TUR_USB/WEACT_A/WEACT_B/SIMU`).
+- **Hardware drivers**: `src/library/lcd/` contains the `LcdComm*` classes (serial/USB) with a common API (`InitializeComm`, `DisplayBitmap`, `DisplayText`, `SetBrightness`, etc.).
+- **Sensors and stats rendering**: `src/library/stats.cpp` collects metrics (CPU/GPU/RAM/disk/net/weather) and applies theme styles. Sensors are in `src/library/sensors/`.
+- **Scheduling**: `src/library/scheduler.cpp` runs one thread per periodic job, plus a queue thread that serializes writes to the display.
+- **Helpers replacing third-party dependencies**: `src/library/lcd/image` (image drawing, PNG/JPEG), `src/library/lcd/font` (FreeType + HarfBuzz text shaping), `src/library/lcd/serial_port` (termios), `src/library/ping` (ICMP socket), `src/library/tray_icon` (StatusNotifierItem + dbusmenu over D-Bus with GIO).
+- **Sensors**: `sensors_python` (selected by `HW_SENSORS: PYTHON` or `AUTO`) reads Linux `/proc` and `/sys` directly, plus NVIDIA NVML loaded at runtime. Custom sensors (`sensors_custom`) are C++ classes registered in `custom_data_sources()`: adding one requires rebuilding.
 
-## Essential Architecture (read before coding)
-- **Application entry point**: `main.py` orchestrates initialization, scheduler loop, tray icon, and OS signals.
-- **Central config**: `library/config.py` loads `config.yaml`, then `res/themes/<THEME>/theme.yaml` with fallback to defaults.
-- **LCD driver factory**: `library/display.py` selects the implementation via `REVISION` (`A/B/C/D/TUR_USB/WEACT_A/WEACT_B/SIMU`).
-- **Hardware drivers**: `library/lcd/` contains `LcdComm*` classes (serial/USB) with a uniform API (`InitializeComm`, `DisplayBitmap`, `DisplayText`, `SetBrightness`, etc.).
-- **Sensors and stats rendering**: `library/stats.py` collects metrics (CPU/GPU/RAM/disk/net/weather) and applies theme styles.
-- **Scheduling**: `library/scheduler.py` uses decorators (`@schedule`, `@async_job`) plus a queue to serialize writes to the display.
+## Data flow (practical)
+- `config.yaml` selects the hardware, the theme and the options.
+- `src/library/stats.cpp` retrieves values based on `HW_SENSORS` (`AUTO`, `PYTHON`, `STUB`, ...).
+- `src/library/display.cpp` and the `LcdComm*` driver convert images and text, then push them to the display.
+- Dev mode without hardware: `REVISION: SIMU` writes a capture (`screencap.png`) through `src/library/lcd/lcd_simulated.cpp`.
 
-## Data Flow (practical)
-- `config.yaml` -> selects hardware/theme/options.
-- `library/stats.py` -> retrieves values based on `HW_SENSORS` (`AUTO`, `PYTHON`, `LHM`, `STUB`).
-- `library/display.py` + `LcdComm*` driver -> converts to image/text and pushes to the display.
-- Dev mode without hardware: `REVISION: SIMU` writes a capture (`screencap.png`) through `library/lcd/lcd_simulated.py`.
+## Testing without hardware
+- `LcdComm::serial_factory` replaces the serial port by `MockSerial` (`tests/cpp/library/lcd/serial_mock.h`). The data sent is compared with golden files (`tests/library/lcd/golden/`, revisions A, B, D) or with FNV-1a hashes (revision C, and WeAct A/B).
+- The golden files are plain text files shared by the tests; keep them unchanged unless the display protocol changes.
 
-## Critical Developer Workflows
-- Install dependencies: `pip install -r requirements.txt`.
-- Run app: `python main.py`.
-- Configure via GUI: `python configure.py`.
-- LCD API usage example: `python simple-program.py`.
-- Windows packaging: `pyinstaller turing-system-monitor.spec` (bundles `main`, `configure`, `theme-editor`, `res/`, `external/`, `config.yaml`).
+## Documentation conventions (Doxygen)
+- Every header and source file starts with the `@file` block and the SPDX header:
+  ```cpp
+  // SPDX-License-Identifier: GPL-3.0-or-later
+  /**
+   * @file config.h
+   * @brief Short description of the file.
+   */
+  ```
+- Classes, structs, enums, functions and public members have a `/** ... */` comment with `@brief`. Add `@param`, `@return` and `@throws` when they are not obvious from the name and the signature.
+- Use `///<` for short comments after a member, and `//` only for implementation details inside a function body.
+- Keep the comments in sync with the code when you change a function.
 
-## Repository-Specific Conventions
-- License header expected in `.py` files: `SPDX-License-Identifier: GPL-3.0-or-later` (see `main.py`).
-- YAML-first configuration: avoid hardcoding; add options in `config.yaml` first, then load them in `library/config.py`.
-- The project is multi-platform (Windows, macOS, Linux): new code must remain compatible across these platforms.
-- Platform-specific code blocks are allowed when required, but prefer direct cross-platform implementations whenever possible.
-- Hardware routing goes through `REVISION`; do not add a new revision outside the factory in `library/display.py`.
-- Periodic updates go through `library/scheduler.py` (avoid ad-hoc parallel loops that write to the device).
-- UI rendering depends on theme keys (example structure in `res/themes/default.yaml`): keep schema compatibility.
+## Repository-specific conventions
+- YAML-first configuration: avoid hardcoding. Add options to `config.yaml` first, then load them in `src/library/config.cpp`.
+- Hardware routing goes through `REVISION`: do not add a new revision outside the factory in `src/library/display.cpp`.
+- Periodic updates go through `src/library/scheduler.cpp`: avoid ad-hoc threads that write to the device.
+- UI rendering depends on theme keys (example structure in `res/themes/default.yaml`): keep the schema compatible.
+- The rendering does not need to be pixel-identical to the former Pillow-based version, only close to it.
 
-## PR Change Policy
-- Keep pull request changes as limited and focused as possible; avoid broad refactors unless explicitly requested.
-- This repository has many users, forks, and open PRs: prefer minimal diffs to reduce merge conflicts and downstream breakage.
-- If changes touch different topics, split them into multiple PRs (one topic per PR).
-- If a PR is large, split it into several smaller PRs that can be reviewed and merged independently.
-- Assume every PR is reviewed by a human maintainer; write clear, reviewable commits and preserve existing behavior by default.
-- Breaking changes are unlikely to be merged; maintain backward compatibility unless a maintainer explicitly approves a compatibility break.
+## PR change policy
+- Keep pull requests limited and focused; avoid broad refactors unless explicitly requested.
+- Prefer minimal diffs to reduce merge conflicts and downstream breakage.
+- Split changes on different topics into separate PRs, and large PRs into smaller independent ones.
+- Breaking changes are unlikely to be merged: maintain backward compatibility unless a maintainer explicitly approves a break.
 
-## Important External Integrations
-- `pyserial` for serial displays (A/B/C/D, WeAct), `pyusb` for Turing USB models.
-- Advanced Windows sensors: `pythonnet` + DLLs in `external/LibreHardwareMonitor/`.
-- System metrics: `psutil`, `GPUtil`, `pyamdgpuinfo`/`pyadl` depending on OS/GPU.
-- UI stack: `pystray` (tray), `tkinter` + `sv-ttk` (config GUI), `Pillow`/`numpy` (images).
+## External integrations
+- Serial displays: Linux termios. Turing USB models: libusb (DES command encryption implemented in the library).
+- Weather: libcurl (OpenWeatherMap). Dates: ICU (CLDR formats).
+- System metrics: Linux `/proc` and `/sys`; NVIDIA GPUs through NVML loaded at runtime; AMD GPUs through the amdgpu sysfs interface.
+- UI: GTK 4 through gtkmm-4.0 (`configure`, `theme-editor`), GIO/D-Bus (tray icon).
 
-## Reference Files for Changes
-- Runtime orchestration: `main.py`
-- Config/theme loading: `library/config.py`
-- Display selection and dimensions: `library/display.py`
-- Scheduler/periodic jobs: `library/scheduler.py`
-- Sensor collection/rendering: `library/stats.py`
+## Reference files for changes
+- Runtime orchestration: `src/main.cpp`
+- Config/theme loading: `src/library/config.cpp`
+- Display selection and dimensions: `src/library/display.cpp`
+- Scheduler/periodic jobs: `src/library/scheduler.cpp`
+- Sensor collection/rendering: `src/library/stats.cpp`
 - User config schema: `config.yaml`
-- Low-level API example: `simple-program.py`
-- Executable build spec: `turing-system-monitor.spec`
-
-
+- Low-level API example: `src/simple-program.cpp`
+- Build: `Makefile`
