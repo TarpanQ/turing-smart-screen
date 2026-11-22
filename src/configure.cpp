@@ -34,6 +34,7 @@
 #include <set>
 
 #include <curl/curl.h>
+#include <graphene.h>
 #include <ifaddrs.h>
 #include <unicode/locid.h>
 #include <unicode/unistr.h>
@@ -414,11 +415,7 @@ void StringDropDown::set_current(int index)
 // TuringConfigWindow
 
 TuringConfigWindow::TuringConfigWindow()
-    : model_cb(std::vector<std::string>{TURING_MODEL, USBPCMONITOR_MODEL, XUANFANG_MODEL, KIPYE_MODEL, WEACT_MODEL,
-                                        SIMULATED_MODEL}),
-      size_cb(size_list), com_cb(get_com_ports()), orient_cb(map_values(reverse_map)), hwlib_cb(map_values(hw_lib_map)),
-      eth_cb(get_net_if()), wl_cb(get_net_if()), cpu_fan_cb(get_fans()),
-      brightness_slider(Gtk::Adjustment::create(50, 0, 100, 1, 10), Gtk::Orientation::HORIZONTAL),
+    : hwlib_cb(map_values(hw_lib_map)), eth_cb(get_net_if()), wl_cb(get_net_if()), cpu_fan_cb(get_fans()),
       more_config_window(*this)
 {
     set_title("Turing System Monitor configuration");
@@ -428,7 +425,7 @@ TuringConfigWindow::TuringConfigWindow()
     // When window gets focus again, reload theme preview in case it has been updated by theme editor
     property_is_active().signal_changed().connect([this] {
         if (is_active()) {
-            on_theme_change();
+            load_theme_preview();
         }
     });
 
@@ -440,40 +437,33 @@ TuringConfigWindow::TuringConfigWindow()
 
     place(layout, *bold_label("Display configuration"), 370, 0);
 
-    // Display settings are grouped in a tab per display, like the tabs of a web browser (first display: ":0")
-    auto *display_page = Gtk::make_managed<Gtk::Fixed>();
-    auto *display_tabs = Gtk::make_managed<Gtk::Notebook>();
-    display_tabs->append_page(*display_page, ":0");
-    place(layout, *display_tabs, 370, 25, 440, 300);
+    // Display settings: one tab per display of the displays array, named after their index (":0" for the first)
+    place(layout, notebook, 370, 25, 440, 300);
+    notebook.signal_switch_page().connect([this](Gtk::Widget *, guint) {
+        if (!tabs.empty()) {
+            load_theme_preview();
+        }
+    });
 
-    place(*display_page, *Gtk::make_managed<Gtk::Label>("Smart screen model"), 0, 10);
-    model_cb.property_selected().signal_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_model_change));
-    place(*display_page, model_cb, 180, 5, 250);
+    // Right click on a tab opens a menu to add or close displays
+    add_display_action = Gio::SimpleAction::create("add-display");
+    add_display_action->signal_activate().connect([this](const Glib::VariantBase &) { on_add_display(); });
+    add_action(add_display_action);
+    close_display_action = Gio::SimpleAction::create("close-display");
+    close_display_action->signal_activate().connect([this](const Glib::VariantBase &) { on_close_display(); });
+    add_action(close_display_action);
 
-    place(*display_page, *Gtk::make_managed<Gtk::Label>("Smart screen size"), 0, 50);
-    size_cb.property_selected().signal_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_size_change));
-    place(*display_page, size_cb, 180, 45, 250);
+    auto tab_menu_model = Gio::Menu::create();
+    tab_menu_model->append("Ajouter", "win.add-display");
+    tab_menu_model->append("Fermer", "win.close-display");
+    tab_menu = Gtk::make_managed<Gtk::PopoverMenu>(tab_menu_model);
+    tab_menu->set_parent(notebook);
+    tab_menu->set_has_arrow(false);
 
-    place(*display_page, *Gtk::make_managed<Gtk::Label>("COM port"), 0, 90);
-    place(*display_page, com_cb, 180, 85, 250);
-
-    place(*display_page, *Gtk::make_managed<Gtk::Label>("Orientation"), 0, 170);
-    place(*display_page, orient_cb, 180, 165, 250);
-
-    place(*display_page, *Gtk::make_managed<Gtk::Label>("Brightness"), 0, 210);
-    brightness_slider.set_draw_value(false);
-    brightness_slider.signal_value_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_brightness_change));
-    place(*display_page, brightness_slider, 230, 205, 180);
-    place(*display_page, brightness_val_label, 180, 210);
-    brightness_warning_label.set_markup("<span foreground=\"" + ORANGE_TEXT_COLOR +
-                                        "\">⚠ Turing 3.5\" displays can get hot at high brightness!</span>");
-    place(*display_page, brightness_warning_label, 0, 240);
-
-    place(layout, *bold_label("System Monitor Configuration"), 370, 335);
-
-    place(*display_page, *Gtk::make_managed<Gtk::Label>("Theme"), 0, 130);
-    theme_cb.property_selected().signal_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_theme_change));
-    place(*display_page, theme_cb, 180, 125, 250);
+    auto right_click = Gtk::GestureClick::create();
+    right_click->set_button(GDK_BUTTON_SECONDARY);
+    right_click->signal_pressed().connect([this](int, double x, double y) { on_tab_right_click(x, y); });
+    notebook.add_controller(right_click);
 
     place(layout, *Gtk::make_managed<Gtk::Label>("Hardware monitoring"), 370, 362);
     hwlib_cb.property_selected().signal_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_hwlib_change));
@@ -532,7 +522,10 @@ TuringConfigWindow::TuringConfigWindow()
 
 void TuringConfigWindow::load_theme_preview()
 {
-    const std::string theme = theme_cb.get_text();
+    if (tabs.empty()) {
+        return;
+    }
+    const std::string theme = current_tab().theme_cb.get_text();
     const auto theme_data = get_theme_data(theme);
 
     Glib::RefPtr<Gdk::Pixbuf> preview;
@@ -594,23 +587,17 @@ void TuringConfigWindow::load_config_values()
         cfg = config::Json::object();
     }
     const config::Json conf = config::section(cfg, "config");
-    // Display settings: first element of the displays array (defaults if the array is missing)
-    config::DisplayConfig display;
+    // One tab per display of the displays array (a default display if the array is missing)
+    std::vector<config::DisplayConfig> displays;
     try {
-        display = config::load_displays(cfg).front();
+        displays = config::load_displays(cfg);
     } catch (const std::exception &) {
+        displays.emplace_back();
     }
-
-    // Check if theme is valid
-    std::string theme = display.theme;
-    if (!get_theme_data(theme)) {
-        // Theme from config.json is not valid: use first theme available default size 3.5"
-        const auto themes = get_themes(SIZE_3_5_INCH);
-        theme = themes.empty() ? "" : themes.front();
+    for (const auto &display: displays) {
+        add_display_tab(display);
     }
-    theme_cb.set_text(theme);
-
-    load_theme_preview();
+    notebook.set_current_page(0);
 
     if (const auto hwlib = map_value(hw_lib_map, config::get(conf, "HW_SENSORS", "AUTO"))) {
         hwlib_cb.set_text(*hwlib);
@@ -624,47 +611,6 @@ void TuringConfigWindow::load_config_values()
     const std::string wlo = config::get(conf, "WLO", "");
     wlo.empty() ? wl_cb.set_current(0) : wl_cb.set_text(wlo);
 
-    std::string com_port = display.com_port;
-    if (com_port == "AUTO") {
-        com_cb.set_current(0);
-    } else {
-        // Port name without directory (written by the Python version): devices are listed with their full path
-        if (com_port.find('/') == std::string::npos) {
-            com_port = "/dev/" + com_port;
-        }
-        com_cb.set_text(com_port);
-    }
-
-    // Guess display size from theme in the configuration
-    const std::string revision = display.revision;
-    std::string size = get_theme_size(theme);
-    if (size == _SIZE_2_1_INCH || size == _SIZE_2_8_INCH) {
-        size = SIZE_2_x_INCH;  // If a theme is for 2.1" or 2.8" then it is for all 2.x"
-    } else if (size == _SIZE_9_2_INCH) {
-        size = SIZE_8_8_INCH_NEWREV;  // If a theme is for 9.2" then it is for 8.8"/9.2" (new rev)
-    }
-    if (size == SIZE_8_8_INCH && revision == "TUR_USB") {
-        size = SIZE_8_8_INCH_NEWREV;
-    }
-    if (size == SIZE_2_x_INCH && revision == "TUR_USB") {
-        size = SIZE_2_8_INCH_NEWREV;
-    }
-    if (std::find(size_list.begin(), size_list.end(), size) != size_list.end()) {
-        size_cb.set_text(size);
-    } else {
-        size_cb.set_current(0);
-    }
-
-    // Guess model from revision and size
-    if (const auto model = map_value(revision_and_size_to_model_map, RevisionSize{revision, size})) {
-        model_cb.set_text(*model);
-    } else {
-        model_cb.set_current(0);
-    }
-
-    orient_cb.set_text(*map_value(reverse_map, display.display_reverse));
-
-    brightness_slider.set_value(display.brightness);
 
     const std::string cpu_fan = config::get(conf, "CPU_FAN", "AUTO");
     if (cpu_fan == "AUTO") {
@@ -674,10 +620,6 @@ void TuringConfigWindow::load_config_values()
     }
 
     // Reload content on screen
-    on_model_change();
-    on_size_change();
-    on_theme_change();
-    on_brightness_change();
     on_hwlib_change();
 
     // Load configuration to sub-window as well
@@ -686,10 +628,20 @@ void TuringConfigWindow::load_config_values()
 
 bool TuringConfigWindow::save_config_values()
 {
-    const auto revision = model_and_size_to_revision_map.find({model_cb.get_text(), size_cb.get_text()});
-    if (revision == model_and_size_to_revision_map.end()) {
-        show_error("The selected smart screen model is not available in size " + size_cb.get_text());
-        return false;
+    std::vector<config::DisplayConfig> displays;
+    for (const auto &tab: tabs) {
+        const auto revision = model_and_size_to_revision_map.find({tab->model_cb.get_text(), tab->size_cb.get_text()});
+        if (revision == model_and_size_to_revision_map.end()) {
+            show_error("The selected smart screen model is not available in size " + tab->size_cb.get_text());
+            return false;
+        }
+        config::DisplayConfig display;
+        display.com_port = tab->com_cb.current() == 0 ? "AUTO" : tab->com_cb.get_text();
+        display.theme = tab->theme_cb.get_text();
+        display.revision = revision->second;
+        display.display_reverse = map_key(reverse_map, tab->orient_cb.get_text()).value_or(false);
+        display.brightness = static_cast<int>(tab->brightness_slider.get_value());
+        displays.push_back(display);
     }
 
     std::string cpu_fan = "AUTO";
@@ -699,22 +651,14 @@ bool TuringConfigWindow::save_config_values()
     }
 
     try {
-        config::update_json_file(main_directory() / "config.json", {
+        const fs::path config_file = main_directory() / "config.json";
+        config::update_json_file(config_file, {
             {"config", "HW_SENSORS", map_key(hw_lib_map, hwlib_cb.get_text()).value_or("AUTO")},
             {"config", "ETH", (eth_cb.current() == 0 ? "" : eth_cb.get_text())},
             {"config", "WLO", (wl_cb.current() == 0 ? "" : wl_cb.get_text())},
             {"config", "CPU_FAN", (cpu_fan)},
         });
-
-        // Display settings are the first element of the displays array; the other elements are kept
-        const fs::path config_file = main_directory() / "config.json";
-        auto displays = config::load_displays(config::load_json(config_file));
-        config::DisplayConfig &first = displays.front();
-        first.theme = theme_cb.get_text();
-        first.com_port = com_cb.current() == 0 ? "AUTO" : com_cb.get_text();
-        first.revision = revision->second;
-        first.display_reverse = map_key(reverse_map, orient_cb.get_text()).value_or(false);
-        first.brightness = static_cast<int>(brightness_slider.get_value());
+        // The displays array is replaced by the tabs: a display whose tab was closed is removed
         config::save_displays(config_file, displays);
     } catch (const std::exception &e) {
         show_error(e.what());
@@ -759,6 +703,175 @@ void TuringConfigWindow::save_additional_config(const std::string &ping, const s
     }
 }
 
+DisplayTab::DisplayTab()
+    : model_cb(std::vector<std::string>{TURING_MODEL, USBPCMONITOR_MODEL, XUANFANG_MODEL, KIPYE_MODEL, WEACT_MODEL,
+                                        SIMULATED_MODEL}),
+      size_cb(size_list), com_cb(get_com_ports()), orient_cb(map_values(reverse_map)),
+      brightness_slider(Gtk::Adjustment::create(50, 0, 100, 1, 10), Gtk::Orientation::HORIZONTAL)
+{
+    page = Gtk::make_managed<Gtk::Fixed>();
+}
+
+DisplayTab &TuringConfigWindow::current_tab()
+{
+    return *tabs.at(static_cast<size_t>(notebook.get_current_page()));
+}
+
+DisplayTab &TuringConfigWindow::add_display_tab(const config::DisplayConfig &display)
+{
+    auto tab = std::make_unique<DisplayTab>();
+    DisplayTab &t = *tab;
+    tabs.push_back(std::move(tab));
+
+    t.model_cb.property_selected().signal_changed().connect([this, &t] { on_model_change(t); });
+    t.size_cb.property_selected().signal_changed().connect([this, &t] { on_size_change(t); });
+    t.theme_cb.property_selected().signal_changed().connect([this, &t] { on_theme_change(t); });
+    t.brightness_slider.set_draw_value(false);
+    t.brightness_slider.signal_value_changed().connect([this, &t] { on_brightness_change(t); });
+    t.brightness_warning_label.set_markup("<span foreground=\"" + ORANGE_TEXT_COLOR +
+                                          "\">⚠ Turing 3.5\" displays can get hot at high brightness!</span>");
+
+    place(*t.page, *Gtk::make_managed<Gtk::Label>("Smart screen model"), 0, 10);
+    place(*t.page, t.model_cb, 180, 5, 250);
+
+    place(*t.page, *Gtk::make_managed<Gtk::Label>("Smart screen size"), 0, 50);
+    place(*t.page, t.size_cb, 180, 45, 250);
+
+    place(*t.page, *Gtk::make_managed<Gtk::Label>("COM port"), 0, 90);
+    place(*t.page, t.com_cb, 180, 85, 250);
+
+    place(*t.page, *Gtk::make_managed<Gtk::Label>("Theme"), 0, 130);
+    place(*t.page, t.theme_cb, 180, 125, 250);
+
+    place(*t.page, *Gtk::make_managed<Gtk::Label>("Orientation"), 0, 170);
+    place(*t.page, t.orient_cb, 180, 165, 250);
+
+    place(*t.page, *Gtk::make_managed<Gtk::Label>("Brightness"), 0, 210);
+    place(*t.page, t.brightness_slider, 230, 205, 180);
+    place(*t.page, t.brightness_val_label, 180, 210);
+    place(*t.page, t.brightness_warning_label, 0, 240);
+
+    notebook.append_page(*t.page, "");
+    refresh_tab_labels();
+    apply_display(t, display);
+    return t;
+}
+
+void TuringConfigWindow::apply_display(DisplayTab &tab, const config::DisplayConfig &display)
+{
+    // Check if theme is valid
+    std::string theme = display.theme;
+    if (!get_theme_data(theme)) {
+        // Theme from config.json is not valid: use first theme available default size 3.5"
+        const auto themes = get_themes(SIZE_3_5_INCH);
+        theme = themes.empty() ? "" : themes.front();
+    }
+    tab.theme_cb.set_text(theme);
+
+    std::string com_port = display.com_port;
+    if (com_port == "AUTO") {
+        tab.com_cb.set_current(0);
+    } else {
+        // Port name without directory (written by the Python version): devices are listed with their full path
+        if (com_port.find('/') == std::string::npos) {
+            com_port = "/dev/" + com_port;
+        }
+        tab.com_cb.set_text(com_port);
+    }
+
+    // Guess display size from theme in the configuration
+    const std::string revision = display.revision;
+    std::string size = get_theme_size(theme);
+    if (size == _SIZE_2_1_INCH || size == _SIZE_2_8_INCH) {
+        size = SIZE_2_x_INCH;  // If a theme is for 2.1" or 2.8" then it is for all 2.x"
+    } else if (size == _SIZE_9_2_INCH) {
+        size = SIZE_8_8_INCH_NEWREV;  // If a theme is for 9.2" then it is for 8.8"/9.2" (new rev)
+    }
+    if (size == SIZE_8_8_INCH && revision == "TUR_USB") {
+        size = SIZE_8_8_INCH_NEWREV;
+    }
+    if (size == SIZE_2_x_INCH && revision == "TUR_USB") {
+        size = SIZE_2_8_INCH_NEWREV;
+    }
+    if (std::find(size_list.begin(), size_list.end(), size) != size_list.end()) {
+        tab.size_cb.set_text(size);
+    } else {
+        tab.size_cb.set_current(0);
+    }
+
+    // Guess model from revision and size
+    if (const auto model = map_value(revision_and_size_to_model_map, RevisionSize{revision, size})) {
+        tab.model_cb.set_text(*model);
+    } else {
+        tab.model_cb.set_current(0);
+    }
+
+    tab.orient_cb.set_text(*map_value(reverse_map, display.display_reverse));
+    tab.brightness_slider.set_value(display.brightness);
+
+    // Reload the content of the tab
+    on_model_change(tab);
+    on_size_change(tab);
+    on_theme_change(tab);
+    on_brightness_change(tab);
+}
+
+void TuringConfigWindow::refresh_tab_labels()
+{
+    for (int i = 0; i < notebook.get_n_pages(); i++) {
+        notebook.set_tab_label_text(*notebook.get_nth_page(i), ":" + std::to_string(i));
+    }
+}
+
+int TuringConfigWindow::tab_index_at(double x, double y)
+{
+    for (int i = 0; i < notebook.get_n_pages(); i++) {
+        // The tab is the box containing the label of the page
+        Gtk::Widget *label = notebook.get_tab_label(*notebook.get_nth_page(i));
+        if (label == nullptr) {
+            continue;
+        }
+        Gtk::Widget *tab_widget = label->get_parent() != nullptr ? label->get_parent() : label;
+        graphene_rect_t bounds;
+        if (gtk_widget_compute_bounds(tab_widget->gobj(), GTK_WIDGET(notebook.gobj()), &bounds) &&
+            x >= bounds.origin.x && x < bounds.origin.x + bounds.size.width && y >= bounds.origin.y &&
+            y < bounds.origin.y + bounds.size.height) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void TuringConfigWindow::on_tab_right_click(double x, double y)
+{
+    context_tab = tab_index_at(x, y);
+    if (context_tab < 0) {
+        return;
+    }
+    // A display with automatic COM port detection cannot be followed by another display
+    add_display_action->set_enabled(tabs[context_tab]->com_cb.current() != 0);
+    close_display_action->set_enabled(tabs.size() > 1);
+    tab_menu->set_pointing_to(Gdk::Rectangle(static_cast<int>(x), static_cast<int>(y), 1, 1));
+    tab_menu->popup();
+}
+
+void TuringConfigWindow::on_add_display()
+{
+    add_display_tab(config::DisplayConfig{});
+    notebook.set_current_page(static_cast<int>(tabs.size()) - 1);
+}
+
+void TuringConfigWindow::on_close_display()
+{
+    if (context_tab < 0 || tabs.size() <= 1 || context_tab >= static_cast<int>(tabs.size())) {
+        return;
+    }
+    notebook.remove_page(context_tab);
+    tabs.erase(tabs.begin() + context_tab);
+    refresh_tab_labels();
+    load_theme_preview();
+}
+
 void TuringConfigWindow::show_error(const std::string &message)
 {
     auto dialog = Gtk::AlertDialog::create("Cannot save settings");
@@ -766,9 +879,12 @@ void TuringConfigWindow::show_error(const std::string &message)
     dialog->show(*this);
 }
 
-void TuringConfigWindow::on_theme_change()
+void TuringConfigWindow::on_theme_change(DisplayTab &tab)
 {
-    load_theme_preview();
+    // The preview shows the theme of the selected tab only
+    if (&tab == &current_tab()) {
+        load_theme_preview();
+    }
 }
 
 void TuringConfigWindow::on_open_theme_folder_click()
@@ -782,7 +898,7 @@ void TuringConfigWindow::on_open_theme_folder_click()
 
 void TuringConfigWindow::on_theme_editor_click()
 {
-    start_program("theme-editor", {theme_cb.get_text()});
+    start_program("theme-editor", {current_tab().theme_cb.get_text()});
 }
 
 void TuringConfigWindow::on_save_click()
@@ -799,25 +915,25 @@ void TuringConfigWindow::on_saverun_click()
     close();
 }
 
-void TuringConfigWindow::on_brightness_change()
+void TuringConfigWindow::on_brightness_change(DisplayTab &tab)
 {
-    brightness_val_label.set_text(std::to_string(static_cast<int>(brightness_slider.get_value())) + "%");
-    show_hide_brightness_warning();
+    tab.brightness_val_label.set_text(std::to_string(static_cast<int>(tab.brightness_slider.get_value())) + "%");
+    show_hide_brightness_warning(tab);
 }
 
-void TuringConfigWindow::on_model_change()
+void TuringConfigWindow::on_model_change(DisplayTab &tab)
 {
-    show_hide_brightness_warning();
-    const bool simulated = model_cb.get_text() == SIMULATED_MODEL;
-    com_cb.set_sensitive(!simulated);
-    orient_cb.set_sensitive(!simulated);
-    brightness_slider.set_sensitive(!simulated);
-    brightness_val_label.set_sensitive(!simulated);
+    show_hide_brightness_warning(tab);
+    const bool simulated = tab.model_cb.get_text() == SIMULATED_MODEL;
+    tab.com_cb.set_sensitive(!simulated);
+    tab.orient_cb.set_sensitive(!simulated);
+    tab.brightness_slider.set_sensitive(!simulated);
+    tab.brightness_val_label.set_sensitive(!simulated);
 }
 
-void TuringConfigWindow::on_size_change()
+void TuringConfigWindow::on_size_change(DisplayTab &tab)
 {
-    const std::string size = size_cb.get_text();
+    const std::string size = tab.size_cb.get_text();
 
     std::vector<std::string> themes;
     if (size == SIZE_2_x_INCH || size == SIZE_2_8_INCH_NEWREV) {
@@ -834,17 +950,17 @@ void TuringConfigWindow::on_size_change()
         themes = get_themes(size);
     }
 
-    const std::string current_theme = theme_cb.get_text();
-    theme_cb.set_items(themes);
+    const std::string current_theme = tab.theme_cb.get_text();
+    tab.theme_cb.set_items(themes);
 
     if (std::find(themes.begin(), themes.end(), current_theme) != themes.end()) {
-        theme_cb.set_text(current_theme);
+        tab.theme_cb.set_text(current_theme);
     } else if (!themes.empty()) {
         // The selected theme does not exist anymore / is not allowed for this screen model : select 1st theme avail.
-        theme_cb.set_current(0);
+        tab.theme_cb.set_current(0);
     }
 
-    show_hide_brightness_warning();
+    show_hide_brightness_warning(tab);
 }
 
 void TuringConfigWindow::on_hwlib_change()
@@ -859,11 +975,11 @@ void TuringConfigWindow::on_hwlib_change()
     cpu_fan_cb.set_visible(python);
 }
 
-void TuringConfigWindow::show_hide_brightness_warning()
+void TuringConfigWindow::show_hide_brightness_warning(DisplayTab &tab)
 {
     // Show warning for Turing Smart screen 3.5 with high brightness
-    brightness_warning_label.set_visible(static_cast<int>(brightness_slider.get_value()) > 50 &&
-                                         model_cb.get_text() == TURING_MODEL && size_cb.get_text() == SIZE_3_5_INCH);
+    tab.brightness_warning_label.set_visible(static_cast<int>(tab.brightness_slider.get_value()) > 50 &&
+                                         tab.model_cb.get_text() == TURING_MODEL && tab.size_cb.get_text() == SIZE_3_5_INCH);
 }
 
 bool TuringConfigWindow::on_fan_speed_update()

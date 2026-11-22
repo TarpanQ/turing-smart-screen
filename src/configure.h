@@ -26,6 +26,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -62,6 +63,18 @@ public:
 
 private:
     Glib::RefPtr<Gtk::StringList> list;
+};
+
+/** @brief Controls of one display tab, holding the settings of one display of the displays array. */
+struct DisplayTab
+{
+    DisplayTab();
+
+    /** @brief Page of the tab, containing the controls. */
+    Gtk::Fixed *page = nullptr;
+    StringDropDown model_cb, size_cb, com_cb, orient_cb, theme_cb;
+    Gtk::Scale brightness_slider;
+    Gtk::Label brightness_val_label, brightness_warning_label;
 };
 
 class TuringConfigWindow;
@@ -115,29 +128,47 @@ public:
 
 private:
     void load_theme_preview();
+    /** @brief The display tab currently selected. */
+    DisplayTab &current_tab();
+    /** @brief Add a tab with the settings of a display, after the existing tabs. */
+    DisplayTab &add_display_tab(const config::DisplayConfig &display);
+    /** @brief Set the controls of a tab to the settings of a display. */
+    void apply_display(DisplayTab &tab, const config::DisplayConfig &display);
+    /** @brief Name the tabs after their index (":0", ":1", ...). */
+    void refresh_tab_labels();
+    /** @brief Index of the tab under the position (in the notebook coordinates), -1 if none. */
+    int tab_index_at(double x, double y);
+    void on_tab_right_click(double x, double y);
+    void on_add_display();
+    void on_close_display();
     void load_config_values();
     /** @brief Returns false (with an error message) if the values cannot be saved */
     bool save_config_values();
 
-    void on_theme_change();
+    void on_theme_change(DisplayTab &tab);
     void on_open_theme_folder_click();
     void on_theme_editor_click();
     void on_save_click();
     void on_saverun_click();
-    void on_brightness_change();
-    void on_model_change();
-    void on_size_change();
+    void on_brightness_change(DisplayTab &tab);
+    void on_model_change(DisplayTab &tab);
+    void on_size_change(DisplayTab &tab);
     void on_hwlib_change();
-    void show_hide_brightness_warning();
+    void show_hide_brightness_warning(DisplayTab &tab);
     bool on_fan_speed_update();
     void show_error(const std::string &message);
 
     Gtk::Fixed layout;
     Gtk::Picture theme_preview;
     Gtk::Label theme_author;
-    StringDropDown model_cb, size_cb, com_cb, orient_cb, theme_cb, hwlib_cb, eth_cb, wl_cb, cpu_fan_cb;
-    Gtk::Scale brightness_slider;
-    Gtk::Label brightness_val_label, brightness_warning_label, cpu_fan_label;
+    Gtk::Notebook notebook;
+    std::vector<std::unique_ptr<DisplayTab>> tabs;
+    Gtk::PopoverMenu *tab_menu = nullptr;
+    Glib::RefPtr<Gio::SimpleAction> add_display_action, close_display_action;
+    /** @brief Index of the tab that was right-clicked, -1 if none */
+    int context_tab = -1;
+    StringDropDown hwlib_cb, eth_cb, wl_cb, cpu_fan_cb;
+    Gtk::Label cpu_fan_label;
     Gtk::Button weather_ping_btn, open_theme_folder_btn, edit_theme_btn, save_btn, save_run_btn;
 
     MoreConfigWindow more_config_window;
