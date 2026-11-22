@@ -20,22 +20,29 @@
 
 /**
  * @file display.h
- * @brief Creates the LCD driver selected by REVISION in config.json, and displays the static images and texts of the theme.
+ * @brief One display of config.json (its settings, theme and LCD driver), with the static images and texts of its theme.
  */
 
 #pragma once
 
 #include <memory>
 #include <utility>
+#include <vector>
 
+#include <yaml-cpp/yaml.h>
+
+#include "library/config.h"
 #include "library/lcd/lcd_comm.h"
 
-/** @brief Display of the system monitor: creates the LCD driver selected by REVISION and draws the theme. */
+/** @brief A display of the displays array of config.json: its settings, its theme and its LCD driver. */
 class Display
 {
 public:
-    /** @brief Exits the program if the display revision is unknown */
-    Display();
+    /** @brief Create the LCD driver selected by the revision, and load the theme. Exits the program if the revision is unknown. */
+    explicit Display(const config::DisplayConfig &display_settings);
+
+    /** @brief Load the theme of the display again, for example after the theme editor changed it. */
+    void load_theme();
 
     /** @brief Initialize the display and clear it. */
     void initialize_display();
@@ -48,15 +55,25 @@ public:
     /** @brief Draw the static texts of the theme. */
     void display_static_text();
 
+    /** @brief Settings of the display, from the displays array of config.json. */
+    config::DisplayConfig settings;
+    /** @brief Theme of the display: theme.yaml with the default values. */
+    YAML::Node theme;
     /** @brief LCD driver used by the display. */
     std::unique_ptr<LcdComm> lcd;
 };
 
-/** @brief Theme orientation, from the theme DISPLAY_ORIENTATION and config.json DISPLAY_REVERSE */
-Orientation get_theme_orientation();
+/** @brief Theme orientation, from the theme DISPLAY_ORIENTATION and the DISPLAY_REVERSE of the display */
+Orientation get_theme_orientation(const config::DisplayConfig &settings, const YAML::Node &theme);
 
 /** @brief Display (width, height) in portrait orientation, from the theme DISPLAY_SIZE */
-std::pair<int, int> get_theme_size();
+std::pair<int, int> get_theme_size(const YAML::Node &theme);
 
-/** @brief The display, created on first use (config::init() must have been called before) */
+/**
+ * @brief The displays, one per element of the displays array of config.json, created on first use (config::init() must
+ * have been called before)
+ */
+std::vector<std::unique_ptr<Display>> &displays();
+
+/** @brief The first display (displays().front()) */
 Display &display();

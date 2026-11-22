@@ -155,6 +155,7 @@ bool ThemeEditorWindow::refresh_theme()
 {
     try {
         config::load_theme(false);
+        display().load_theme();
 
         // Initialize the display
         display().initialize_display();
@@ -368,6 +369,8 @@ int main(int argc, char *argv[])
 
     // Hardcode specific configuration for theme editor
     config::init(false);
+    // The theme editor only edits the first display
+    config::DISPLAYS.resize(1);
     config::CONFIG_DATA["config"]["HW_SENSORS"] = "STATIC";  // For theme editor always use stub data
     config::DISPLAYS.front().theme = theme_name;  // Theme is given as argument
     config::load_theme();

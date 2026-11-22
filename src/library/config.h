@@ -142,6 +142,12 @@ struct ConfigUpdate
 void update_json_file(const std::filesystem::path &path, const std::vector<ConfigUpdate> &updates);
 
 /**
+ * @brief Read the theme of a display: theme.yaml of res/themes/theme_name with the default values, and its PATH.
+ * Throws std::runtime_error or YAML::Exception if the theme cannot be read.
+ */
+YAML::Node read_theme(const std::string &theme_name);
+
+/**
  * @brief Load the theme selected in config.json into THEME_DATA. On error, exits the program if exit_on_error is true,
  * otherwise throws std::runtime_error (THEME_DATA is then unchanged if the theme file cannot be read or parsed).
  */

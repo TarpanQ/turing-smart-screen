@@ -52,11 +52,10 @@ std::optional<std::string> get_full_path(const std::string &path, const std::str
 
 }  // namespace
 
-Orientation get_theme_orientation()
+Orientation get_theme_orientation(const config::DisplayConfig &settings, const YAML::Node &theme)
 {
-    const YAML::Node &theme = config::THEME_DATA;
     const std::string orientation = config::get(theme["display"], "DISPLAY_ORIENTATION", "");
-    const bool reverse = config::DISPLAYS.front().display_reverse;
+    const bool reverse = settings.display_reverse;
     if (orientation == "portrait") {
         return reverse ? Orientation::REVERSE_PORTRAIT : Orientation::PORTRAIT;
     }
@@ -67,7 +66,7 @@ Orientation get_theme_orientation()
     return Orientation::PORTRAIT;
 }
 
-std::pair<int, int> get_theme_size()
+std::pair<int, int> get_theme_size(const YAML::Node &theme)
 {
     static const std::map<std::string, std::pair<int, int>> sizes = {
         {"0.96\"", {80, 160}},
@@ -82,21 +81,20 @@ std::pair<int, int> get_theme_size()
         {"9.2\"", {480, 1920}},  // 9.2" displays are 1920x462 but using 1920x480 to be compatible with 8.8" themes
         {"12.3\"", {720, 1920}},
     };
-    const YAML::Node &theme = config::THEME_DATA;
     const auto it = sizes.find(config::get(theme["display"], "DISPLAY_SIZE", ""));
     if (it != sizes.end()) {
         return it->second;
     }
-    logger.warning("Cannot find valid DISPLAY_SIZE property in selected theme {}, defaulting to 3.5\"",
-                   config::DISPLAYS.front().theme);
+    logger.warning("Cannot find valid DISPLAY_SIZE property in the selected theme, defaulting to 3.5\"");
     return {320, 480};
 }
 
-Display::Display()
+Display::Display(const config::DisplayConfig &display_settings) : settings(display_settings)
 {
-    const auto [width, height] = get_theme_size();
-    const std::string &revision = config::DISPLAYS.front().revision;
-    const std::string &com_port = config::DISPLAYS.front().com_port;
+    load_theme();
+    const auto [width, height] = get_theme_size(theme);
+    const std::string &revision = settings.revision;
+    const std::string &com_port = settings.com_port;
 
     if (revision == "A") {
         lcd = std::make_unique<LcdCommRevA>(com_port, 320, 480, &config::update_queue);
@@ -127,11 +125,22 @@ Display::Display()
     }
 }
 
+void Display::load_theme()
+{
+    try {
+        theme = config::read_theme(settings.theme);
+    } catch (const std::exception &e) {
+        // Errors are reported by the configuration checks at start-up; the theme editor shows them itself
+        logger.error("Theme {} not found or contains errors! ({})", settings.theme, e.what());
+        theme = YAML::Node(YAML::NodeType::Map);
+    }
+}
+
 void Display::initialize_display()
 {
     // Reset screen in case it was in an unstable state (screen is also cleared)
     // Can be disabled by config. option. Assume true if key not present in config.json
-    if (config::DISPLAYS.front().reset_on_startup) {
+    if (settings.reset_on_startup) {
         lcd->Reset();
     } else {
         logger.debug("RESET_ON_STARTUP is false: display will not be reset");
@@ -144,18 +153,16 @@ void Display::initialize_display()
     turn_on();
 
     // Set orientation
-    lcd->SetOrientation(get_theme_orientation());
+    lcd->SetOrientation(get_theme_orientation(settings, theme));
 }
 
 void Display::turn_on()
 {
-    const YAML::Node &theme = config::THEME_DATA;
-
     // Turn screen on in case it was turned off previously
     lcd->ScreenOn();
 
     // Set brightness
-    lcd->SetBrightness(config::DISPLAYS.front().brightness);
+    lcd->SetBrightness(settings.brightness);
 
     // Set backplate RGB LED color (for supported HW only)
     lcd->SetBackplateLedColor(config::get_color(theme["display"], "DISPLAY_RGB_LED", {255, 255, 255}));
@@ -172,7 +179,6 @@ void Display::turn_off()
 
 void Display::display_static_images()
 {
-    const YAML::Node &theme = config::THEME_DATA;
     const YAML::Node images = theme["static_images"];
     if (!images.IsDefined() || !images.IsMap()) {
         return;
@@ -192,7 +198,6 @@ void Display::display_static_images()
 
 void Display::display_static_text()
 {
-    const YAML::Node &theme = config::THEME_DATA;
     const YAML::Node texts = theme["static_text"];
     if (!texts.IsDefined() || !texts.IsMap()) {
         return;
@@ -220,8 +225,19 @@ void Display::display_static_text()
     }
 }
 
+std::vector<std::unique_ptr<Display>> &displays()
+{
+    static std::vector<std::unique_ptr<Display>> instances = [] {
+        std::vector<std::unique_ptr<Display>> created;
+        for (const auto &settings: config::DISPLAYS) {
+            created.push_back(std::make_unique<Display>(settings));
+        }
+        return created;
+    }();
+    return instances;
+}
+
 Display &display()
 {
-    static Display instance;
-    return instance;
+    return *displays().front();
 }

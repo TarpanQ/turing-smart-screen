@@ -89,7 +89,9 @@ void wait_for_empty_queue(int timeout = 5)
 [[noreturn]] void clean_stop()
 {
     // Turn screen and LEDs off before stopping
-    display().turn_off();
+    for (auto &display: displays()) {
+        display->turn_off();
+    }
 
     // Do not stop the program now in case data transmission was in progress
     // Instead, ask the scheduler to empty the action queue before stopping
@@ -224,7 +226,9 @@ int main(int argc, char *argv[])
 
         // Initialize the display
         logger.info("Initialize display");
-        display().initialize_display();
+        for (auto &display: displays()) {
+            display->initialize_display();
+        }
 
         // Start serial queue handler
         if (!theme_screenshots) {
@@ -232,10 +236,14 @@ int main(int argc, char *argv[])
         }
 
         // Create all static images
-        display().display_static_images();
+        for (auto &display: displays()) {
+            display->display_static_images();
+        }
 
         // Create all static texts
-        display().display_static_text();
+        for (auto &display: displays()) {
+            display->display_static_text();
+        }
 
         // Wait for static images/text to be displayed before starting monitoring (to avoid filling the queue while
         // waiting)

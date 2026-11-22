@@ -187,18 +187,24 @@ void update_json_file(const fs::path &path, const std::vector<ConfigUpdate> &upd
     write_json_file(path, data);
 }
 
+YAML::Node read_theme(const std::string &theme_name)
+{
+    const fs::path theme_path = fs::path("res/themes") / theme_name;
+    YAML::Node theme_data = load_yaml(MAIN_DIRECTORY / theme_path / "theme.yaml");
+    if (!theme_data.IsMap()) {
+        throw std::runtime_error("theme.yaml is not a map");
+    }
+    theme_data["PATH"] = (MAIN_DIRECTORY / theme_path).string() + "/";
+    copy_default(THEME_DEFAULT, theme_data);
+    return theme_data;
+}
+
 void load_theme(bool exit_on_error)
 {
     try {
         const std::string theme_name = DISPLAYS.front().theme;
-        const fs::path theme_path = fs::path("res/themes") / theme_name;
-        logger.info("Loading theme {} from {}", theme_name, (theme_path / "theme.yaml").string());
-        YAML::Node theme_data = load_yaml(MAIN_DIRECTORY / theme_path / "theme.yaml");
-        if (!theme_data.IsMap()) {
-            throw std::runtime_error("theme.yaml is not a map");
-        }
-        theme_data["PATH"] = (MAIN_DIRECTORY / theme_path).string() + "/";
-        THEME_DATA = theme_data;
+        logger.info("Loading theme {} from {}", theme_name, (fs::path("res/themes") / theme_name / "theme.yaml").string());
+        THEME_DATA = read_theme(theme_name);
     } catch (const std::exception &e) {
         logger.error("Theme not found or contains errors! ({})", e.what());
         if (exit_on_error) {
@@ -206,10 +212,7 @@ void load_theme(bool exit_on_error)
         }
         throw std::runtime_error(std::string("Theme not found or contains errors: ") + e.what());
     }
-
-    copy_default(THEME_DEFAULT, THEME_DATA);
 }
-
 void check_theme_compatible(const std::string &display_size)
 {
     // Check if theme is compatible with hardware revision
@@ -246,9 +249,17 @@ void init(bool with_theme)
         std::_Exit(1);
     }
 
-    // Load theme
+    // Load theme of the first display, and check that the theme of every display is valid
     if (with_theme) {
         load_theme();
+        for (const auto &display: DISPLAYS) {
+            try {
+                read_theme(display.theme);
+            } catch (const std::exception &e) {
+                logger.error("Theme {} not found or contains errors! ({})", display.theme, e.what());
+                std::_Exit(1);
+            }
+        }
     }
 }
 
