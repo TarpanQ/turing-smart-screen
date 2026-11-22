@@ -18,7 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of configure.py: the system monitor configuration GUI (GTK 4 with gtkmm).
+/**
+ * @file configure.cpp
+ * @brief The system monitor configuration GUI (GTK 4 with gtkmm).
+ */
 
 #include "configure.h"
 
@@ -50,9 +53,9 @@ const std::string KIPYE_MODEL = "Kipye Qiye Smart Display";
 const std::string WEACT_MODEL = "WeAct Studio Display FS V1";
 const std::string SIMULATED_MODEL = "Simulated screen";
 
-const std::string _SIZE_2_1_INCH = "2.1\"";  // Only for retro compatibility
-const std::string _SIZE_2_8_INCH = "2.8\"";  // Only for retro compatibility
-const std::string _SIZE_9_2_INCH = "9.2\"";  // Only for retro compatibility
+const std::string _SIZE_2_1_INCH = "2.1\"";  ///< Only for retro compatibility
+const std::string _SIZE_2_8_INCH = "2.8\"";  ///< Only for retro compatibility
+const std::string _SIZE_9_2_INCH = "9.2\"";  ///< Only for retro compatibility
 const std::string SIZE_0_96_INCH = "0.96\"";
 const std::string SIZE_2_x_INCH = "2.1\" / 2.8\"";
 const std::string SIZE_3_5_INCH = "3.5\"";
@@ -65,7 +68,7 @@ const std::string SIZE_8_8_INCH_NEWREV = "8.8\" / 9.2\" (V1.X new HW rev.)";
 const std::string SIZE_12_3_INCH = "12.3\"";
 const std::string SIZE_2_8_INCH_NEWREV = "2.8\" round (V1.X new HW rev.)";
 
-// List of sizes that can be selected
+/** @brief List of sizes that can be selected */
 const std::vector<std::string> size_list = {
     SIZE_0_96_INCH, SIZE_2_x_INCH, SIZE_2_8_INCH_NEWREV, SIZE_3_5_INCH, SIZE_4_6_INCH, SIZE_5_INCH,
     SIZE_5_2_INCH, SIZE_8_INCH, SIZE_8_8_INCH, SIZE_8_8_INCH_NEWREV, SIZE_12_3_INCH,
@@ -73,8 +76,10 @@ const std::vector<std::string> size_list = {
 
 using RevisionSize = std::pair<std::string, std::string>;
 
-// Maps between config.yaml values and GUI description
-// This map is used to select the correct smart screen model based on config.yaml "REVISION" and selected "THEME" size
+/**
+ * @brief Maps between config.yaml values and GUI description
+ * This map is used to select the correct smart screen model based on config.yaml "REVISION" and selected "THEME" size
+ */
 const std::vector<std::pair<RevisionSize, std::string>> revision_and_size_to_model_map = {
     {{"A", SIZE_3_5_INCH}, TURING_MODEL},  // Can also be UsbPCMonitor 3.5, does not matter since protocol is the same
     {{"A", SIZE_5_INCH}, USBPCMONITOR_MODEL},
@@ -103,7 +108,7 @@ const std::vector<std::pair<RevisionSize, std::string>> revision_and_size_to_mod
     {{"SIMU", SIZE_8_8_INCH}, SIMULATED_MODEL},
 };
 
-// This map is used to write the correct config.yaml "REVISION" from selected smart screen model and size
+/** @brief This map is used to write the correct config.yaml "REVISION" from selected smart screen model and size */
 const std::map<std::pair<std::string, std::string>, std::string> model_and_size_to_revision_map = {
     {{KIPYE_MODEL, SIZE_3_5_INCH}, "D"},
     {{TURING_MODEL, SIZE_2_x_INCH}, "C"},
@@ -132,7 +137,7 @@ const std::map<std::pair<std::string, std::string>, std::string> model_and_size_
     {{SIMULATED_MODEL, SIZE_8_8_INCH}, "SIMU"},
 };
 
-// LibreHardwareMonitor (LHM) is for Windows platforms only
+/** @brief LibreHardwareMonitor (LHM) is for Windows platforms only */
 const std::vector<std::pair<std::string, std::string>> hw_lib_map = {
     {"AUTO", "Automatic"}, {"PYTHON", "Python libraries"}, {"STUB", "Fake random data"}, {"STATIC", "Fake static data"}};
 const std::vector<std::pair<bool, std::string>> reverse_map = {{false, "classic"}, {true, "reverse"}};
@@ -192,7 +197,7 @@ fs::path themes_dir()
     return main_directory() / "res" / "themes";
 }
 
-// Directory containing this program (build/bin/), where the other programs are
+/** @brief Directory containing this program (build/bin/), where the other programs are */
 fs::path program_directory()
 {
     std::error_code ec;
@@ -305,7 +310,7 @@ std::string get_version()
     return version.empty() ? "0.0.0" : version;
 }
 
-// Start a program of this project (built in the same directory) without waiting for it
+/** @brief Start a program of this project (built in the same directory) without waiting for it */
 void start_program(const std::string &program, const std::vector<std::string> &args = {})
 {
     std::vector<std::string> argv = {(program_directory() / program).string()};
@@ -1089,6 +1094,7 @@ void MoreConfigWindow::save_config_values()
                                        map_key(weather_lang_map, lang_cb.get_text()).value_or("en"));
 }
 
+/** @brief Entry point of the configuration program. */
 int main(int argc, char *argv[])
 {
     curl_global_init(CURL_GLOBAL_DEFAULT);

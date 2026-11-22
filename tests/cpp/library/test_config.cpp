@@ -16,12 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Unit tests of library/config (C++ port of library/config.py)
+/**
+ * @file test_config.cpp
+ * @brief Unit tests of src/library/config
+ */
 
 #include <gtest/gtest.h>
 
 #include "library/config.h"
 
+/** @brief Copy of the default values into a theme. */
 TEST(Config, CopyDefault)
 {
     const YAML::Node defaults = YAML::Load(R"(
@@ -52,6 +56,7 @@ STATS:
     EXPECT_EQ(defaults["STATS"]["GPU"]["INTERVAL"].as<int>(), 0);
 }
 
+/** @brief Reading values of the configuration, with their default values. */
 TEST(Config, Get)
 {
     const YAML::Node node = YAML::Load("{A: 12, B: text, C: , D: \"1, 2, 3\", E: True}");

@@ -18,8 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/lcd_comm_rev_d.py
-// This class is for Kipye Qiye Smart Display 3.5"
+/**
+ * @file lcd_comm_rev_d.h
+ * @brief This class is for Kipye Qiye Smart Display 3.5"
+ */
 
 #pragma once
 
@@ -28,6 +30,7 @@
 
 namespace rev_d {
 
+/** @brief Commands of the revision D protocol. */
 enum class Command
 {
     GETINFO,      // 71 00 00 00
@@ -46,26 +49,37 @@ const Bytes &command_value(Command cmd);
 
 }  // namespace rev_d
 
+/** @brief Driver for the Kipye revision D screens (serial). */
 class LcdCommRevD : public LcdComm
 {
 public:
+    /** @brief Create the driver for the given COM port and screen size. */
     LcdCommRevD(const std::string &com_port = "AUTO", int display_width = 320, int display_height = 480,
                 UpdateQueue *update_queue = nullptr);
     ~LcdCommRevD() override;
 
     std::optional<std::string> auto_detect_com_port() override;
 
-    // Empty the input buffer after each write: we don't process acknowledgements the screen sends back
+    /** @brief Empty the input buffer after each write: we don't process acknowledgements the screen sends back */
     void WriteDataAndFlush(const Bytes &byteBuffer);
 
+    /** @brief Send a command with an optional payload to the screen. */
     void SendCommand(rev_d::Command cmd, const Bytes &payload = {}, bool bypass_queue = false);
 
+    /** @brief Initialize the screen. */
     void InitializeComm() override;
+    /** @brief Reset the screen. */
     void Reset() override;
+    /** @brief Clear the screen. */
     void Clear() override;
+    /** @brief Turn the screen off. */
     void ScreenOff() override;
+    /** @brief Turn the screen on. */
     void ScreenOn() override;
+    /** @brief Set the brightness, from 0 (off) to 100 (maximum). */
     void SetBrightness(int level = 25) override;
+    /** @brief Set the orientation of the screen. */
     void SetOrientation(Orientation orientation = Orientation::PORTRAIT) override;
+    /** @brief Display an image at (x, y), cropped to image_width x image_height if given. */
     void DisplayPILImage(const Image &image, int x = 0, int y = 0, int image_width = 0, int image_height = 0) override;
 };

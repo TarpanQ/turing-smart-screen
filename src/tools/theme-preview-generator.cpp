@@ -18,7 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of tools/theme-preview-generator.py: generate res/themes/themes.md, the list of themes with their preview
+/**
+ * @file theme-preview-generator.cpp
+ * @brief Generate res/themes/themes.md, the list of themes with their preview
+ */
 
 #include <algorithm>
 #include <cctype>
@@ -82,6 +85,7 @@ void write_theme_previews_to_file(const std::vector<std::string> &themes, std::o
 
 }  // namespace
 
+/** @brief Entry point of the theme-preview-generator tool. */
 int main()
 {
     const fs::path themes_dir = config::find_main_directory() / "res" / "themes";

@@ -18,7 +18,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/color.py
+/**
+ * @file color.cpp
+ */
 
 #include "library/lcd/color.h"
 
@@ -62,7 +64,7 @@ std::vector<std::string> split(const std::string &s, char sep)
     return parts;
 }
 
-// Strict integer parsing: the whole (trimmed) string must be an integer
+/** @brief Strict integer parsing: the whole (trimmed) string must be an integer */
 bool to_int(const std::string &s, int &value)
 {
     const std::string t = trim(s);
@@ -92,7 +94,7 @@ uint8_t clamp_channel(double v)
     return static_cast<uint8_t>(std::clamp(v, 0.0, 255.0));
 }
 
-// Parse "r, g, b" style arguments of rgb()/hsl()/hsv() functions, with optional '%' suffix
+/** @brief Parse "r, g, b" style arguments of rgb()/hsl()/hsv() functions, with optional '%' suffix */
 bool parse_function_args(const std::string &args, std::vector<double> &values, std::vector<bool> &percent)
 {
     for (const auto &part: split(args, ',')) {
@@ -207,7 +209,7 @@ const std::map<std::string, uint32_t> &color_names()
     return names;
 }
 
-// Fallback: the color formats supported by PIL ImageColor.getrgb()
+/** @brief Fallback: the color formats supported by PIL ImageColor.getrgb() */
 RGBColor pil_getrgb(const std::string &input)
 {
     const std::string color = lower(trim(input));

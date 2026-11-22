@@ -18,8 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of theme-editor.py: edit themes for System Monitor in a preview window on the computer.
-// The preview window is refreshed as soon as the theme file is modified.
+/**
+ * @file theme-editor.cpp
+ * @brief Edit themes for System Monitor in a preview window on the computer. The preview window is refreshed as soon as the theme file is modified.
+ */
 
 #include "theme-editor.h"
 
@@ -40,7 +42,7 @@ namespace {
 
 constexpr int RGB_LED_MARGIN = 12;
 
-// Theme name given as argument
+/** @brief Theme name given as argument */
 std::string theme_name;
 
 LcdSimulated &simulated_lcd()
@@ -347,6 +349,7 @@ void ThemeEditorWindow::on_drag_end(double offset_x, double offset_y)
     viewer_picture.queue_draw();
 }
 
+/** @brief Entry point of the theme editor. */
 int main(int argc, char *argv[])
 {
     if (argc != 2) {

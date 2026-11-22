@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// ICMP echo ("ping"), replacing the ping3 Python library used by the Python code.
+/**
+ * @file ping.cpp
+ * @brief ICMP echo ("ping").
+ */
 
 #include "library/ping.h"
 

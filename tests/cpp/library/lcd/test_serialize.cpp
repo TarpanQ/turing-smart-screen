@@ -16,12 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Unit tests of library/lcd/serialize (C++ port of library/lcd/serialize.py) and of the image rotations
+/**
+ * @file test_serialize.cpp
+ * @brief Unit tests of src/library/lcd/serialize and of the image rotations
+ */
 
 #include <gtest/gtest.h>
 
 #include "library/lcd/serialize.h"
 
+/** @brief Data is split into chunks of the maximum size. */
 TEST(Serialize, Chunked)
 {
     const auto chunks = chunked({1, 2, 3, 4, 5}, 2);
@@ -29,6 +33,7 @@ TEST(Serialize, Chunked)
     EXPECT_EQ(chunks[2], Bytes({5}));
 }
 
+/** @brief Pixel formats RGB565, BGR and BGRA. */
 TEST(Serialize, PixelFormats)
 {
     Image image(2, 1);
@@ -41,6 +46,7 @@ TEST(Serialize, PixelFormats)
     EXPECT_EQ(image_to_BGRA(image).second, 4);
 }
 
+/** @brief Image rotations. */
 TEST(Image, Rotations)
 {
     // 2x1 image: red, green

@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Linux serial port (termios), replacing the subset of pyserial used by the Python code.
+/**
+ * @file serial_port.cpp
+ * @brief Linux serial port (termios), providing the subset of pyserial needed by the program.
+ */
 
 #include "library/lcd/serial_port.h"
 

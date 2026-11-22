@@ -18,7 +18,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/sensors/sensors_stub_static.py
+/**
+ * @file sensors_stub_static.cpp
+ */
 
 #include "library/sensors/sensors_stub_static.h"
 
@@ -85,6 +87,7 @@ sensors::Net::Stats Net::stats(const std::string &, std::optional<double>)
     return {NETWORK_SPEED_BYTES, NETWORK_SPEED_BYTES, NETWORK_SPEED_BYTES, NETWORK_SPEED_BYTES};
 }
 
+/** @brief Create the sensors returning fixed values. */
 sensors::Sensors create()
 {
     return {std::make_unique<Cpu>(), std::make_unique<Gpu>(), std::make_unique<Memory>(), std::make_unique<Disk>(),

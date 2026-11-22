@@ -18,10 +18,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of tools/turing-theme-extractor.py: Extract resources from a Turing Smart Screen theme (.data files) made
-// for Windows app. The PNG can then be re-used to create a theme for System Monitor (see Wiki for theme creation)
-// To run for all files of a folder:
-// for file in "FOLDER"/*; do if [ -f "$file" ]; then turing-theme-extractor "$file"; fi; done
+/**
+ * @file turing-theme-extractor.cpp
+ * @brief Extract resources from a Turing Smart Screen theme (.data files) made for Windows app.
+ *
+ * The PNG can then be re-used to create a theme for System Monitor (see Wiki for theme creation).
+ * To extract all the files of a folder, run the program on each file of the folder, for example with a shell loop.
+ */
 
 #include <cstdio>
 #include <filesystem>
@@ -32,6 +35,7 @@
 
 namespace fs = std::filesystem;
 
+/** @brief Entry point of the turing-theme-extractor tool. */
 int main(int argc, char *argv[])
 {
     if (argc != 2) {

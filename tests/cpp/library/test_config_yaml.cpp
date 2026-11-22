@@ -16,12 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Unit tests of the config.yaml update functions of library/config (replace ruamel.yaml of configure.py)
+/**
+ * @file test_config_yaml.cpp
+ * @brief Unit tests of the config.yaml update functions of src/library/config (the YAML file is updated in place, keeping its comments)
+ */
 
 #include <gtest/gtest.h>
 
 #include "library/config.h"
 
+/** @brief Scalar values are read from YAML. */
 TEST(ConfigYaml, Scalar)
 {
     EXPECT_EQ(config::yaml_scalar("AUTO"), "AUTO");
@@ -35,6 +39,7 @@ TEST(ConfigYaml, Scalar)
     EXPECT_EQ(config::yaml_scalar("-x"), "\"-x\"");
 }
 
+/** @brief Updating a value keeps the comments of the file. */
 TEST(ConfigYaml, UpdateKeepsComments)
 {
     const std::string text = "---\n"
@@ -78,6 +83,7 @@ TEST(ConfigYaml, UpdateKeepsComments)
     EXPECT_EQ(node["display"]["BRIGHTNESS"].as<int>(), 35);
 }
 
+/** @brief Updating a quoted value containing a hash. */
 TEST(ConfigYaml, UpdateQuotedValueWithHash)
 {
     const std::string updated = config::update_yaml_text("config:\n  KEY: \"a # b\" # comment\n",

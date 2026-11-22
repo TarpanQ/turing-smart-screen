@@ -18,7 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/serialize.py: conversion of images to the pixel formats of the screens
+/**
+ * @file serialize.h
+ * @brief Conversion of images to the pixel formats of the screens
+ */
 
 #pragma once
 
@@ -30,19 +33,20 @@
 
 #include "library/lcd/image.h"
 
+/** @brief Sequence of bytes. */
 using Bytes = std::vector<uint8_t>;
 
-// Split data in chunks of chunk_size bytes (the last one can be smaller)
+/** @brief Split data in chunks of chunk_size bytes (the last one can be smaller) */
 std::vector<Bytes> chunked(const Bytes &data, size_t chunk_size);
 
-// RGB565 pixels, endianness: "big" or "little"
+/** @brief RGB565 pixels, endianness: "big" or "little" */
 Bytes image_to_RGB565(const Image &image, const std::string &endianness);
 
-// BGR pixels (3 bytes per pixel). Returns (data, pixel size)
+/** @brief BGR pixels (3 bytes per pixel). Returns (data, pixel size) */
 std::pair<Bytes, int> image_to_BGR(const Image &image);
 
-// BGRA pixels (4 bytes per pixel, opaque). Returns (data, pixel size)
+/** @brief BGRA pixels (4 bytes per pixel, opaque). Returns (data, pixel size) */
 std::pair<Bytes, int> image_to_BGRA(const Image &image);
 
-// Compressed BGRA pixels: [6-bit B + 2-bit A, 6-bit G + 2-bit A, 8-bit R] (opaque). Returns (data, pixel size)
+/** @brief Compressed BGRA pixels: [6-bit B + 2-bit A, 6-bit G + 2-bit A, 8-bit R] (opaque). Returns (data, pixel size) */
 std::pair<Bytes, int> image_to_compressed_BGRA(const Image &image);

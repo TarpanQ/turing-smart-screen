@@ -16,19 +16,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Unit tests of library/lcd/color (C++ port of library/lcd/color.py)
+/**
+ * @file test_color.cpp
+ * @brief Unit tests of src/library/lcd/color
+ */
 
 #include <gtest/gtest.h>
 #include <yaml-cpp/yaml.h>
 
 #include "library/lcd/color.h"
 
+/** @brief Colors written in the theme format are parsed. */
 TEST(ParseColor, ThemeFormat)
 {
     EXPECT_EQ(parse_color("255, 0, 0"), (RGBColor{255, 0, 0}));
     EXPECT_EQ(parse_color("12,34,56"), (RGBColor{12, 34, 56}));
 }
 
+/** @brief Colors written in the PIL format are parsed. */
 TEST(ParseColor, PilFormats)
 {
     const RGBColor red{255, 0, 0};
@@ -44,6 +49,7 @@ TEST(ParseColor, PilFormats)
     EXPECT_EQ(parse_color("hsl(120, 100%, 25%)"), (RGBColor{0, 128, 0}));
 }
 
+/** @brief Colors written in YAML are parsed. */
 TEST(ParseColor, Yaml)
 {
     EXPECT_EQ(parse_color(YAML::Load("[1, 2, 3]")), (RGBColor{1, 2, 3}));
@@ -51,6 +57,7 @@ TEST(ParseColor, Yaml)
     EXPECT_THROW(parse_color(YAML::Load("[1, 2]")), std::invalid_argument);
 }
 
+/** @brief Invalid colors are rejected. */
 TEST(ParseColor, Invalid)
 {
     EXPECT_THROW(parse_color("not a color"), std::invalid_argument);

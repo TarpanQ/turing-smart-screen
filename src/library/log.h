@@ -18,9 +18,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/log.py: logging to the console and to the log.log text file.
-//
-// Usage: logger.info("Loading theme {} from {}", name, path);   (std::format syntax)
+/**
+ * @file log.h
+ * @brief Logging to the console and to the log.log text file.
+ *
+ * Usage: logger.info("Loading theme {} from {}", name, path);   (std::format syntax)
+ */
 
 #pragma once
 
@@ -30,37 +33,44 @@
 #include <string>
 #include <string_view>
 
+/** @brief Severity of a log message. */
 enum class LogLevel { DEBUG = 10, INFO = 20, WARNING = 30, ERROR = 40 };
 
+/** @brief Logger writing messages to the console and to log.log, above a minimum level. */
 class Logger
 {
 public:
     Logger();
 
-    // Lowest level of the messages that are logged (DEBUG by default: print all messages)
+    /** @brief Lowest level of the messages that are logged (DEBUG by default: print all messages) */
     void setLevel(LogLevel level);
 
+    /** @brief Log a message with the given level. */
     void log(LogLevel level, std::string_view message);
 
     template<typename... Args>
+    /** @brief Log a debug message, formatted with the std::format syntax. */
     void debug(std::format_string<Args...> fmt, Args &&... args)
     {
         log(LogLevel::DEBUG, std::format(fmt, std::forward<Args>(args)...));
     }
 
     template<typename... Args>
+    /** @brief Log an information message, formatted with the std::format syntax. */
     void info(std::format_string<Args...> fmt, Args &&... args)
     {
         log(LogLevel::INFO, std::format(fmt, std::forward<Args>(args)...));
     }
 
     template<typename... Args>
+    /** @brief Log a warning message, formatted with the std::format syntax. */
     void warning(std::format_string<Args...> fmt, Args &&... args)
     {
         log(LogLevel::WARNING, std::format(fmt, std::forward<Args>(args)...));
     }
 
     template<typename... Args>
+    /** @brief Log an error message, formatted with the std::format syntax. */
     void error(std::format_string<Args...> fmt, Args &&... args)
     {
         log(LogLevel::ERROR, std::format(fmt, std::forward<Args>(args)...));
@@ -72,4 +82,5 @@ private:
     std::ofstream file;
 };
 
+/** @brief Global logger. */
 extern Logger logger;

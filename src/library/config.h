@@ -20,11 +20,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/config.py: loads config.yaml, then the theme res/themes/<THEME>/theme.yaml with fallback to
-// the default values of res/themes/default.yaml.
-//
-// In Python, the configuration and theme are loaded when the module is imported: in C++, config::init() must be
-// called once at program start, before using anything else from the library.
+/**
+ * @file config.h
+ * @brief Loads config.yaml, then the theme res/themes/`THEME`/theme.yaml with fallback to the default values of res/themes/default.yaml.
+ *
+ * config::init() must be called once at program start, before using anything else from the library.
+ */
 
 #pragma once
 
@@ -39,60 +40,75 @@
 
 namespace config {
 
-// Directory containing config.yaml and res/ (the repository root)
+/** @brief Directory containing config.yaml and res/ (the repository root) */
 extern std::filesystem::path MAIN_DIRECTORY;
-// Fonts directory, ending with '/'
+/** @brief Fonts directory, ending with '/' */
 extern std::string FONTS_DIR;
 extern YAML::Node CONFIG_DATA;
 extern YAML::Node THEME_DEFAULT;
 extern YAML::Node THEME_DATA;
 
-// Queue containing the serial requests to send to the screen
+/** @brief Queue containing the serial requests to send to the screen */
 extern UpdateQueue update_queue;
 
-// Directory containing config.yaml and res/: the executable directory or one of its parents (programs are built
-// into build/bin/), otherwise the current directory
+/**
+ * @brief Directory containing config.yaml and res/: the executable directory or one of its parents (programs are built
+ * into build/bin/), otherwise the current directory
+ */
 std::filesystem::path find_main_directory();
 
-// Throws YAML::Exception if the file cannot be loaded or parsed
+/** @brief Throws YAML::Exception if the file cannot be loaded or parsed */
 YAML::Node load_yaml(const std::filesystem::path &configfile);
 
-// Recursively supply default values into a map of maps of maps ...
+/** @brief Recursively supply default values into a map of maps of maps ... */
 void copy_default(const YAML::Node &default_values, YAML::Node theme);
 
-// A value to write in config.yaml: section ("config" or "display"), key, and value already formatted as YAML
-// (use yaml_scalar() for strings)
+/**
+ * @brief A value to write in config.yaml: section ("config" or "display"), key, and value already formatted as YAML
+ * (use yaml_scalar() for strings)
+ */
 struct YamlUpdate
 {
+    /** @brief Section of the value to update. */
     std::string section;
+    /** @brief Key of the value to update. */
     std::string key;
+    /** @brief New value of the key. */
     std::string value;
 };
 
-// String formatted as a YAML scalar: plain if possible, double-quoted otherwise (empty string, special characters,
-// values that YAML would read as another type like "true" or "null")
+/**
+ * @brief String formatted as a YAML scalar: plain if possible, double-quoted otherwise (empty string, special characters,
+ * values that YAML would read as another type like "true" or "null")
+ */
 std::string yaml_scalar(const std::string &value);
 
-// Update the values in the YAML text of a configuration file, keeping everything else unchanged (comments, order,
-// formatting), like ruamel.yaml does in Python. Missing keys are added at the end of their section, missing sections
-// at the end of the text.
+/**
+ * @brief Update the values in the YAML text of a configuration file, keeping everything else unchanged (comments, order,
+ * formatting), like ruamel.yaml does. Missing keys are added at the end of their section, missing sections
+ * at the end of the text.
+ */
 std::string update_yaml_text(const std::string &text, const std::vector<YamlUpdate> &updates);
 
-// Same as update_yaml_text() on a file. Throws std::runtime_error if the file cannot be read or written.
+/** @brief Same as update_yaml_text() on a file. Throws std::runtime_error if the file cannot be read or written. */
 void update_yaml_file(const std::filesystem::path &path, const std::vector<YamlUpdate> &updates);
 
-// Load the theme selected in config.yaml into THEME_DATA. On error, exits the program if exit_on_error is true,
-// otherwise throws std::runtime_error (THEME_DATA is then unchanged if the theme file cannot be read or parsed).
+/**
+ * @brief Load the theme selected in config.yaml into THEME_DATA. On error, exits the program if exit_on_error is true,
+ * otherwise throws std::runtime_error (THEME_DATA is then unchanged if the theme file cannot be read or parsed).
+ */
 void load_theme(bool exit_on_error = true);
 
-// Check if theme is compatible with hardware revision. Exits the program if not.
+/** @brief Check if theme is compatible with hardware revision. Exits the program if not. */
 void check_theme_compatible(const std::string &display_size);
 
-// Load config.yaml, default.yaml and the theme (if with_theme is true). Exits the program on error.
+/** @brief Load config.yaml, default.yaml and the theme (if with_theme is true). Exits the program on error. */
 void init(bool with_theme = true);
 
-// Value of node[key] converted to T, or default_value if the key is missing or empty (like Python dict.get()).
-// Throws std::runtime_error if the value cannot be converted to T.
+/**
+ * @brief Value of node[key] converted to T, or default_value if the key is missing or empty.
+ * Throws std::runtime_error if the value cannot be converted to T.
+ */
 template<typename T>
 T get(const YAML::Node &node, const std::string &key, const T &default_value)
 {
@@ -110,11 +126,13 @@ T get(const YAML::Node &node, const std::string &key, const T &default_value)
     }
 }
 
-// Color value of node[key] (see parse_color()), or default_value if the key is missing or empty.
-// Throws std::invalid_argument if the color cannot be parsed.
+/**
+ * @brief Color value of node[key] (see parse_color()), or default_value if the key is missing or empty.
+ * Throws std::invalid_argument if the color cannot be parsed.
+ */
 RGBColor get_color(const YAML::Node &node, const std::string &key, RGBColor default_value);
 
-// Overload so that string literals can be used as default value
+/** @brief Overload so that string literals can be used as default value */
 inline std::string get(const YAML::Node &node, const std::string &key, const char *default_value)
 {
     return get<std::string>(node, key, std::string(default_value));

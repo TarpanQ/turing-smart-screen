@@ -18,8 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of configure.py: the system monitor configuration GUI (GTK 4 with gtkmm).
-// Values are written to config.yaml keeping its comments and formatting.
+/**
+ * @file configure.h
+ * @brief The system monitor configuration GUI (GTK 4 with gtkmm). Values are written to config.yaml keeping its comments and formatting.
+ */
 
 #pragma once
 
@@ -30,23 +32,30 @@
 #include <gtkmm.h>
 #include <yaml-cpp/yaml.h>
 
-// Drop-down list of strings (replaces ttk.Combobox in read-only mode)
+/** @brief Drop-down list of strings (replaces ttk.Combobox in read-only mode) */
 class StringDropDown : public Gtk::DropDown
 {
 public:
     StringDropDown();
+    /** @brief Create a drop-down list with the given items. */
     explicit StringDropDown(const std::vector<std::string> &items);
 
+    /** @brief Replace the items of the list. */
     void set_items(const std::vector<std::string> &items);
+    /** @brief Items of the list. */
     std::vector<std::string> get_items() const;
 
-    // Select the item with this text. If the text is not in the list, it is added at the end (like ttk.Combobox,
-    // which can display a value that is not in its list)
+    /**
+     * @brief Select the item with this text. If the text is not in the list, it is added at the end (like ttk.Combobox,
+     * which can display a value that is not in its list)
+     */
     void set_text(const std::string &text);
+    /** @brief Text of the selected item. */
     std::string get_text() const;
 
-    // Index of the selected item, -1 if none
+    /** @brief Index of the selected item, -1 if none */
     int current() const;
+    /** @brief Select the item at the given index. */
     void set_current(int index);
 
 private:
@@ -55,13 +64,16 @@ private:
 
 class TuringConfigWindow;
 
-// Sub-window for weather & ping configuration
+/** @brief Sub-window for weather & ping configuration */
 class MoreConfigWindow : public Gtk::Window
 {
 public:
+    /** @brief Create the window of the additional settings (ping, weather). */
     explicit MoreConfigWindow(TuringConfigWindow &main_window);
 
+    /** @brief Fill the fields with the values of the configuration. */
     void load_config_values(const YAML::Node &config);
+    /** @brief Show the window. */
     void show_window();
 
 private:
@@ -70,7 +82,7 @@ private:
     void on_filllatlong_click();
     void on_save_click();
     void save_config_values();
-    // Coordinates entries only accept a decimal number
+    /** @brief Coordinates entries only accept a decimal number */
     void setup_coordinate_entry(Gtk::Entry &entry, std::string &last_valid);
 
     struct CityEntry
@@ -89,18 +101,20 @@ private:
     std::vector<CityEntry> city_entries;
 };
 
+/** @brief Main window of the configuration program. */
 class TuringConfigWindow : public Gtk::ApplicationWindow
 {
 public:
     TuringConfigWindow();
 
+    /** @brief Save the additional settings (ping, weather) in config.yaml. */
     void save_additional_config(const std::string &ping, const std::string &api_key, const std::string &lat,
                                 const std::string &lon, const std::string &unit, const std::string &lang);
 
 private:
     void load_theme_preview();
     void load_config_values();
-    // Returns false (with an error message) if the values cannot be saved
+    /** @brief Returns false (with an error message) if the values cannot be saved */
     bool save_config_values();
 
     void on_theme_change();

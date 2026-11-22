@@ -18,7 +18,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/lcd_comm_rev_d.py
+/**
+ * @file lcd_comm_rev_d.cpp
+ */
 
 #include "library/lcd/lcd_comm_rev_d.h"
 
@@ -31,6 +33,7 @@ using namespace rev_d;
 
 namespace rev_d {
 
+/** @brief Value of a command in the revision D protocol. */
 const Bytes &command_value(Command cmd)
 {
     static const std::map<Command, Bytes> values = {

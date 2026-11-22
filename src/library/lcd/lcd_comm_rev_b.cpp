@@ -18,7 +18,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/lcd_comm_rev_b.py
+/**
+ * @file lcd_comm_rev_b.cpp
+ */
 
 #include "library/lcd/lcd_comm_rev_b.h"
 

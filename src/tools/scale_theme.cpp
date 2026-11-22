@@ -18,11 +18,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of res/themes/scale_theme.py: Rescale a turing-smart-screen theme YAML to a new resolution.
-//
-// Usage:
-//     scale_theme theme.yaml output.yaml --from 480x800 --to 800x1280
-//     scale_theme theme.yaml output.yaml --from 800x480 --to 1280x800
+/**
+ * @file scale_theme.cpp
+ * @brief Rescale a turing-smart-screen theme YAML to a new resolution.
+ *
+ * Usage: scale_theme theme.yaml output.yaml --from 480x800 --to 800x1280 scale_theme theme.yaml output.yaml --from 800x480 --to 1280x800
+ */
 
 #include <cfenv>
 #include <cmath>
@@ -43,13 +44,13 @@ namespace fs = std::filesystem;
 
 namespace {
 
-const std::set<std::string> X_KEYS = {"X", "RADIUS"};  // scaled by x_factor
-const std::set<std::string> Y_KEYS = {"Y"};  // scaled by y_factor
-const std::set<std::string> W_KEYS = {"WIDTH"};  // scaled by x_factor
-const std::set<std::string> H_KEYS = {"HEIGHT"};  // scaled by y_factor
-const std::set<std::string> FS_KEYS = {"FONT_SIZE", "AXIS_FONT_SIZE"};  // scaled by avg factor
+const std::set<std::string> X_KEYS = {"X", "RADIUS"};  ///< scaled by x_factor
+const std::set<std::string> Y_KEYS = {"Y"};  ///< scaled by y_factor
+const std::set<std::string> W_KEYS = {"WIDTH"};  ///< scaled by x_factor
+const std::set<std::string> H_KEYS = {"HEIGHT"};  ///< scaled by y_factor
+const std::set<std::string> FS_KEYS = {"FONT_SIZE", "AXIS_FONT_SIZE"};  ///< scaled by avg factor
 
-// Parse 'WxH' string into (width, height)
+/** @brief Parse 'WxH' string into (width, height) */
 std::pair<int, int> parse_resolution(const std::string &res)
 {
     static const std::regex pattern(R"(\s*(\d+)(?:x|X|×)(\d+)\s*)");
@@ -60,15 +61,17 @@ std::pair<int, int> parse_resolution(const std::string &res)
     return {std::stoi(match[1]), std::stoi(match[2])};
 }
 
-// Apply factor and round to nearest integer (ties to even, like Python round())
+/** @brief Apply factor and round to nearest integer (ties to even) */
 long scale_value(double value, double factor)
 {
     std::fesetround(FE_TONEAREST);
     return std::lrint(value * factor);
 }
 
-// Walk through YAML lines and rescale numeric values for known keys.
-// Preserves comments, indentation, and all other content exactly.
+/**
+ * @brief Walk through YAML lines and rescale numeric values for known keys.
+ * Preserves comments, indentation, and all other content exactly.
+ */
 std::vector<std::string> process_lines(const std::vector<std::string> &lines, double fx, double fy)
 {
     // [indent]KEY: number[optional comment]
@@ -148,6 +151,7 @@ void usage(const char *program)
 
 }  // namespace
 
+/** @brief Entry point of the scale_theme tool. */
 int main(int argc, char *argv[])
 {
     std::vector<std::string> positional;

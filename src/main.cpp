@@ -23,7 +23,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of main.py: the system monitor main program, displaying HW sensors on the screen using themes.
+/**
+ * @file main.cpp
+ * @brief The system monitor main program, displaying HW sensors on the screen using themes.
+ */
 
 #include <chrono>
 #include <csignal>
@@ -49,18 +52,19 @@
 #include "library/stats.h"
 #include "library/tray_icon.h"
 
+/** @brief Environment variables of the process. */
 extern char **environ;
 
 namespace {
 
 constexpr auto DELAY_BETWEEN_THREADS = std::chrono::milliseconds(250);
 
-// Signal sent to this process by the tray icon menu to stop the program (handled like the other stopping signals)
+/** @brief Signal sent to this process by the tray icon menu to stop the program (handled like the other stopping signals) */
 constexpr int STOP_FROM_TRAY_SIGNAL = SIGUSR1;
 
 std::unique_ptr<TrayIcon> tray_icon;
 
-// Directory containing this program (build/bin/)
+/** @brief Directory containing this program (build/bin/) */
 std::filesystem::path program_directory()
 {
     std::error_code ec;
@@ -143,7 +147,7 @@ void print_usage(const char *program)
               << "                        Run n iterations in automated mode to generate themes screenshots.\n";
 }
 
-// Parse command-line arguments. Returns the number of theme screenshots iterations, if any. Exits on error.
+/** @brief Parse command-line arguments. Returns the number of theme screenshots iterations, if any. Exits on error. */
 std::optional<int> parse_arguments(int argc, char *argv[])
 {
     std::optional<int> theme_screenshots;
@@ -183,6 +187,7 @@ std::optional<int> parse_arguments(int argc, char *argv[])
 
 }  // namespace
 
+/** @brief Entry point of the system monitor. */
 int main(int argc, char *argv[])
 {
     // Parse command-line arguments

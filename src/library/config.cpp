@@ -20,7 +20,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/config.py
+/**
+ * @file config.cpp
+ */
 
 #include "library/config.h"
 
@@ -37,8 +39,11 @@ namespace config {
 
 fs::path MAIN_DIRECTORY;
 std::string FONTS_DIR;
+/** @brief Content of config.yaml. */
 YAML::Node CONFIG_DATA;
+/** @brief Default values of the theme settings. */
 YAML::Node THEME_DEFAULT;
+/** @brief Content of the theme file (theme.yaml) in use. */
 YAML::Node THEME_DATA;
 UpdateQueue update_queue;
 
@@ -69,6 +74,7 @@ fs::path find_main_directory()
     return fs::current_path();
 }
 
+/** @brief Load a YAML file, throws if it cannot be read or parsed. */
 YAML::Node load_yaml(const fs::path &configfile)
 {
     return YAML::LoadFile(configfile.string());
@@ -225,6 +231,7 @@ std::string update_yaml_text(const std::string &text, const std::vector<YamlUpda
     return result;
 }
 
+/** @brief Update the values of a YAML file in place, keeping its comments and formatting. */
 void update_yaml_file(const fs::path &path, const std::vector<YamlUpdate> &updates)
 {
     std::ifstream in(path);

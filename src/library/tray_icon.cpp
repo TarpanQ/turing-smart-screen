@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// System tray icon with a menu (StatusNotifierItem + com.canonical.dbusmenu over D-Bus), replacing pystray.
+/**
+ * @file tray_icon.cpp
+ * @brief System tray icon with a menu (StatusNotifierItem + com.canonical.dbusmenu over D-Bus).
+ */
 
 #include "library/tray_icon.h"
 
@@ -146,24 +149,44 @@ GVariant *empty_pixmaps()
 
 }  // namespace
 
+/** @brief Private implementation of the tray icon: D-Bus objects and menu state. */
 struct TrayIcon::Private
 {
+    /** @brief Name of the application, sent to the system tray. */
     std::string name;
+    /** @brief Title of the tray icon. */
     std::string title;
+    /** @brief Icon in several sizes. */
     std::vector<Pixmap> pixmaps;
+    /** @brief Items of the menu. */
     std::vector<MenuItem> menu;
 
+    /** @brief GLib main context of the tray icon thread. */
     GMainContext *context = nullptr;
+    /** @brief GLib main loop of the tray icon thread. */
     GMainLoop *loop = nullptr;
+    /** @brief D-Bus connection. */
     GDBusConnection *connection = nullptr;
+    /** @brief Introspection data of the D-Bus objects. */
     GDBusNodeInfo *node_info = nullptr;
-    guint item_registration = 0, menu_registration = 0, own_id = 0, watch_id = 0;
+    /** @brief Registration ID of the tray item D-Bus object. */
+    guint item_registration = 0;
+    /** @brief Registration ID of the menu D-Bus object. */
+    guint menu_registration = 0;
+    /** @brief Ownership ID of the D-Bus bus name. */
+    guint own_id = 0;
+    /** @brief Watch ID of the system tray watcher. */
+    guint watch_id = 0;
+    /** @brief D-Bus name of the tray icon. */
     std::string bus_name;
+    /** @brief True once the system tray has been found. */
     bool watcher_seen = false;
+    /** @brief True once the warning about a missing system tray has been logged. */
     bool watcher_warning_done = false;
 
     // ---- StatusNotifierItem
 
+    /** @brief Icon pixmaps as a D-Bus variant. */
     GVariant *pixmaps_variant() const
     {
         GVariantBuilder builder;
@@ -175,6 +198,7 @@ struct TrayIcon::Private
         return g_variant_builder_end(&builder);
     }
 
+    /** @brief Value of a property of the tray item, as a D-Bus variant. */
     GVariant *item_property(const std::string &property) const
     {
         if (property == "Category") return g_variant_new_string("ApplicationStatus");
@@ -196,6 +220,7 @@ struct TrayIcon::Private
 
     // ---- com.canonical.dbusmenu: root item 0, menu items 1..n
 
+    /** @brief Properties of a menu item, as a D-Bus variant. */
     GVariant *menu_item_properties(int id) const
     {
         GVariantBuilder builder;
@@ -215,8 +240,10 @@ struct TrayIcon::Private
         return g_variant_builder_end(&builder);
     }
 
+    /** @brief True if id is the identifier of a menu item. */
     bool valid_menu_id(int id) const { return id >= 0 && id <= static_cast<int>(menu.size()); }
 
+    /** @brief Layout of the menu, as a D-Bus variant. */
     GVariant *menu_layout(int id) const
     {
         GVariantBuilder children;
@@ -229,6 +256,7 @@ struct TrayIcon::Private
         return g_variant_new("(i@a{sv}@av)", id, menu_item_properties(id), g_variant_builder_end(&children));
     }
 
+    /** @brief Value of a property of the menu, as a D-Bus variant. */
     GVariant *menu_property(const std::string &property) const
     {
         if (property == "Version") return g_variant_new_uint32(3);
@@ -238,6 +266,7 @@ struct TrayIcon::Private
         return nullptr;
     }
 
+    /** @brief Handle an event on a menu item, such as a click. */
     void menu_event(int id, const std::string &event_id) const
     {
         if (event_id == "clicked" && id > 0 && valid_menu_id(id)) {
@@ -248,6 +277,7 @@ struct TrayIcon::Private
         }
     }
 
+    /** @brief Handle a D-Bus method call on the menu. */
     void menu_method(const std::string &method, GVariant *parameters, GDBusMethodInvocation *invocation) const
     {
         if (method == "GetLayout") {
@@ -328,6 +358,7 @@ struct TrayIcon::Private
 
     // ---- registration with the StatusNotifierWatcher of the desktop
 
+    /** @brief Register the tray icon with the system tray watcher. */
     void register_with_watcher()
     {
         g_dbus_connection_call(

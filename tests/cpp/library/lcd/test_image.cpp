@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Unit tests of library/lcd/image and library/lcd/font (replacement of Pillow)
+/**
+ * @file test_image.cpp
+ * @brief Unit tests of src/library/lcd/image and src/library/lcd/font (replacement of Pillow)
+ */
 
 #include <gtest/gtest.h>
 
@@ -28,6 +31,7 @@ const RGBColor black{0, 0, 0}, white{255, 255, 255}, red{255, 0, 0};
 const std::string FONT = "res/fonts/roboto-mono/RobotoMono-Regular.ttf";
 }
 
+/** @brief Image creation and pixel access. */
 TEST(Image, NewAndPixels)
 {
     Image image(4, 3, red);
@@ -38,6 +42,7 @@ TEST(Image, NewAndPixels)
     image.putpixel(10, 10, white);  // out of image: ignored
 }
 
+/** @brief Cropping outside the image gives black pixels. */
 TEST(Image, CropOutsideIsBlack)
 {
     const Image image(4, 4, white);
@@ -47,6 +52,7 @@ TEST(Image, CropOutsideIsBlack)
     EXPECT_EQ(cropped.getpixel(3, 3), black);
 }
 
+/** @brief Pasting an image into another one. */
 TEST(Image, Paste)
 {
     Image image(4, 4, black);
@@ -55,6 +61,7 @@ TEST(Image, Paste)
     EXPECT_EQ(image.getpixel(2, 2), black);
 }
 
+/** @brief Resizing an image of a uniform color keeps the color. */
 TEST(Image, ResizeUniformColor)
 {
     const Image image = Image(10, 6, red).resize(25, 3);
@@ -63,6 +70,7 @@ TEST(Image, ResizeUniformColor)
     EXPECT_EQ(image.getpixel(24, 2), red);
 }
 
+/** @brief Saving an image to PNG and opening it again. */
 TEST(Image, SaveAndOpenPng)
 {
     Image image(5, 5, white);
@@ -76,6 +84,7 @@ TEST(Image, SaveAndOpenPng)
     EXPECT_THROW(Image::open(::testing::TempDir() + "does-not-exist.png"), std::runtime_error);
 }
 
+/** @brief Rectangle outline includes its corners. */
 TEST(ImageDraw, RectangleCornersIncluded)
 {
     Image image(10, 10, black);
@@ -85,6 +94,7 @@ TEST(ImageDraw, RectangleCornersIncluded)
     EXPECT_EQ(image.getpixel(5, 5), black);
 }
 
+/** @brief Arc stays inside its bounding box. */
 TEST(ImageDraw, ArcStaysInBox)
 {
     Image image(20, 20, black);
@@ -97,6 +107,7 @@ TEST(ImageDraw, ArcStaysInBox)
     EXPECT_EQ(half.getpixel(10, 0), black);
 }
 
+/** @brief Font anchors and bounding box of a text. */
 TEST(Font, AnchorsAndBoundingBox)
 {
     const Font font(FONT, 20);
@@ -117,6 +128,7 @@ TEST(Font, AnchorsAndBoundingBox)
     EXPECT_THROW(Font("does-not-exist.ttf", 10), std::runtime_error);
 }
 
+/** @brief Drawing a text on an image. */
 TEST(Font, DrawText)
 {
     Image image(100, 40, black);
@@ -132,6 +144,7 @@ TEST(Font, DrawText)
     EXPECT_EQ(image.getpixel(5, 5), black);
 }
 
+/** @brief Drawing a multi-line text on an image. */
 TEST(Font, MultilineText)
 {
     const Font font(FONT, 20);

@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Unit tests of library/scheduler (C++ port of library/scheduler.py)
+/**
+ * @file test_scheduler.cpp
+ * @brief Unit tests of src/library/scheduler
+ */
 
 #include <atomic>
 #include <chrono>
@@ -27,6 +30,7 @@
 
 #include "library/scheduler.h"
 
+/** @brief Periodic jobs run until they are stopped. */
 TEST(Scheduler, PeriodicJobAndStop)
 {
     std::atomic<int> runs = 0;

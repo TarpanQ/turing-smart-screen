@@ -20,7 +20,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/stats.py
+/**
+ * @file stats.cpp
+ */
 
 #include "library/stats.h"
 
@@ -223,6 +225,7 @@ std::optional<std::string> get_theme_file_path(const std::string &name)
     return std::nullopt;
 }
 
+/** @brief Display a value as text, with the theme style. */
 void display_themed_value(const YAML::Node &theme_data, const std::optional<std::string> &value, int min_size,
                           const std::string &unit)
 {
@@ -258,16 +261,19 @@ void display_themed_value(const YAML::Node &theme_data, const std::optional<std:
     });
 }
 
+/** @brief Display a percentage as text, with the theme style. */
 void display_themed_percent_value(const YAML::Node &theme_data, double value)
 {
     display_themed_value(theme_data, std::to_string(to_int(value)), 3, "%");
 }
 
+/** @brief Display a temperature as text, with the theme style. */
 void display_themed_temperature_value(const YAML::Node &theme_data, double value)
 {
     display_themed_value(theme_data, std::to_string(to_int(value)), 3, "°C");
 }
 
+/** @brief Display a progress bar, with the theme style. */
 void display_themed_progress_bar(const YAML::Node &theme_data, double value)
 {
     if (!is_shown(theme_data)) {
@@ -349,16 +355,19 @@ void display_themed_radial_bar(const YAML::Node &theme_data, double value, const
     });
 }
 
+/** @brief Display a percentage as a radial bar, with the theme style. */
 void display_themed_percent_radial_bar(const YAML::Node &theme_data, double value)
 {
     display_themed_radial_bar(theme_data, to_int(value), std::to_string(to_int(value)), 3, "%");
 }
 
+/** @brief Display a temperature as a radial bar, with the theme style. */
 void display_themed_temperature_radial_bar(const YAML::Node &theme_data, double value)
 {
     display_themed_radial_bar(theme_data, to_int(value), std::to_string(to_int(value)), 3, "°C");
 }
 
+/** @brief Display a line graph of values, with the theme style. */
 void display_themed_line_graph(const YAML::Node &theme_data, const std::vector<double> &values)
 {
     if (!is_shown(theme_data)) {
@@ -400,6 +409,7 @@ void save_last_value(double value, std::vector<double> &last_values, int history
     last_values.erase(last_values.begin());
 }
 
+/** @brief Last values of the history, of the given size. */
 std::vector<double> last_values_list(int size)
 {
     return std::vector<double>(static_cast<size_t>(std::max(size, 1)), NaN);

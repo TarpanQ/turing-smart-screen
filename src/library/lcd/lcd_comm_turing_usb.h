@@ -18,12 +18,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/lcd_comm_turing_usb.py
-// This class is for Turing Smart Screen newer models (4.6" / 5.2" / 8" / 8.8" HW rev 1.x / 9.2" / 12.3")
-// These models are not detected as serial ports but as USB devices (libusb).
-//
-// Not ported: the H.264 video streaming and file upload helpers of the Python file, which are not used by the
-// programs of this project.
+/**
+ * @file lcd_comm_turing_usb.h
+ * @brief This class is for Turing Smart Screen newer models (4.6" / 5.2" / 8" / 8.8" HW rev 1.x / 9.2" / 12.3") These models are not detected as serial ports but as USB devices (libusb).
+ *
+ * Not provided: the H.264 video streaming and file upload helpers, which are not used by the programs of this project.
+ */
 
 #pragma once
 
@@ -38,30 +38,32 @@
 
 namespace turing_usb {
 
+/** @brief USB vendor ID of the Turing screens. */
 constexpr uint16_t VENDOR_ID = 0x1cbe;
 
-// Map of display supported product IDs and their respective resolution in portrait mode
+/** @brief Map of display supported product IDs and their respective resolution in portrait mode */
 const std::vector<std::pair<uint16_t, std::pair<int, int>>> &product_ids();
 
-constexpr size_t MAX_CHUNK_BYTES = 1024 * 1024;  // Data sent to screen cannot exceed 1MB or there will be a timeout
+constexpr size_t MAX_CHUNK_BYTES = 1024 * 1024;  ///< Data sent to screen cannot exceed 1MB or there will be a timeout
 
-// Command IDs used by the vendor protocol (subset)
+/** @brief Command IDs used by the vendor protocol (subset) */
 constexpr uint8_t CMD_UPLOAD_JPEG = 101;
+/** @brief USB command code to upload a PNG image. */
 constexpr uint8_t CMD_UPLOAD_PNG = 102;
 
-// Default max payload for frame uploads (device/transport limit)
+/** @brief Default max payload for frame uploads (device/transport limit) */
 constexpr size_t MAX_IMAGE_PAYLOAD_DEFAULT = MAX_CHUNK_BYTES;
 
-// DES-CBC encryption (IV = key) of zero-padded data, like pycryptodome DES.new(key, DES.MODE_CBC, key)
+/** @brief DES-CBC encryption (IV = key) of zero-padded data, like pycryptodome DES.new(key, DES.MODE_CBC, key) */
 Bytes encrypt_with_des(const Bytes &key, const Bytes &data);
 
-// Command packet: 500 bytes, command ID in byte 0, timestamp (ms since local midnight) in bytes 4-7
+/** @brief Command packet: 500 bytes, command ID in byte 0, timestamp (ms since local midnight) in bytes 4-7 */
 Bytes build_command_packet_header(uint8_t a0);
 
-// Encrypted command packet: 512 bytes
+/** @brief Encrypted command packet: 512 bytes */
 Bytes encrypt_command_packet(const Bytes &data);
 
-// USB device opened with libusb, with the bulk endpoints of interface 0
+/** @brief USB device opened with libusb, with the bulk endpoints of interface 0 */
 class UsbDevice
 {
 public:
@@ -72,9 +74,11 @@ public:
     UsbDevice(const UsbDevice &) = delete;
     UsbDevice &operator=(const UsbDevice &) = delete;
 
+    /** @brief USB product ID of the device. */
     uint16_t pid() const { return product_id; }
 
     // Write data then read the response (512 bytes max), std::nullopt on error
+    /** @brief Write data to the USB device and return the answer, with a timeout in milliseconds. */
     std::optional<Bytes> write_to_device(const Bytes &data, unsigned int timeout_ms = 2000);
 
 private:
@@ -94,33 +98,45 @@ std::optional<Bytes> send_image(UsbDevice &dev, const Bytes &png_data);
 std::optional<Bytes> send_jpeg(UsbDevice &dev, const Bytes &jpeg_data);
 std::optional<Bytes> clear_image(UsbDevice &dev);
 
-// JPEG data under max_bytes, lowering the quality if needed. Throws std::runtime_error if not possible.
-// subsampling: -1 (try 4:2:0, 4:2:2 then 4:4:4), or 0, 1, 2
+/**
+ * @brief JPEG data under max_bytes, lowering the quality if needed. Throws std::runtime_error if not possible.
+ * subsampling: -1 (try 4:2:0, 4:2:2 then 4:4:4), or 0, 1, 2
+ */
 Bytes encode_jpeg_under_limit(const Image &image, size_t max_bytes, int quality = 95, int subsampling = -1);
 
-// Send the image as PNG, or JPEG if the PNG data is over the limit
+/** @brief Send the image as PNG, or JPEG if the PNG data is over the limit */
 void send_pil_image_auto(UsbDevice &dev, const Image &image, size_t max_bytes = MAX_IMAGE_PAYLOAD_DEFAULT);
 
 }  // namespace turing_usb
 
+/** @brief Driver for the Turing screens connected by USB, through libusb. */
 class LcdCommTuringUSB : public LcdComm
 {
 public:
+    /** @brief Create the driver for the given COM port and screen size. */
     LcdCommTuringUSB(const std::string &com_port = "AUTO", int display_width = 480, int display_height = 1920,
                      UpdateQueue *update_queue = nullptr);
     ~LcdCommTuringUSB() override;
 
+    /** @brief Initialize the screen. */
     void InitializeComm() override;
+    /** @brief Reset the screen. */
     void Reset() override;
+    /** @brief Clear the screen. */
     void Clear() override;
+    /** @brief Turn the screen off. */
     void ScreenOff() override;
+    /** @brief Turn the screen on. */
     void ScreenOn() override;
+    /** @brief Set the brightness, from 0 (off) to 100 (maximum). */
     void SetBrightness(int level = 25) override;
+    /** @brief Set the orientation of the screen. */
     void SetOrientation(Orientation orientation = Orientation::PORTRAIT) override;
+    /** @brief Display an image at (x, y), cropped to image_width x image_height if given. */
     void DisplayPILImage(const Image &image, int x = 0, int y = 0, int image_width = 0, int image_height = 0) override;
 
 private:
     std::unique_ptr<turing_usb::UsbDevice> dev;
-    // Current screen state as an image that will be continuously updated and sent
+    /** @brief Current screen state as an image that will be continuously updated and sent */
     Image current_state;
 };

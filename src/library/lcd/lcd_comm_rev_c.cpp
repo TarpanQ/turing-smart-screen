@@ -18,7 +18,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/lcd_comm_rev_c.py
+/**
+ * @file lcd_comm_rev_c.cpp
+ */
 
 #include "library/lcd/lcd_comm_rev_c.h"
 
@@ -83,7 +85,7 @@ void append_big_endian(Bytes &data, uint64_t value, int size)
     }
 }
 
-// Join the chunks of data with a 0x00 byte between them
+/** @brief Join the chunks of data with a 0x00 byte between them */
 Bytes join_chunks(const Bytes &data, size_t chunk_size)
 {
     Bytes result;
@@ -99,7 +101,7 @@ Bytes join_chunks(const Bytes &data, size_t chunk_size)
     return result;
 }
 
-// HELLO answer from the serial bytes: printable ASCII characters only
+/** @brief HELLO answer from the serial bytes: printable ASCII characters only */
 std::string printable(const Bytes &data)
 {
     std::string result;

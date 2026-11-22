@@ -18,7 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/log.py: logging to the console and to the log.log text file.
+/**
+ * @file log.cpp
+ * @brief Logging to the console and to the log.log text file.
+ */
 
 #include "library/log.h"
 
@@ -27,7 +30,7 @@
 #include <iostream>
 
 namespace {
-// Log in text file, max 1MB: the file is truncated when it gets bigger
+/** @brief Log in text file, max 1MB: the file is truncated when it gets bigger */
 constexpr std::streamoff LOG_FILE_MAX_BYTES = 1000000;
 constexpr const char *LOG_FILE = "log.log";
 
@@ -43,6 +46,7 @@ const char *level_name(LogLevel level)
 }
 }
 
+/** @brief Global logger. */
 Logger logger;
 
 Logger::Logger()

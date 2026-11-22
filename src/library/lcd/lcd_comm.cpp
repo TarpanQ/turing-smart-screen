@@ -18,7 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/lcd_comm.py: base class of all LCD screen drivers.
+/**
+ * @file lcd_comm.cpp
+ * @brief Base class of all LCD screen drivers.
+ */
 
 #include "library/lcd/lcd_comm.h"
 
@@ -34,7 +37,7 @@
 
 namespace {
 
-// Replaces Python "assert": the error is reported as an exception
+/** @brief Assertion: the error is reported as an exception */
 void check(bool condition, const std::string &message)
 {
     if (!condition) {
@@ -42,14 +45,14 @@ void check(bool condition, const std::string &message)
     }
 }
 
-// Python modulo operator on floats (result has the sign of the divisor)
+/** @brief Modulo operator on floats (result has the sign of the divisor) */
 double pymod(double a, double b)
 {
     const double r = std::fmod(a, b);
     return (r != 0 && ((r < 0) != (b < 0))) ? r + b : r;
 }
 
-// Rounding of DrawRadialDecoration(): halfway cases are rounded towards the circle center
+/** @brief Rounding of DrawRadialDecoration(): halfway cases are rounded towards the circle center */
 double round_to_center(double v, double direction)
 {
     double int_part;

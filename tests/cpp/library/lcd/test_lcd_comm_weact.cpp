@@ -16,9 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Tests of library/lcd/lcd_comm_weact_a and lcd_comm_weact_b: data sent to the screen compared with the Python
-// drivers (no Python tests exist for them). The expected data is the output of the Python drivers for the same test
-// cases as the rev. A-D tests (patch images cropped to the patch size), stored as FNV-1a 64-bit hashes.
+/**
+ * @file test_lcd_comm_weact.cpp
+ * @brief Tests of library/lcd/lcd_comm_weact_a and lcd_comm_weact_b: data sent to the screen compared with the output of the former Python drivers (no Python tests exist for them). The expected data is the output of the former Python drivers for the same test cases as the rev. A-D tests (patch images cropped to the patch size), stored as FNV-1a 64-bit hashes.
+ */
 
 #include <map>
 
@@ -66,6 +67,7 @@ class TestLcdCommWeAct : public ::testing::TestWithParam<std::string>
 {
 };
 
+/** @brief Data sent by the WeAct A driver is the same as the reference hash. */
 TEST_P(TestLcdCommWeAct, WeActA)
 {
     const std::string calls = run_case<LcdCommWeActA>(GetParam(), 320, 480, {10, 20, 100, 200, true});
@@ -74,6 +76,7 @@ TEST_P(TestLcdCommWeAct, WeActA)
     EXPECT_EQ(fnv1a(calls), expected.hash) << "Data sent to the screen differs from the Python driver";
 }
 
+/** @brief Data sent by the WeAct B driver is the same as the reference hash. */
 TEST_P(TestLcdCommWeAct, WeActB)
 {
     const std::string calls = run_case<LcdCommWeActB>(GetParam(), 80, 160, {5, 10, 30, 60, true});
@@ -82,4 +85,5 @@ TEST_P(TestLcdCommWeAct, WeActB)
     EXPECT_EQ(fnv1a(calls), expected.hash) << "Data sent to the screen differs from the Python driver";
 }
 
+/** @brief Test cases of the WeAct tests. */
 INSTANTIATE_TEST_SUITE_P(Python, TestLcdCommWeAct, ::testing::ValuesIn(TEST_CASES));

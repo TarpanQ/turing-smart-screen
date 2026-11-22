@@ -18,7 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/sensors/sensors_python.py: hardware sensors read from Linux /proc and /sys, and NVIDIA NVML.
+/**
+ * @file sensors_python.cpp
+ * @brief Hardware sensors read from Linux /proc and /sys, and NVIDIA NVML.
+ */
 
 #include "library/sensors/sensors_python.h"
 
@@ -419,6 +422,7 @@ std::vector<std::pair<std::string, std::vector<FanInfo>>> sensors_fans()
     return ret;
 }
 
+/** @brief True if a fan label or a sensor name corresponds to the CPU fan. */
 bool is_cpu_fan(const std::string &label)
 {
     const std::string l = lower(label);
@@ -860,6 +864,7 @@ sensors::Net::Stats Net::stats(const std::string &if_name, std::optional<double>
     return result;
 }
 
+/** @brief Create the sensors reading the Linux system files. */
 sensors::Sensors create()
 {
     return {std::make_unique<Cpu>(), std::make_unique<Gpu>(), std::make_unique<Memory>(), std::make_unique<Disk>(),

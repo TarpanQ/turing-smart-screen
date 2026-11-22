@@ -18,8 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of simple-program.py: a simple test program using the library code to display custom content on screen.
-// It does not use the configuration file and themes: change the constants below for your screen.
+/**
+ * @file simple-program.cpp
+ * @brief A simple test program using the library code to display custom content on screen. It does not use the configuration file and themes: change the constants below for your screen.
+ */
 
 #include <atomic>
 #include <chrono>
@@ -41,28 +43,35 @@
 #include "library/lcd/lcd_simulated.h"
 #include "library/log.h"
 
-// Set your COM port e.g. "/dev/ttyACM0", or "AUTO" for auto-discovery
+/** @brief Set your COM port e.g. "/dev/ttyACM0", or "AUTO" for auto-discovery */
 const std::string COM_PORT = "AUTO";
 
-// Display revision:
-// - A      for Turing 3.5" and UsbPCMonitor 3.5"/5"
-// - B      for Xuanfang 3.5" (inc. flagship)
-// - C      for Turing 5"
-// - D      for Kipye Qiye Smart Display 3.5"
-// - TUR_USB for Turing USB models (4.6"/5.2"/8"/8.8" HW rev 1.x/9.2")
-// - WEACT_A for WeAct Studio Display FS V1 3.5"
-// - WEACT_B for WeAct Studio Display FS V1 0.96"
-// - SIMU   for simulated display (image written in screencap.png)
-// To identify your smart screen: https://github.com/mathoudebine/turing-smart-screen-python/wiki/Hardware-revisions
+/**
+ * @brief Display revision:
+ * - A      for Turing 3.5" and UsbPCMonitor 3.5"/5"
+ * - B      for Xuanfang 3.5" (inc. flagship)
+ * - C      for Turing 5"
+ * - D      for Kipye Qiye Smart Display 3.5"
+ * - TUR_USB for Turing USB models (4.6"/5.2"/8"/8.8" HW rev 1.x/9.2")
+ * - WEACT_A for WeAct Studio Display FS V1 3.5"
+ * - WEACT_B for WeAct Studio Display FS V1 0.96"
+ * - SIMU   for simulated display (image written in screencap.png)
+ * To identify your smart screen: https://github.com/mathoudebine/turing-smart-screen-python/wiki/Hardware-revisions
+ */
 const std::string REVISION = "A";
 
-// Display width & height in pixels for portrait orientation
-// /!\ Do not switch width/height here for landscape, use lcd_comm.SetOrientation below
-// 320x480 for 3.5" models
-// 480x480 for 2.1" models
-// 480x800 for 4.3" and 5" models
-// 480x1920 for 8.8" models
-constexpr int WIDTH = 320, HEIGHT = 480;
+/**
+ * @brief Display width & height in pixels for portrait orientation
+ * /!\ Do not switch width/height here for landscape, use lcd_comm.SetOrientation below
+ * 320x480 for 3.5" models
+ * 480x480 for 2.1" models
+ * 480x800 for 4.3" and 5" models
+ * 480x1920 for 8.8" models
+ */
+/** @brief Width of the screen, in pixels. */
+constexpr int WIDTH = 320;
+/** @brief Height of the screen, in pixels. */
+constexpr int HEIGHT = 480;
 
 static_assert(WIDTH <= HEIGHT, "Indicate display width/height for PORTRAIT orientation: width <= height");
 
@@ -93,6 +102,7 @@ double elapsed(std::chrono::steady_clock::time_point start)
 
 }  // namespace
 
+/** @brief Entry point of the example program. */
 int main()
 {
     // Set the signal handlers, to send a complete frame to the LCD before exit

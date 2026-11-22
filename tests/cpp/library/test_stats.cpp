@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Unit tests of library/stats helpers (C++ port of library/stats.py)
+/**
+ * @file test_stats.cpp
+ * @brief Unit tests of src/library/stats helpers
+ */
 
 #include <cmath>
 
@@ -24,6 +27,7 @@
 
 #include "library/stats.h"
 
+/** @brief Conversion of sizes to a human-readable format. */
 TEST(Stats, Bytes2Human)
 {
     // Same results as psutil._common.bytes2human()
@@ -35,6 +39,7 @@ TEST(Stats, Bytes2Human)
     EXPECT_EQ(stats::bytes2human(5.5 * 1024 * 1024 * 1024 * 1024), "5.5T");
 }
 
+/** @brief Line graph history keeps the last values. */
 TEST(Stats, SaveLastValue)
 {
     std::vector<double> values;

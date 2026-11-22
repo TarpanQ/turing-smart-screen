@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of tests/library/lcd/test_lcd_comm_rev_a.py: data sent to the screen compared with the golden files
+/**
+ * @file test_lcd_comm_rev_a.cpp
+ * @brief Data sent to the screen compared with the golden files
+ */
 
 #include <gtest/gtest.h>
 
@@ -27,6 +30,7 @@ class TestLcdCommRevA : public ::testing::TestWithParam<std::string>
 {
 };
 
+/** @brief Data sent by the revision A driver is the same as the golden file. */
 TEST_P(TestLcdCommRevA, Golden)
 {
     const std::string calls = run_case<LcdCommRevA>(GetParam(), 320, 480);
@@ -36,9 +40,10 @@ TEST_P(TestLcdCommRevA, Golden)
     EXPECT_TRUE(calls == expected) << "Data sent to the screen differs from golden file";
 }
 
+/** @brief Test cases of the revision A golden tests. */
 INSTANTIATE_TEST_SUITE_P(Python, TestLcdCommRevA, ::testing::ValuesIn(TEST_CASES));
 
-// The requests going through the update queue (as in the system monitor) send the same data
+/** @brief The requests going through the update queue (as in the system monitor) send the same data */
 TEST(TestLcdCommRevAQueue, QueuedRequestsMatchGolden)
 {
     SerialMockScope mock;

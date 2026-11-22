@@ -18,8 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of tools/compare-images.py: compare 2 pictures, and save their difference if they are not identical
-// Usage: compare-images <picture1> <picture2> <difference output picture>
+/**
+ * @file compare-images.cpp
+ * @brief Compare 2 pictures, and save their difference if they are not identical Usage: compare-images `picture1` `picture2` `difference output picture`
+ */
 
 #include <cstdio>
 #include <cstdlib>
@@ -27,6 +29,7 @@
 
 #include "library/lcd/image.h"
 
+/** @brief Entry point of the compare-images tool. */
 int main(int argc, char *argv[])
 {
     if (argc < 4) {

@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Unit tests of library/lcd/lcd_simulated and of the rendering functions of library/lcd/lcd_comm
+/**
+ * @file test_lcd_simulated.cpp
+ * @brief Unit tests of library/lcd/lcd_simulated and of the rendering functions of library/lcd/lcd_comm
+ */
 
 #include <cmath>
 
@@ -29,6 +32,7 @@ const RGBColor black{0, 0, 0}, white{255, 255, 255}, red{255, 0, 0};
 const std::string FONT = "res/fonts/roboto-mono/RobotoMono-Regular.ttf";
 }
 
+/** @brief Orientation and size of the simulated display. */
 TEST(LcdSimulated, OrientationAndSize)
 {
     LcdSimulated lcd("AUTO", 320, 480);
@@ -40,6 +44,7 @@ TEST(LcdSimulated, OrientationAndSize)
     EXPECT_EQ(Image::open(SCREENSHOT_FILE).size(), std::make_pair(480, 320));
 }
 
+/** @brief Drawing a progress bar on the simulated display. */
 TEST(LcdSimulated, ProgressBar)
 {
     LcdSimulated lcd("AUTO", 320, 480);
@@ -52,6 +57,7 @@ TEST(LcdSimulated, ProgressBar)
     EXPECT_EQ(lcd.screen_image.getpixel(115, 15), white);  // outside of the bar: untouched
 }
 
+/** @brief Drawing text on the simulated display. */
 TEST(LcdSimulated, TextGhostingPrevention)
 {
     LcdSimulated lcd("AUTO", 320, 480);
@@ -68,6 +74,7 @@ TEST(LcdSimulated, TextGhostingPrevention)
     }
 }
 
+/** @brief Invalid parameters are rejected. */
 TEST(LcdSimulated, InvalidParameters)
 {
     LcdSimulated lcd("AUTO", 320, 480);
@@ -78,6 +85,7 @@ TEST(LcdSimulated, InvalidParameters)
                  std::invalid_argument);
 }
 
+/** @brief Drawing a radial bar and a line graph on the simulated display. */
 TEST(LcdSimulated, RadialAndLineGraph)
 {
     LcdSimulated lcd("AUTO", 320, 480);

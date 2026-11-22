@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of tests/library/lcd/test_lcd_comm_rev_d.py: data sent to the screen compared with the golden files
+/**
+ * @file test_lcd_comm_rev_d.cpp
+ * @brief Data sent to the screen compared with the golden files
+ */
 
 #include <gtest/gtest.h>
 
@@ -27,6 +30,7 @@ class TestLcdCommRevD : public ::testing::TestWithParam<std::string>
 {
 };
 
+/** @brief Data sent by the revision D driver is the same as the golden file. */
 TEST_P(TestLcdCommRevD, Golden)
 {
     const std::string calls = run_case<LcdCommRevD>(GetParam(), 320, 480);
@@ -36,4 +40,5 @@ TEST_P(TestLcdCommRevD, Golden)
     EXPECT_TRUE(calls == expected) << "Data sent to the screen differs from golden file";
 }
 
+/** @brief Test cases of the revision D golden tests. */
 INSTANTIATE_TEST_SUITE_P(Python, TestLcdCommRevD, ::testing::ValuesIn(TEST_CASES));
