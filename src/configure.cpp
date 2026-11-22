@@ -440,34 +440,40 @@ TuringConfigWindow::TuringConfigWindow()
 
     place(layout, *bold_label("Display configuration"), 370, 0);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Smart screen model"), 370, 35);
+    // Display settings are grouped in a tab per display, like the tabs of a web browser (first display: ":0")
+    auto *display_page = Gtk::make_managed<Gtk::Fixed>();
+    auto *display_tabs = Gtk::make_managed<Gtk::Notebook>();
+    display_tabs->append_page(*display_page, ":0");
+    place(layout, *display_tabs, 370, 25, 440, 250);
+
+    place(*display_page, *Gtk::make_managed<Gtk::Label>("Smart screen model"), 0, 10);
     model_cb.property_selected().signal_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_model_change));
-    place(layout, model_cb, 550, 30, 250);
+    place(*display_page, model_cb, 180, 5, 250);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Smart screen size"), 370, 75);
+    place(*display_page, *Gtk::make_managed<Gtk::Label>("Smart screen size"), 0, 50);
     size_cb.property_selected().signal_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_size_change));
-    place(layout, size_cb, 550, 70, 250);
+    place(*display_page, size_cb, 180, 45, 250);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("COM port"), 370, 115);
-    place(layout, com_cb, 550, 110, 250);
+    place(*display_page, *Gtk::make_managed<Gtk::Label>("COM port"), 0, 90);
+    place(*display_page, com_cb, 180, 85, 250);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Orientation"), 370, 155);
-    place(layout, orient_cb, 550, 150, 250);
+    place(*display_page, *Gtk::make_managed<Gtk::Label>("Orientation"), 0, 130);
+    place(*display_page, orient_cb, 180, 125, 250);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Brightness"), 370, 195);
+    place(*display_page, *Gtk::make_managed<Gtk::Label>("Brightness"), 0, 170);
     brightness_slider.set_draw_value(false);
     brightness_slider.signal_value_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_brightness_change));
-    place(layout, brightness_slider, 600, 190, 180);
-    place(layout, brightness_val_label, 550, 195);
+    place(*display_page, brightness_slider, 230, 165, 180);
+    place(*display_page, brightness_val_label, 180, 170);
     brightness_warning_label.set_markup("<span foreground=\"" + ORANGE_TEXT_COLOR +
                                         "\">⚠ Turing 3.5\" displays can get hot at high brightness!</span>");
-    place(layout, brightness_warning_label, 370, 225);
+    place(*display_page, brightness_warning_label, 0, 200);
 
-    place(layout, *bold_label("System Monitor Configuration"), 370, 260);
+    place(layout, *bold_label("System Monitor Configuration"), 370, 315);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Theme"), 370, 300);
+    place(layout, *Gtk::make_managed<Gtk::Label>("Theme"), 370, 283);
     theme_cb.property_selected().signal_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_theme_change));
-    place(layout, theme_cb, 550, 295, 250);
+    place(layout, theme_cb, 550, 278, 250);
 
     place(layout, *Gtk::make_managed<Gtk::Label>("Hardware monitoring"), 370, 340);
     hwlib_cb.property_selected().signal_changed().connect(sigc::mem_fun(*this, &TuringConfigWindow::on_hwlib_change));
