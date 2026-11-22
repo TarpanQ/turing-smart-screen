@@ -27,6 +27,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -75,6 +76,8 @@ struct DisplayTab
     StringDropDown model_cb, size_cb, com_cb, orient_cb, theme_cb;
     Gtk::Scale brightness_slider;
     Gtk::Label brightness_val_label, brightness_warning_label;
+    /** @brief Index of the last COM port chosen (not automatic detection), kept when a choice is refused */
+    int last_com_index = 0;
 };
 
 class TuringConfigWindow;
@@ -136,6 +139,10 @@ private:
     void apply_display(DisplayTab &tab, const config::DisplayConfig &display);
     /** @brief With several displays, a tab cannot use the automatic COM port detection. */
     void enforce_com_rule(DisplayTab &tab);
+    /** @brief COM port choice of a tab: automatic detection is refused when there are several displays. */
+    void on_com_change(DisplayTab &tab);
+    /** @brief First COM port (not automatic detection) not used by another tab, nullopt if none. */
+    std::optional<std::string> default_new_port();
     /** @brief Name the tabs after their index (":0", ":1", ...). */
     void refresh_tab_labels();
     /** @brief Index of the tab under the position (in the notebook coordinates), -1 if none. */

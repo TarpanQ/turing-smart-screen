@@ -441,7 +441,6 @@ TuringConfigWindow::TuringConfigWindow()
     place(layout, notebook, 370, 25, 440, 300);
     notebook.signal_switch_page().connect([this](Gtk::Widget *, guint) {
         if (!tabs.empty()) {
-            enforce_com_rule(current_tab());
             load_theme_preview();
         }
     });
@@ -730,7 +729,7 @@ DisplayTab &TuringConfigWindow::add_display_tab(const config::DisplayConfig &dis
     t.model_cb.property_selected().signal_changed().connect([this, &t] { on_model_change(t); });
     t.size_cb.property_selected().signal_changed().connect([this, &t] { on_size_change(t); });
     t.theme_cb.property_selected().signal_changed().connect([this, &t] { on_theme_change(t); });
-    t.com_cb.property_selected().signal_changed().connect([this, &t] { enforce_com_rule(t); });
+    t.com_cb.property_selected().signal_changed().connect([this, &t] { on_com_change(t); });
     t.brightness_slider.set_draw_value(false);
     t.brightness_slider.signal_value_changed().connect([this, &t] { on_brightness_change(t); });
     t.brightness_warning_label.set_markup("<span foreground=\"" + ORANGE_TEXT_COLOR +
@@ -823,10 +822,34 @@ void TuringConfigWindow::apply_display(DisplayTab &tab, const config::DisplayCon
 
 void TuringConfigWindow::enforce_com_rule(DisplayTab &tab)
 {
-    // With several displays, each display needs its own COM port: automatic detection is replaced by the first port
+    // With several displays, automatic detection is not allowed: the previous choice is restored
     if (tabs.size() > 1 && tab.com_cb.current() == 0 && tab.com_cb.get_items().size() > 1) {
-        tab.com_cb.set_current(1);
+        tab.com_cb.set_current(tab.last_com_index > 0 ? tab.last_com_index : 1);
     }
+}
+
+void TuringConfigWindow::on_com_change(DisplayTab &tab)
+{
+    if (tab.com_cb.current() == 0) {
+        enforce_com_rule(tab);
+        return;
+    }
+    tab.last_com_index = tab.com_cb.current();
+}
+
+std::optional<std::string> TuringConfigWindow::default_new_port()
+{
+    // The list starts with the automatic detection entry: the first port not used by another tab is proposed
+    const auto ports = get_com_ports();
+    for (size_t i = 1; i < ports.size(); i++) {
+        const bool used = std::any_of(tabs.begin(), tabs.end(), [&](const auto &tab) {
+            return tab->com_cb.current() != 0 && tab->com_cb.get_text() == ports[i];
+        });
+        if (!used) {
+            return ports[i];
+        }
+    }
+    return std::nullopt;
 }
 
 void TuringConfigWindow::refresh_tab_labels()
@@ -870,10 +893,21 @@ void TuringConfigWindow::on_tab_right_click(double x, double y)
 
 void TuringConfigWindow::on_add_display()
 {
-    add_display_tab(config::DisplayConfig{});
-    for (const auto &tab: tabs) {
-        enforce_com_rule(*tab);
+    if (context_tab < 0 || context_tab >= static_cast<int>(tabs.size())) {
+        return;
     }
+    // A display with automatic COM port detection cannot be followed by another display: nothing is added
+    if (tabs[context_tab]->com_cb.current() == 0) {
+        return;
+    }
+    const auto port = default_new_port();
+    if (!port) {
+        // No unique COM port is left for the new display: the tab is not created
+        return;
+    }
+    config::DisplayConfig display;
+    display.com_port = *port;
+    add_display_tab(display);
     notebook.set_current_page(static_cast<int>(tabs.size()) - 1);
 }
 
