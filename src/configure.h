@@ -142,7 +142,10 @@ private:
     /** @brief COM port choice of a tab: automatic detection is refused when there are several displays. */
     void on_com_change(DisplayTab &tab);
     /** @brief Once all the displays are loaded, keep the COM ports that exist and choose a free port for the others. */
-    void validate_com_ports(const std::vector<config::DisplayConfig> &displays);
+    /** @brief Returns false if a display could not get a COM port. */
+    bool validate_com_ports(const std::vector<config::DisplayConfig> &displays);
+    /** @brief Show an error and close the window: the configuration cannot be opened. */
+    void refuse_configuration();
     /** @brief First COM port (not automatic detection) not used by another tab, nullopt if none. */
     std::optional<std::string> default_new_port();
     /** @brief Name the tabs after their index (":0", ":1", ...). */
@@ -178,6 +181,8 @@ private:
     Glib::RefPtr<Gio::SimpleAction> add_display_action, close_display_action;
     /** @brief Index of the tab that was right-clicked, -1 if none */
     int context_tab = -1;
+    /** @brief True if the configuration cannot be opened (not enough COM ports for the displays) */
+    bool configuration_refused = false;
     StringDropDown hwlib_cb, eth_cb, wl_cb, cpu_fan_cb;
     Gtk::Label cpu_fan_label;
     Gtk::Button weather_ping_btn, open_theme_folder_btn, edit_theme_btn, save_btn, save_run_btn;

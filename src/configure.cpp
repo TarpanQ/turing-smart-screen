@@ -518,6 +518,10 @@ TuringConfigWindow::TuringConfigWindow()
     more_config_window.set_transient_for(*this);
 
     load_config_values();
+    if (configuration_refused) {
+        // Shown once the window is displayed: the configuration file is not opened
+        Glib::signal_idle().connect_once([this] { refuse_configuration(); });
+    }
 }
 
 void TuringConfigWindow::load_theme_preview()
@@ -597,7 +601,7 @@ void TuringConfigWindow::load_config_values()
     for (const auto &display: displays) {
         add_display_tab(display);
     }
-    validate_com_ports(displays);
+    configuration_refused = !validate_com_ports(displays);
     notebook.set_current_page(0);
 
     if (const auto hwlib = map_value(hw_lib_map, config::get(conf, "HW_SENSORS", "AUTO"))) {
@@ -830,7 +834,7 @@ void TuringConfigWindow::enforce_com_rule(DisplayTab &tab)
     }
 }
 
-void TuringConfigWindow::validate_com_ports(const std::vector<config::DisplayConfig> &displays)
+bool TuringConfigWindow::validate_com_ports(const std::vector<config::DisplayConfig> &displays)
 {
     // The first entry of the list is automatic detection, which is not a port
     const auto ports = get_com_ports();
@@ -855,6 +859,7 @@ void TuringConfigWindow::validate_com_ports(const std::vector<config::DisplayCon
     }
 
     // The other displays get the first port, other than automatic detection, not used by another display
+    bool all_chosen = true;
     for (const size_t i: to_choose) {
         const auto free_port = std::find_if(ports.begin() + 1, ports.end(), [&](const std::string &port) {
             return std::find(used.begin(), used.end(), port) == used.end();
@@ -862,8 +867,24 @@ void TuringConfigWindow::validate_com_ports(const std::vector<config::DisplayCon
         if (free_port != ports.end()) {
             tabs[i]->com_cb.set_text(*free_port);
             used.push_back(*free_port);
+        } else {
+            all_chosen = false;
         }
     }
+    return all_chosen;
+}
+
+void TuringConfigWindow::refuse_configuration()
+{
+    auto dialog = Gtk::AlertDialog::create("Cannot open the configuration");
+    dialog->set_detail("config.json defines more displays than there are available COM ports.");
+    dialog->choose(*this, [this, dialog](const Glib::RefPtr<Gio::AsyncResult> &result) {
+        try {
+            dialog->choose_finish(result);
+        } catch (const Glib::Error &) {
+        }
+        close();
+    });
 }
 
 void TuringConfigWindow::on_com_change(DisplayTab &tab)
