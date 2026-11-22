@@ -38,8 +38,12 @@
 class Display
 {
 public:
-    /** @brief Create the LCD driver selected by the revision, and load the theme. Exits the program if the revision is unknown. */
-    explicit Display(const config::DisplayConfig &display_settings);
+    /**
+     * @brief Create the LCD driver selected by the revision, and load the theme. Exits the program if the revision is
+     * unknown. index is the position of the display in config.json: the first one shows the simulated screen on the web
+     * server, the others save their screenshot in screencap-<index>.png.
+     */
+    Display(const config::DisplayConfig &display_settings, size_t index);
 
     /** @brief Load the theme of the display again, for example after the theme editor changed it. */
     void load_theme();

@@ -89,7 +89,7 @@ std::pair<int, int> get_theme_size(const YAML::Node &theme)
     return {320, 480};
 }
 
-Display::Display(const config::DisplayConfig &display_settings) : settings(display_settings)
+Display::Display(const config::DisplayConfig &display_settings, size_t index) : settings(display_settings)
 {
     load_theme();
     const auto [width, height] = get_theme_size(theme);
@@ -117,8 +117,9 @@ Display::Display(const config::DisplayConfig &display_settings) : settings(displ
     } else if (revision == "WEACT_B") {
         lcd = std::make_unique<LcdCommWeActB>(com_port, 80, 160, &update_queue);
     } else if (revision == "SIMU") {
-        // Simulated display: always set width/height from theme
-        lcd = std::make_unique<LcdSimulated>("AUTO", width, height);
+        // Simulated display: always set width/height from theme. Only the first one is shown on the web server
+        const std::string screenshot_file = index == 0 ? SCREENSHOT_FILE : "screencap-" + std::to_string(index) + ".png";
+        lcd = std::make_unique<LcdSimulated>("AUTO", width, height, nullptr, screenshot_file, index == 0);
     } else {
         logger.error("Unknown display revision '{}'", revision);
         std::_Exit(1);
@@ -230,7 +231,7 @@ std::vector<std::unique_ptr<Display>> &displays()
     static std::vector<std::unique_ptr<Display>> instances = [] {
         std::vector<std::unique_ptr<Display>> created;
         for (const auto &settings: config::DISPLAYS) {
-            created.push_back(std::make_unique<Display>(settings));
+            created.push_back(std::make_unique<Display>(settings, created.size()));
         }
         return created;
     }();
