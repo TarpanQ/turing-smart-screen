@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <stdexcept>
 
 #include <ft2build.h>
@@ -152,9 +153,8 @@ void Font::anchor_offset(const Layout &l, const std::string &anchor, long &x_anc
     }
 }
 
-TextBox Font::textbbox(double x, double y, const std::string &text, const std::string &anchor) const
+TextBox Font::line_bbox(double x, double y, const std::string &text, const std::string &anchor) const
 {
-    std::lock_guard lock(mutex);
     const Layout l = layout(text);
     long x_anchor, y_anchor;
     anchor_offset(l, anchor, x_anchor, y_anchor);
@@ -169,10 +169,9 @@ TextBox Font::textbbox(double x, double y, const std::string &text, const std::s
     return {x + floor_div64(left), y + floor_div64(top), x + ceil_div64(right), y + ceil_div64(bottom)};
 }
 
-void Font::draw(Image &image, double x, double y, const std::string &text, RGBColor fill,
-                const std::string &anchor) const
+void Font::draw_line(Image &image, double x, double y, const std::string &text, RGBColor fill,
+                     const std::string &anchor) const
 {
-    std::lock_guard lock(mutex);
     auto ft_face = static_cast<FT_Face>(face);
     const Layout l = layout(text);
     long x_anchor, y_anchor;
@@ -202,5 +201,94 @@ void Font::draw(Image &image, double x, double y, const std::string &text, RGBCo
                 image.blend(static_cast<int>(gx + col), static_cast<int>(gy + row), fill, coverage);
             }
         }
+    }
+}
+
+std::vector<Font::LinePosition> Font::multiline_positions(double x, double y, const std::string &text,
+                                                          const std::string &anchor, const std::string &align) const
+{
+    // Same algorithm as Pillow ImageDraw.multiline_text()
+    if (anchor.size() != 2) {
+        throw std::invalid_argument("invalid anchor '" + anchor + "'");
+    }
+    if (anchor[1] == 't' || anchor[1] == 'b') {
+        throw std::invalid_argument("anchor not supported for multiline text");
+    }
+    std::vector<std::string> lines;
+    size_t start = 0, end;
+    while ((end = text.find('\n', start)) != std::string::npos) {
+        lines.push_back(text.substr(start, end - start));
+        start = end + 1;
+    }
+    lines.push_back(text.substr(start));
+
+    std::vector<double> widths;
+    double max_width = 0;
+    for (const auto &line: lines) {
+        widths.push_back(layout(line).advance / 64.0);
+        max_width = std::max(max_width, widths.back());
+    }
+
+    // Line spacing: bottom of "A" drawn at (0, 0) + 4 pixels
+    const double line_spacing = line_bbox(0, 0, "A", "la").bottom + 4;
+
+    double top = y;
+    if (anchor.size() == 2 && anchor[1] == 'm') {
+        top -= (static_cast<double>(lines.size()) - 1) * line_spacing / 2.0;
+    }
+
+    std::vector<LinePosition> positions;
+    for (size_t i = 0; i < lines.size(); i++) {
+        double left = x;
+        const double width_difference = max_width - widths[i];
+
+        // First align left by anchor
+        if (anchor[0] == 'm') {
+            left -= width_difference / 2.0;
+        } else if (anchor[0] == 'r') {
+            left -= width_difference;
+        }
+
+        // Then align by align parameter
+        if (align == "center") {
+            left += width_difference / 2.0;
+        } else if (align == "right") {
+            left += width_difference;
+        } else if (align != "left") {
+            throw std::invalid_argument("align must be \"left\", \"center\" or \"right\"");
+        }
+
+        positions.push_back({lines[i], left, top});
+        top += line_spacing;
+    }
+    return positions;
+}
+
+TextBox Font::textbbox(double x, double y, const std::string &text, const std::string &anchor,
+                       const std::string &align) const
+{
+    std::lock_guard lock(mutex);
+    if (text.find('\n') == std::string::npos) {
+        return line_bbox(x, y, text, anchor);
+    }
+    std::optional<TextBox> box;
+    for (const auto &line: multiline_positions(x, y, text, anchor, align)) {
+        const TextBox b = line_bbox(line.x, line.y, line.text, anchor);
+        box = box ? TextBox{std::min(box->left, b.left), std::min(box->top, b.top), std::max(box->right, b.right),
+                            std::max(box->bottom, b.bottom)} : b;
+    }
+    return *box;
+}
+
+void Font::draw(Image &image, double x, double y, const std::string &text, RGBColor fill, const std::string &anchor,
+                const std::string &align) const
+{
+    std::lock_guard lock(mutex);
+    if (text.find('\n') == std::string::npos) {
+        draw_line(image, x, y, text, fill, anchor);
+        return;
+    }
+    for (const auto &line: multiline_positions(x, y, text, anchor, align)) {
+        draw_line(image, line.x, line.y, line.text, fill, anchor);
     }
 }

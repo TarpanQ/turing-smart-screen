@@ -8,6 +8,7 @@
 #   make              build every program into build/bin/
 #   make main         build only the system monitor (main.py)
 #   make configure    build only the configuration GUI (configure.py)
+#   make tools        build only the tools (tools/, res/themes/scale_theme.py, res/fonts/font-preview.py)
 #   make test         build and run the unit tests
 #   make deps         check that all build dependencies are installed
 #   make clean        remove build/
@@ -67,14 +68,20 @@ SIMPLE_PROGRAM_OBJS := $(OBJ_DIR)/simple-program.o
 
 PROGRAMS := $(BIN_DIR)/main $(BIN_DIR)/configure $(BIN_DIR)/theme-editor $(BIN_DIR)/simple-program
 
+# Tools: one program per source file in src/tools/
+TOOL_SRCS := $(wildcard $(SRC_DIR)/tools/*.cpp)
+TOOLS     := $(TOOL_SRCS:$(SRC_DIR)/tools/%.cpp=$(BIN_DIR)/%)
+
 # Unit tests (tests/ in Python)
 TEST_SRCS := $(shell find $(TEST_DIR) -name '*.cpp' 2>/dev/null)
 TEST_OBJS := $(TEST_SRCS:$(TEST_DIR)/%.cpp=$(OBJ_DIR)/tests/%.o)
 TEST_BIN  := $(BIN_DIR)/unit-tests
 
-.PHONY: all main configure theme-editor simple-program test deps clean
+.PHONY: all main configure theme-editor simple-program tools test deps clean
 
-all: $(PROGRAMS)
+all: $(PROGRAMS) $(TOOLS)
+
+tools: $(TOOLS)
 
 main: $(BIN_DIR)/main
 configure: $(BIN_DIR)/configure
@@ -100,6 +107,10 @@ $(BIN_DIR)/configure: $(CONFIGURE_OBJS) $(LIB_A)
 $(BIN_DIR)/theme-editor: $(THEME_EDITOR_OBJS) $(LIB_A)
 	@mkdir -p $(@D)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(GUI_LIBS) $(ALL_LDLIBS)
+
+$(BIN_DIR)/%: $(OBJ_DIR)/tools/%.o $(LIB_A)
+	@mkdir -p $(@D)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(ALL_LDLIBS)
 
 # GUI programs need the gtkmm include paths
 $(CONFIGURE_OBJS) $(THEME_EDITOR_OBJS): ALL_CXXFLAGS += $(GUI_CFLAGS)

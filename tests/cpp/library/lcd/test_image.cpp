@@ -131,3 +131,27 @@ TEST(Font, DrawText)
     EXPECT_TRUE(drawn);
     EXPECT_EQ(image.getpixel(5, 5), black);
 }
+
+TEST(Font, MultilineText)
+{
+    const Font font(FONT, 20);
+    const TextBox one = font.textbbox(0, 0, "Wide line");
+    const TextBox two = font.textbbox(0, 0, "Wide line\nab", "la", "right");
+    // Same width as the widest line, about twice the height
+    EXPECT_EQ(two.left, one.left);
+    EXPECT_EQ(two.right, one.right);
+    EXPECT_GT(two.bottom - two.top, 1.8 * (one.bottom - one.top));
+
+    // Right alignment: the short line is drawn on the right side
+    Image image(200, 100, black);
+    font.draw(image, 0, 0, "Wide line\nab", white, "la", "right");
+    bool left_part = false, right_part = false;
+    for (int y = 30; y < 60; y++) {
+        for (int x = 0; x < 40; x++) left_part |= image.getpixel(x, y) != black;
+        for (int x = 70; x < 110; x++) right_part |= image.getpixel(x, y) != black;
+    }
+    EXPECT_FALSE(left_part);
+    EXPECT_TRUE(right_part);
+
+    EXPECT_THROW(font.textbbox(0, 0, "a\nb", "lt"), std::invalid_argument);
+}

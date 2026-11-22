@@ -81,14 +81,15 @@ std::string update_yaml_text(const std::string &text, const std::vector<YamlUpda
 // Same as update_yaml_text() on a file. Throws std::runtime_error if the file cannot be read or written.
 void update_yaml_file(const std::filesystem::path &path, const std::vector<YamlUpdate> &updates);
 
-// Load the theme selected in config.yaml into THEME_DATA. Exits the program if the theme cannot be loaded.
-void load_theme();
+// Load the theme selected in config.yaml into THEME_DATA. On error, exits the program if exit_on_error is true,
+// otherwise throws std::runtime_error (THEME_DATA is then unchanged if the theme file cannot be read or parsed).
+void load_theme(bool exit_on_error = true);
 
 // Check if theme is compatible with hardware revision. Exits the program if not.
 void check_theme_compatible(const std::string &display_size);
 
-// Load config.yaml, default.yaml and the theme. Exits the program on error.
-void init();
+// Load config.yaml, default.yaml and the theme (if with_theme is true). Exits the program on error.
+void init(bool with_theme = true);
 
 // Value of node[key] converted to T, or default_value if the key is missing or empty (like Python dict.get()).
 // Throws std::runtime_error if the value cannot be converted to T.

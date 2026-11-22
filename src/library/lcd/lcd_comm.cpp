@@ -313,7 +313,7 @@ void LcdComm::DisplayText(const TextOptions &options)
 
     int left, top, right, bottom;
     if (width == 0 || height == 0) {
-        const TextBox box = ttfont->textbbox(x, y, text, anchor);
+        const TextBox box = ttfont->textbbox(x, y, text, anchor, options.align);
 
         // textbbox may return float values, which is not good for the bitmap operations below.
         // Let's extend the bounding box to the next whole pixel in all directions
@@ -361,7 +361,7 @@ void LcdComm::DisplayText(const TextOptions &options)
     }
 
     // Draw text onto the background image with specified color & font
-    ttfont->draw(text_image, x, y, text, options.font_color, anchor);
+    ttfont->draw(text_image, x, y, text, options.font_color, anchor, options.align);
 
     // Restrict the dimensions if they overflow the display size
     left = std::max(left, 0);

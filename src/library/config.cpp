@@ -241,20 +241,24 @@ void update_yaml_file(const fs::path &path, const std::vector<YamlUpdate> &updat
     }
 }
 
-void load_theme()
+void load_theme(bool exit_on_error)
 {
     try {
         const std::string theme_name = CONFIG_DATA["config"]["THEME"].as<std::string>();
         const fs::path theme_path = fs::path("res/themes") / theme_name;
         logger.info("Loading theme {} from {}", theme_name, (theme_path / "theme.yaml").string());
-        THEME_DATA = load_yaml(MAIN_DIRECTORY / theme_path / "theme.yaml");
-        if (!THEME_DATA.IsMap()) {
+        YAML::Node theme_data = load_yaml(MAIN_DIRECTORY / theme_path / "theme.yaml");
+        if (!theme_data.IsMap()) {
             throw std::runtime_error("theme.yaml is not a map");
         }
-        THEME_DATA["PATH"] = (MAIN_DIRECTORY / theme_path).string() + "/";
+        theme_data["PATH"] = (MAIN_DIRECTORY / theme_path).string() + "/";
+        THEME_DATA = theme_data;
     } catch (const std::exception &e) {
         logger.error("Theme not found or contains errors! ({})", e.what());
-        std::_Exit(1);
+        if (exit_on_error) {
+            std::_Exit(1);
+        }
+        throw std::runtime_error(std::string("Theme not found or contains errors: ") + e.what());
     }
 
     copy_default(THEME_DEFAULT, THEME_DATA);
@@ -283,7 +287,7 @@ RGBColor get_color(const YAML::Node &node, const std::string &key, RGBColor defa
     return parse_color(value);
 }
 
-void init()
+void init(bool with_theme)
 {
     MAIN_DIRECTORY = find_main_directory();
     FONTS_DIR = (MAIN_DIRECTORY / "res" / "fonts").string() + "/";
@@ -297,7 +301,9 @@ void init()
     }
 
     // Load theme
-    load_theme();
+    if (with_theme) {
+        load_theme();
+    }
 }
 
 }  // namespace config

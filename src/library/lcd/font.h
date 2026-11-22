@@ -23,7 +23,8 @@
 // Text anchors follow Pillow (https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html), 2 characters:
 // - horizontal: 'l' left, 'm' middle, 'r' right
 // - vertical: 'a' ascender, 't' top, 'm' middle, 's' baseline, 'b' bottom, 'd' descender
-// Only single-line text is supported (like the themes).
+// Multi-line text ("\n") is drawn like Pillow ImageDraw.multiline_text(), with an alignment ("left", "center",
+// "right"): vertical anchors 't' and 'b' are not supported for multi-line text.
 
 #pragma once
 
@@ -53,14 +54,15 @@ public:
     Font &operator=(const Font &) = delete;
 
     // Bounding box of the text drawn at (x, y) with the given anchor (like ImageDraw.textbbox)
-    TextBox textbbox(double x, double y, const std::string &text, const std::string &anchor = "la") const;
+    TextBox textbbox(double x, double y, const std::string &text, const std::string &anchor = "la",
+                     const std::string &align = "left") const;
 
     // Bounding box of the text drawn at (0, 0) with the left-ascender anchor (like ImageFont.getbbox)
     TextBox getbbox(const std::string &text) const { return textbbox(0, 0, text, "la"); }
 
     // Draw the text at (x, y) with the given anchor (like ImageDraw.text)
     void draw(Image &image, double x, double y, const std::string &text, RGBColor fill,
-              const std::string &anchor = "la") const;
+              const std::string &anchor = "la", const std::string &align = "left") const;
 
 private:
     struct GlyphPosition
@@ -78,7 +80,23 @@ private:
         bool has_ink = false;
     };
 
+    struct LinePosition
+    {
+        std::string text;
+        double x;
+        double y;
+    };
+
     Layout layout(const std::string &text) const;
+
+    // Single line of text (the mutex must be locked)
+    TextBox line_bbox(double x, double y, const std::string &text, const std::string &anchor) const;
+    void draw_line(Image &image, double x, double y, const std::string &text, RGBColor fill,
+                   const std::string &anchor) const;
+
+    // Position of each line of a multi-line text (the mutex must be locked)
+    std::vector<LinePosition> multiline_positions(double x, double y, const std::string &text,
+                                                  const std::string &anchor, const std::string &align) const;
 
     // Anchor point coordinates relative to the text origin (left of the baseline), 26.6, y axis going up
     void anchor_offset(const Layout &layout, const std::string &anchor, long &x_anchor, long &y_anchor) const;
