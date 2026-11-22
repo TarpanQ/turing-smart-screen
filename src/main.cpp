@@ -41,14 +41,13 @@
 #include <filesystem>
 #include <memory>
 
-#include <fcntl.h>
 #include <pthread.h>
 #include <spawn.h>
-#include <sys/file.h>
 #include <unistd.h>
 
 #include "library/config.h"
 #include "library/display.h"
+#include "library/instance.h"
 #include "library/log.h"
 #include "library/scheduler.h"
 #include "library/stats.h"
@@ -191,26 +190,6 @@ std::optional<int> parse_arguments(int argc, char *argv[])
 
 }  // namespace
 
-/**
- * @brief Lock preventing a second instance of the system monitor, which would drive the screens at the same time.
- * The lock is held by the process until it exits. Returns the file descriptor of the lock, or -1 if another instance
- * is already running (-2 if the lock file cannot be used: the program then runs anyway).
- */
-int acquire_instance_lock()
-{
-    const char *runtime_dir = std::getenv("XDG_RUNTIME_DIR");
-    const std::string path = std::string(runtime_dir != nullptr ? runtime_dir : "/tmp") + "/turing-system-monitor.lock";
-    const int fd = open(path.c_str(), O_CREAT | O_RDWR | O_CLOEXEC, 0600);
-    if (fd < 0) {
-        return -2;
-    }
-    if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
-        close(fd);
-        return -1;
-    }
-    return fd;
-}
-
 /** @brief Entry point of the system monitor. */
 int main(int argc, char *argv[])
 {
@@ -218,7 +197,7 @@ int main(int argc, char *argv[])
     const std::optional<int> theme_screenshots = parse_arguments(argc, argv);
 
     // Only one instance drives the screens: a second one (for example started at login) exits at once
-    const int instance_lock = acquire_instance_lock();
+    const int instance_lock = instance::acquire_lock();
     if (instance_lock == -1) {
         std::cout << "The system monitor is already running" << std::endl;
         return 0;

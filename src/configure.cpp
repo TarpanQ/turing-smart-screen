@@ -40,6 +40,7 @@
 #include <unicode/unistr.h>
 
 #include "library/config.h"
+#include "library/instance.h"
 #include "library/lcd/serial_port.h"
 #include "library/log.h"
 #include "library/sensors/sensors_python.h"
@@ -1018,6 +1019,11 @@ void TuringConfigWindow::on_save_click()
 void TuringConfigWindow::on_saverun_click()
 {
     if (!save_config_values()) {
+        return;
+    }
+    // A running system monitor is stopped first, so that the new configuration is used
+    if (!instance::stop_running(std::chrono::seconds(15))) {
+        show_error("The running system monitor did not stop: the new configuration was saved but not applied.");
         return;
     }
     start_program("main");
