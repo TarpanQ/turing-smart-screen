@@ -141,6 +141,8 @@ private:
     void enforce_com_rule(DisplayTab &tab);
     /** @brief COM port choice of a tab: automatic detection is refused when there are several displays. */
     void on_com_change(DisplayTab &tab);
+    /** @brief Once all the displays are loaded, keep the COM ports that exist and choose a free port for the others. */
+    void validate_com_ports(const std::vector<config::DisplayConfig> &displays);
     /** @brief First COM port (not automatic detection) not used by another tab, nullopt if none. */
     std::optional<std::string> default_new_port();
     /** @brief Name the tabs after their index (":0", ":1", ...). */

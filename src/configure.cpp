@@ -597,9 +597,7 @@ void TuringConfigWindow::load_config_values()
     for (const auto &display: displays) {
         add_display_tab(display);
     }
-    for (const auto &tab: tabs) {
-        enforce_com_rule(*tab);
-    }
+    validate_com_ports(displays);
     notebook.set_current_page(0);
 
     if (const auto hwlib = map_value(hw_lib_map, config::get(conf, "HW_SENSORS", "AUTO"))) {
@@ -780,7 +778,11 @@ void TuringConfigWindow::apply_display(DisplayTab &tab, const config::DisplayCon
         if (com_port.find('/') == std::string::npos) {
             com_port = "/dev/" + com_port;
         }
-        tab.com_cb.set_text(com_port);
+        // A port that is not in the list is not added to it: it is replaced when the displays are validated
+        const auto ports = get_com_ports();
+        if (std::find(ports.begin(), ports.end(), com_port) != ports.end()) {
+            tab.com_cb.set_text(com_port);
+        }
     }
 
     // Guess display size from theme in the configuration
@@ -825,6 +827,42 @@ void TuringConfigWindow::enforce_com_rule(DisplayTab &tab)
     // With several displays, automatic detection is not allowed: the previous choice is restored
     if (tabs.size() > 1 && tab.com_cb.current() == 0 && tab.com_cb.get_items().size() > 1) {
         tab.com_cb.set_current(tab.last_com_index > 0 ? tab.last_com_index : 1);
+    }
+}
+
+void TuringConfigWindow::validate_com_ports(const std::vector<config::DisplayConfig> &displays)
+{
+    // The first entry of the list is automatic detection, which is not a port
+    const auto ports = get_com_ports();
+    const auto port_path = [](const std::string &port) {
+        return port == "AUTO" || port.find('/') != std::string::npos ? port : "/dev/" + port;
+    };
+
+    // A COM port that exists is kept, and it is used by its display (a single display can also use automatic detection)
+    std::vector<std::string> used;
+    std::vector<size_t> to_choose;
+    for (size_t i = 0; i < tabs.size(); i++) {
+        const std::string configured = port_path(displays[i].com_port);
+        const bool listed = std::find(ports.begin(), ports.end(), configured) != ports.end();
+        const bool kept = configured == "AUTO" ? tabs.size() == 1 : listed;
+        if (kept) {
+            if (tabs[i]->com_cb.current() != 0) {
+                used.push_back(tabs[i]->com_cb.get_text());
+            }
+        } else {
+            to_choose.push_back(i);
+        }
+    }
+
+    // The other displays get the first port, other than automatic detection, not used by another display
+    for (const size_t i: to_choose) {
+        const auto free_port = std::find_if(ports.begin() + 1, ports.end(), [&](const std::string &port) {
+            return std::find(used.begin(), used.end(), port) == used.end();
+        });
+        if (free_port != ports.end()) {
+            tabs[i]->com_cb.set_text(*free_port);
+            used.push_back(*free_port);
+        }
     }
 }
 
