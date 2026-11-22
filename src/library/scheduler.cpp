@@ -36,6 +36,7 @@
 #include <pthread.h>
 
 #include "library/config.h"
+#include "library/display.h"
 #include "library/log.h"
 #include "library/stats.h"
 
@@ -196,9 +197,9 @@ void PingStats()
     schedule("Ping_Stats", theme_interval("PING"), stats::Ping::stats);
 }
 
-void QueueHandler()
+void QueueHandler(UpdateQueue &queue)
 {
-    std::thread([] {
+    std::thread([&queue] {
         set_thread_name("Queue_Handler");
         auto execute = [](const UpdateQueue::Request &request) {
             if (!request) {
@@ -214,13 +215,13 @@ void QueueHandler()
         while (true) {
             if (STOPPING) {
                 // Empty the action queue to allow program to exit cleanly
-                while (const auto request = config::update_queue.get(std::chrono::milliseconds(0))) {
+                while (const auto request = queue.get(std::chrono::milliseconds(0))) {
                     execute(*request);
                 }
                 break;
             }
             // Execute first action in the queue
-            if (const auto request = config::update_queue.get(std::chrono::milliseconds(100))) {
+            if (const auto request = queue.get(std::chrono::milliseconds(100))) {
                 execute(*request);
             }
         }
@@ -230,7 +231,8 @@ void QueueHandler()
 /** @brief True if the display queue has no pending request. */
 bool is_queue_empty()
 {
-    return config::update_queue.empty();
+    return std::all_of(displays().begin(), displays().end(),
+                       [](const std::unique_ptr<Display> &display) { return display->update_queue.empty(); });
 }
 
 }  // namespace scheduler

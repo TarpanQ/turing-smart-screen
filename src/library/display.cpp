@@ -97,14 +97,14 @@ Display::Display(const config::DisplayConfig &display_settings) : settings(displ
     const std::string &com_port = settings.com_port;
 
     if (revision == "A") {
-        lcd = std::make_unique<LcdCommRevA>(com_port, 320, 480, &config::update_queue);
+        lcd = std::make_unique<LcdCommRevA>(com_port, 320, 480, &update_queue);
     } else if (revision == "B") {
-        lcd = std::make_unique<LcdCommRevB>(com_port, 320, 480, &config::update_queue);
+        lcd = std::make_unique<LcdCommRevB>(com_port, 320, 480, &update_queue);
     } else if (revision == "C") {
         // Because of issue with Turing rev. C size auto-detection, manually configure screen width/height from theme
-        lcd = std::make_unique<LcdCommRevC>(com_port, width, height, &config::update_queue);
+        lcd = std::make_unique<LcdCommRevC>(com_port, width, height, &update_queue);
     } else if (revision == "D") {
-        lcd = std::make_unique<LcdCommRevD>(com_port, 320, 480, &config::update_queue);
+        lcd = std::make_unique<LcdCommRevD>(com_port, 320, 480, &update_queue);
     } else if (revision == "TUR_USB") {
         try {
             lcd = std::make_unique<LcdCommTuringUSB>();
@@ -113,9 +113,9 @@ Display::Display(const config::DisplayConfig &display_settings) : settings(displ
             std::_Exit(1);
         }
     } else if (revision == "WEACT_A") {
-        lcd = std::make_unique<LcdCommWeActA>(com_port, 320, 480, &config::update_queue);
+        lcd = std::make_unique<LcdCommWeActA>(com_port, 320, 480, &update_queue);
     } else if (revision == "WEACT_B") {
-        lcd = std::make_unique<LcdCommWeActB>(com_port, 80, 160, &config::update_queue);
+        lcd = std::make_unique<LcdCommWeActB>(com_port, 80, 160, &update_queue);
     } else if (revision == "SIMU") {
         // Simulated display: always set width/height from theme
         lcd = std::make_unique<LcdSimulated>("AUTO", width, height);

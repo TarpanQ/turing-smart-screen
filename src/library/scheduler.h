@@ -33,6 +33,8 @@
 #include <functional>
 #include <string>
 
+#include "library/lcd/lcd_comm.h"
+
 namespace scheduler {
 
 /** @brief Set when the program is stopping: periodic jobs are not rescheduled, the queue handler empties the queue */
@@ -62,9 +64,10 @@ void CustomStats();
 void WeatherStats();
 void PingStats();
 
-/** @brief Execute the requests waiting in the queue, in order */
-void QueueHandler();
+/** @brief Start the thread executing the requests waiting in a display queue, in order (until stop()) */
+void QueueHandler(UpdateQueue &queue);
 
+/** @brief True if no display queue has a pending request. */
 bool is_queue_empty();
 
 }  // namespace scheduler

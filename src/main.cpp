@@ -230,9 +230,11 @@ int main(int argc, char *argv[])
             display->initialize_display();
         }
 
-        // Start serial queue handler
+        // Start the serial queue handler of each display
         if (!theme_screenshots) {
-            scheduler::QueueHandler();
+            for (auto &display: displays()) {
+                scheduler::QueueHandler(display->update_queue);
+            }
         }
 
         // Create all static images

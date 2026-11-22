@@ -84,9 +84,6 @@ extern YAML::Node THEME_DEFAULT;
 /** @brief Content of the theme file (theme.yaml) in use. */
 extern YAML::Node THEME_DATA;
 
-/** @brief Queue containing the serial requests to send to the screen */
-extern UpdateQueue update_queue;
-
 /**
  * @brief Directory containing config.json and res/: the executable directory or one of its parents (programs are built
  * into build/bin/), otherwise the current directory

@@ -43,7 +43,6 @@ Json CONFIG_DATA = Json::object();
 YAML::Node THEME_DEFAULT;
 /** @brief Content of the theme file (theme.yaml) in use. */
 YAML::Node THEME_DATA;
-UpdateQueue update_queue;
 std::vector<DisplayConfig> DISPLAYS;
 
 namespace {

@@ -59,6 +59,8 @@ public:
     config::DisplayConfig settings;
     /** @brief Theme of the display: theme.yaml with the default values. */
     YAML::Node theme;
+    /** @brief Requests waiting to be sent to this display, sent by its own queue handler. */
+    UpdateQueue update_queue;
     /** @brief LCD driver used by the display. */
     std::unique_ptr<LcdComm> lcd;
 };
