@@ -55,7 +55,7 @@
 - Keep the comments in sync with the code when you change a function.
 
 ## Repository-specific conventions
-- JSON-first configuration: avoid hardcoding. Add options to `config.json` first (and describe them in `README.config`), then read them in `src/library/config.cpp` and the code that uses them. Themes stay in YAML (`theme.yaml`).
+- JSON-first configuration: avoid hardcoding. Add options to `config.json` first (and describe them in `README.config`), then read them in `src/library/config.cpp` and the code that uses them. The settings of each display are the elements of the `displays` array (`config::DisplayConfig`, `config::DISPLAYS`); the common settings are in `config`. Themes stay in YAML (`theme.yaml`).
 - Hardware routing goes through `REVISION`: do not add a new revision outside the factory in `src/library/display.cpp`.
 - Periodic updates go through `src/library/scheduler.cpp`: avoid ad-hoc threads that write to the device.
 - UI rendering depends on theme keys (example structure in `res/themes/default.yaml`): keep the schema compatible.

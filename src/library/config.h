@@ -46,12 +46,39 @@ namespace config {
 /** @brief JSON document of the configuration file (config.json). Keeps the order of the keys of the file. */
 using Json = nlohmann::ordered_json;
 
+/**
+ * @brief Settings of one display: one element of the "displays" array of config.json.
+ * Keys that are required (THEME, REVISION, BRIGHTNESS) make the program stop when they are missing.
+ */
+struct DisplayConfig
+{
+    /** @brief Serial port of the display, or AUTO for auto-detection. */
+    std::string com_port = "AUTO";
+    /** @brief Name of the theme folder in res/themes. */
+    std::string theme;
+    /** @brief Hardware revision of the display (A, B, C, D, TUR_USB, WEACT_A, WEACT_B or SIMU). */
+    std::string revision = "A";
+    /** @brief Brightness, from 0 to 100. */
+    int brightness = 50;
+    /** @brief Reverse the orientation of the display. */
+    bool display_reverse = false;
+    /** @brief Reset the display when the program starts. */
+    bool reset_on_startup = true;
+
+    /** @brief Read a display from an element of the "displays" array. Throws if a required key is missing. */
+    static DisplayConfig from_json(const Json &node);
+    /** @brief The display as an element of the "displays" array. */
+    Json to_json() const;
+};
+
 /** @brief Directory containing config.json and res/ (the repository root) */
 extern std::filesystem::path MAIN_DIRECTORY;
 /** @brief Fonts directory, ending with '/' */
 extern std::string FONTS_DIR;
 /** @brief Content of config.json. */
 extern Json CONFIG_DATA;
+/** @brief Settings of the displays, one element per display of the "displays" array of config.json. */
+extern std::vector<DisplayConfig> DISPLAYS;
 /** @brief Default values of the theme settings. */
 extern YAML::Node THEME_DEFAULT;
 /** @brief Content of the theme file (theme.yaml) in use. */
@@ -77,7 +104,18 @@ Json load_json(const std::filesystem::path &configfile);
 YAML::Node load_yaml(const std::filesystem::path &configfile);
 
 /**
- * @brief Section of the configuration (for example "display"), or an empty object if the root has no such object.
+ * @brief Read the "displays" array of a configuration. Throws std::runtime_error if it is missing or empty.
+ */
+std::vector<DisplayConfig> load_displays(const Json &root);
+
+/**
+ * @brief Write the "displays" array of a configuration file, replacing the displays of the file by displays.
+ * Throws std::runtime_error if the file cannot be read or written.
+ */
+void save_displays(const std::filesystem::path &path, const std::vector<DisplayConfig> &displays);
+
+/**
+ * @brief Section of the configuration (for example "config"), or an empty object if the root has no such object.
  * Use it instead of operator[] on a const Json, which is undefined for missing keys.
  */
 Json section(const Json &root, const std::string &name);
@@ -85,7 +123,7 @@ Json section(const Json &root, const std::string &name);
 /** @brief Recursively supply default values into a map of maps of maps ... */
 void copy_default(const YAML::Node &default_values, YAML::Node theme);
 
-/** @brief A value to write in config.json: section (for example "display"), key and new value. */
+/** @brief A value to write in config.json: section (for example "config"), key and new value. */
 struct ConfigUpdate
 {
     /** @brief Section of the value to update. */

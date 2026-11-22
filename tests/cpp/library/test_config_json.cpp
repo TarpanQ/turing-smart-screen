@@ -92,35 +92,102 @@ TEST(ConfigJson, UpdateKeepsOrder)
 {
     TempFile file(R"({
     "config": {
-        "COM_PORT": "AUTO",
-        "THEME": "3.5inchTheme2"
+        "HW_SENSORS": "AUTO",
+        "ETH": "lo"
     },
-    "display": {
-        "REVISION": "A"
-    }
+    "displays": [
+        {"THEME": "3.5inchTheme2"}
+    ]
 })");
     config::update_json_file(file.path(), {
-        {"config", "COM_PORT", "/dev/ttyACM0"},
-        {"config", "ETH", ""},
-        {"display", "BRIGHTNESS", 41},
-        {"display", "DISPLAY_REVERSE", true},
+        {"config", "HW_SENSORS", "STUB"},
+        {"config", "WLO", ""},
         {"extra", "KEY", "value"},
     });
 
     const config::Json updated = config::load_json(file.path());
-    EXPECT_EQ(updated["config"]["COM_PORT"], "/dev/ttyACM0");
-    EXPECT_EQ(updated["config"]["THEME"], "3.5inchTheme2");
-    EXPECT_EQ(updated["config"]["ETH"], "");
-    EXPECT_EQ(updated["display"]["REVISION"], "A");
-    EXPECT_EQ(updated["display"]["BRIGHTNESS"], 41);
-    EXPECT_TRUE(updated["display"]["DISPLAY_REVERSE"].get<bool>());
+    EXPECT_EQ(updated["config"]["HW_SENSORS"], "STUB");
+    EXPECT_EQ(updated["config"]["ETH"], "lo");
+    EXPECT_EQ(updated["config"]["WLO"], "");
     EXPECT_EQ(updated["extra"]["KEY"], "value");
+    EXPECT_EQ(updated["displays"][0]["THEME"], "3.5inchTheme2");
 
     const std::string text = file.read();
-    EXPECT_LT(text.find("COM_PORT"), text.find("THEME"));
-    EXPECT_LT(text.find("THEME"), text.find("\"display\""));
-    EXPECT_LT(text.find("REVISION"), text.find("BRIGHTNESS"));
-    EXPECT_LT(text.find("BRIGHTNESS"), text.find("\"extra\""));
+    EXPECT_LT(text.find("HW_SENSORS"), text.find("ETH"));
+    EXPECT_LT(text.find("ETH"), text.find("WLO"));
+    EXPECT_LT(text.find("\"config\""), text.find("\"displays\""));
+    EXPECT_LT(text.find("\"displays\""), text.find("\"extra\""));
+}
+
+/** @brief A display is read from its element of the displays array, with the defaults of the optional keys. */
+TEST(ConfigJson, DisplayFromJson)
+{
+    const config::Json node = config::Json::parse(
+        R"({"THEME": "3.5inchTheme2", "REVISION": "A", "BRIGHTNESS": 41, "DISPLAY_REVERSE": true})");
+    const config::DisplayConfig display = config::DisplayConfig::from_json(node);
+    EXPECT_EQ(display.com_port, "AUTO");
+    EXPECT_EQ(display.theme, "3.5inchTheme2");
+    EXPECT_EQ(display.revision, "A");
+    EXPECT_EQ(display.brightness, 41);
+    EXPECT_TRUE(display.display_reverse);
+    EXPECT_TRUE(display.reset_on_startup);
+}
+
+/** @brief The required keys of a display (theme, revision, brightness) must be present. */
+TEST(ConfigJson, DisplayRequiredKeys)
+{
+    EXPECT_THROW(config::DisplayConfig::from_json(config::Json::parse(R"({"REVISION": "A", "BRIGHTNESS": 41})")),
+                 std::exception);
+    EXPECT_THROW(config::DisplayConfig::from_json(config::Json::parse(R"({"THEME": "t", "BRIGHTNESS": 41})")),
+                 std::exception);
+    EXPECT_THROW(config::DisplayConfig::from_json(config::Json::parse(R"({"THEME": "t", "REVISION": "A"})")),
+                 std::exception);
+}
+
+/** @brief A display written to JSON is read back identically. */
+TEST(ConfigJson, DisplayRoundTrip)
+{
+    config::DisplayConfig display;
+    display.com_port = "/dev/ttyACM1";
+    display.theme = "Cyberdeck";
+    display.revision = "B";
+    display.brightness = 80;
+    display.display_reverse = true;
+    display.reset_on_startup = false;
+
+    const config::DisplayConfig read = config::DisplayConfig::from_json(display.to_json());
+    EXPECT_EQ(read.com_port, "/dev/ttyACM1");
+    EXPECT_EQ(read.theme, "Cyberdeck");
+    EXPECT_EQ(read.revision, "B");
+    EXPECT_EQ(read.brightness, 80);
+    EXPECT_TRUE(read.display_reverse);
+    EXPECT_FALSE(read.reset_on_startup);
+}
+
+/** @brief The displays array is required and must not be empty. */
+TEST(ConfigJson, LoadDisplaysRejectsMissingOrEmptyArray)
+{
+    EXPECT_THROW(config::load_displays(config::Json::parse(R"({"config": {}})")), std::runtime_error);
+    EXPECT_THROW(config::load_displays(config::Json::parse(R"({"displays": []})")), std::runtime_error);
+    EXPECT_THROW(config::load_displays(config::Json::parse(R"({"displays": {"THEME": "t"}})")), std::runtime_error);
+}
+
+/** @brief Saving the displays replaces the displays array and keeps the other sections. */
+TEST(ConfigJson, SaveDisplays)
+{
+    TempFile file(R"({"config": {"PING": "1.1.1.1"}, "displays": [{"THEME": "old", "REVISION": "A", "BRIGHTNESS": 1}]})");
+    config::DisplayConfig first = config::DisplayConfig::from_json(
+        config::Json::parse(R"({"THEME": "new", "REVISION": "C", "BRIGHTNESS": 2})"));
+    config::DisplayConfig second = first;
+    second.theme = "second";
+    config::save_displays(file.path(), {first, second});
+
+    const config::Json saved = config::load_json(file.path());
+    EXPECT_EQ(saved["config"]["PING"], "1.1.1.1");
+    ASSERT_EQ(saved["displays"].size(), 2u);
+    EXPECT_EQ(saved["displays"][0]["THEME"], "new");
+    EXPECT_EQ(saved["displays"][0]["REVISION"], "C");
+    EXPECT_EQ(saved["displays"][1]["THEME"], "second");
 }
 
 /** @brief A file that is not a JSON object is rejected. */

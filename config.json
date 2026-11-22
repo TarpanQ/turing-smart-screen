@@ -1,7 +1,5 @@
 {
     "config": {
-        "COM_PORT": "/dev/ttyACM0",
-        "THEME": "3.5inchTheme2",
         "HW_SENSORS": "AUTO",
         "ETH": "lo",
         "WLO": "wlo1",
@@ -13,10 +11,14 @@
         "WEATHER_UNITS": "metric",
         "WEATHER_LANGUAGE": "en"
     },
-    "display": {
-        "REVISION": "A",
-        "BRIGHTNESS": 41,
-        "DISPLAY_REVERSE": true,
-        "RESET_ON_STARTUP": true
-    }
+    "displays": [
+        {
+            "COM_PORT": "/dev/ttyACM0",
+            "THEME": "3.5inchTheme2",
+            "REVISION": "A",
+            "BRIGHTNESS": 41,
+            "DISPLAY_REVERSE": true,
+            "RESET_ON_STARTUP": true
+        }
+    ]
 }

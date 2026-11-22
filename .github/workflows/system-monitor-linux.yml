@@ -40,11 +40,11 @@ jobs:
     - name: Configure system monitor
       run: |
         # For tests there is no real HW: use simulated LCD mode
-        jq '.display.REVISION = "SIMU"' config.json > config.json.tmp && mv config.json.tmp config.json
+        jq '.displays[0].REVISION = "SIMU"' config.json > config.json.tmp && mv config.json.tmp config.json
 
         # Setup selected theme in config.json
         echo "Using theme ${{ matrix.theme }}"
-        jq --arg theme "${{ matrix.theme }}" '.config.THEME = $theme' config.json > config.json.tmp && mv config.json.tmp config.json
+        jq --arg theme "${{ matrix.theme }}" '.displays[0].THEME = $theme' config.json > config.json.tmp && mv config.json.tmp config.json
 
     - name: Run system monitor for 20 seconds
       run: |

@@ -55,9 +55,8 @@ std::optional<std::string> get_full_path(const std::string &path, const std::str
 Orientation get_theme_orientation()
 {
     const YAML::Node &theme = config::THEME_DATA;
-    const config::Json &cfg = config::CONFIG_DATA;
     const std::string orientation = config::get(theme["display"], "DISPLAY_ORIENTATION", "");
-    const bool reverse = config::get(config::section(cfg, "display"), "DISPLAY_REVERSE", false);
+    const bool reverse = config::DISPLAYS.front().display_reverse;
     if (orientation == "portrait") {
         return reverse ? Orientation::REVERSE_PORTRAIT : Orientation::PORTRAIT;
     }
@@ -89,17 +88,15 @@ std::pair<int, int> get_theme_size()
         return it->second;
     }
     logger.warning("Cannot find valid DISPLAY_SIZE property in selected theme {}, defaulting to 3.5\"",
-                   config::get(config::section(config::CONFIG_DATA, "config"), "THEME", ""));
+                   config::DISPLAYS.front().theme);
     return {320, 480};
 }
 
 Display::Display()
 {
     const auto [width, height] = get_theme_size();
-    const config::Json &cfg = config::CONFIG_DATA;
-    const std::string revision = config::get(config::section(cfg, "display"), "REVISION", "");
-
-    const std::string com_port = config::get(config::section(cfg, "config"), "COM_PORT", "AUTO");
+    const std::string &revision = config::DISPLAYS.front().revision;
+    const std::string &com_port = config::DISPLAYS.front().com_port;
 
     if (revision == "A") {
         lcd = std::make_unique<LcdCommRevA>(com_port, 320, 480, &config::update_queue);
@@ -134,8 +131,7 @@ void Display::initialize_display()
 {
     // Reset screen in case it was in an unstable state (screen is also cleared)
     // Can be disabled by config. option. Assume true if key not present in config.json
-    const config::Json &cfg = config::CONFIG_DATA;
-    if (config::get(config::section(cfg, "display"), "RESET_ON_STARTUP", true)) {
+    if (config::DISPLAYS.front().reset_on_startup) {
         lcd->Reset();
     } else {
         logger.debug("RESET_ON_STARTUP is false: display will not be reset");
@@ -153,14 +149,13 @@ void Display::initialize_display()
 
 void Display::turn_on()
 {
-    const config::Json &cfg = config::CONFIG_DATA;
     const YAML::Node &theme = config::THEME_DATA;
 
     // Turn screen on in case it was turned off previously
     lcd->ScreenOn();
 
     // Set brightness
-    lcd->SetBrightness(cfg.at("display").at("BRIGHTNESS").get<int>());
+    lcd->SetBrightness(config::DISPLAYS.front().brightness);
 
     // Set backplate RGB LED color (for supported HW only)
     lcd->SetBackplateLedColor(config::get_color(theme["display"], "DISPLAY_RGB_LED", {255, 255, 255}));

@@ -44,8 +44,21 @@ YAML::Node THEME_DEFAULT;
 /** @brief Content of the theme file (theme.yaml) in use. */
 YAML::Node THEME_DATA;
 UpdateQueue update_queue;
+std::vector<DisplayConfig> DISPLAYS;
 
 namespace {
+
+void write_json_file(const fs::path &path, const Json &data)
+{
+    std::ofstream out(path, std::ios::trunc);
+    if (!out) {
+        throw std::runtime_error("Cannot write " + path.string());
+    }
+    out << data.dump(4) << "\n";
+    if (!out) {
+        throw std::runtime_error("Cannot write " + path.string());
+    }
+}
 
 bool is_main_directory(const fs::path &dir)
 {
@@ -86,6 +99,53 @@ Json load_json(const fs::path &configfile)
     return data;
 }
 
+DisplayConfig DisplayConfig::from_json(const Json &node)
+{
+    DisplayConfig display;
+    display.com_port = get(node, "COM_PORT", std::string("AUTO"));
+    display.theme = node.at("THEME").get<std::string>();
+    display.revision = node.at("REVISION").get<std::string>();
+    display.brightness = node.at("BRIGHTNESS").get<int>();
+    display.display_reverse = get(node, "DISPLAY_REVERSE", false);
+    display.reset_on_startup = get(node, "RESET_ON_STARTUP", true);
+    return display;
+}
+
+Json DisplayConfig::to_json() const
+{
+    return Json{{"COM_PORT", com_port},
+                {"THEME", theme},
+                {"REVISION", revision},
+                {"BRIGHTNESS", brightness},
+                {"DISPLAY_REVERSE", display_reverse},
+                {"RESET_ON_STARTUP", reset_on_startup}};
+}
+
+std::vector<DisplayConfig> load_displays(const Json &root)
+{
+    const Json displays = root.is_object() && root.contains("displays") ? root.at("displays") : Json();
+    if (!displays.is_array() || displays.empty()) {
+        throw std::runtime_error("config.json must contain a non-empty \"displays\" array");
+    }
+    std::vector<DisplayConfig> result;
+    for (const Json &node: displays) {
+        result.push_back(DisplayConfig::from_json(node));
+    }
+    return result;
+}
+
+/** @brief Write the displays array of a configuration file, keeping the other sections. */
+void save_displays(const fs::path &path, const std::vector<DisplayConfig> &displays)
+{
+    Json data = load_json(path);
+    Json array = Json::array();
+    for (const DisplayConfig &display: displays) {
+        array.push_back(display.to_json());
+    }
+    data["displays"] = array;
+    write_json_file(path, data);
+}
+
 /** @brief Load a YAML file (theme or default values). */
 YAML::Node load_yaml(const fs::path &configfile)
 {
@@ -124,21 +184,13 @@ void update_json_file(const fs::path &path, const std::vector<ConfigUpdate> &upd
         }
         data[update.section][update.key] = update.value;
     }
-
-    std::ofstream out(path, std::ios::trunc);
-    if (!out) {
-        throw std::runtime_error("Cannot write " + path.string());
-    }
-    out << data.dump(4) << "\n";
-    if (!out) {
-        throw std::runtime_error("Cannot write " + path.string());
-    }
+    write_json_file(path, data);
 }
 
 void load_theme(bool exit_on_error)
 {
     try {
-        const std::string theme_name = CONFIG_DATA.at("config").at("THEME").get<std::string>();
+        const std::string theme_name = DISPLAYS.front().theme;
         const fs::path theme_path = fs::path("res/themes") / theme_name;
         logger.info("Loading theme {} from {}", theme_name, (theme_path / "theme.yaml").string());
         YAML::Node theme_data = load_yaml(MAIN_DIRECTORY / theme_path / "theme.yaml");
@@ -163,8 +215,7 @@ void check_theme_compatible(const std::string &display_size)
     // Check if theme is compatible with hardware revision
     if (display_size != get(THEME_DATA["display"], "DISPLAY_SIZE", "3.5\"")) {
         logger.error("The selected theme {} is not compatible with your display revision {}",
-                     CONFIG_DATA.at("config").at("THEME").get<std::string>(),
-                     CONFIG_DATA.at("display").at("REVISION").get<std::string>());
+                     DISPLAYS.front().theme, DISPLAYS.front().revision);
         std::_Exit(1);
     }
 }
@@ -188,6 +239,7 @@ void init(bool with_theme)
 
     try {
         CONFIG_DATA = load_json(MAIN_DIRECTORY / "config.json");
+        DISPLAYS = load_displays(CONFIG_DATA);
         THEME_DEFAULT = load_yaml(MAIN_DIRECTORY / "res/themes/default.yaml");
     } catch (const std::exception &e) {
         logger.error("Cannot load configuration from {}: {}", MAIN_DIRECTORY.string(), e.what());

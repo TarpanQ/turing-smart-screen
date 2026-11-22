@@ -52,10 +52,10 @@ jobs:
 
             # Setup selected theme in config.json
             echo "Using theme $theme"
-            jq --arg theme "$theme" '.config.THEME = $theme' config.json > config.json.tmp && mv config.json.tmp config.json
+            jq --arg theme "$theme" '.displays[0].THEME = $theme' config.json > config.json.tmp && mv config.json.tmp config.json
 
             # For tests there is no real HW: use simulated LCD mode
-            jq '.display.REVISION = "SIMU"' config.json > config.json.tmp && mv config.json.tmp config.json
+            jq '.displays[0].REVISION = "SIMU"' config.json > config.json.tmp && mv config.json.tmp config.json
 
             # Run system-monitor in theme screenshot mode
             build/bin/main -t 10 > output.log 2>&1

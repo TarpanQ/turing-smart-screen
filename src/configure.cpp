@@ -586,10 +586,15 @@ void TuringConfigWindow::load_config_values()
         cfg = config::Json::object();
     }
     const config::Json conf = config::section(cfg, "config");
-    const config::Json display = config::section(cfg, "display");
+    // Display settings: first element of the displays array (defaults if the array is missing)
+    config::DisplayConfig display;
+    try {
+        display = config::load_displays(cfg).front();
+    } catch (const std::exception &) {
+    }
 
     // Check if theme is valid
-    std::string theme = config::get(conf, "THEME", "");
+    std::string theme = display.theme;
     if (!get_theme_data(theme)) {
         // Theme from config.json is not valid: use first theme available default size 3.5"
         const auto themes = get_themes(SIZE_3_5_INCH);
@@ -611,7 +616,7 @@ void TuringConfigWindow::load_config_values()
     const std::string wlo = config::get(conf, "WLO", "");
     wlo.empty() ? wl_cb.set_current(0) : wl_cb.set_text(wlo);
 
-    std::string com_port = config::get(conf, "COM_PORT", "AUTO");
+    std::string com_port = display.com_port;
     if (com_port == "AUTO") {
         com_cb.set_current(0);
     } else {
@@ -623,7 +628,7 @@ void TuringConfigWindow::load_config_values()
     }
 
     // Guess display size from theme in the configuration
-    const std::string revision = config::get(display, "REVISION", "A");
+    const std::string revision = display.revision;
     std::string size = get_theme_size(theme);
     if (size == _SIZE_2_1_INCH || size == _SIZE_2_8_INCH) {
         size = SIZE_2_x_INCH;  // If a theme is for 2.1" or 2.8" then it is for all 2.x"
@@ -649,9 +654,9 @@ void TuringConfigWindow::load_config_values()
         model_cb.set_current(0);
     }
 
-    orient_cb.set_text(*map_value(reverse_map, config::get(display, "DISPLAY_REVERSE", false)));
+    orient_cb.set_text(*map_value(reverse_map, display.display_reverse));
 
-    brightness_slider.set_value(config::get(display, "BRIGHTNESS", 50));
+    brightness_slider.set_value(display.brightness);
 
     const std::string cpu_fan = config::get(conf, "CPU_FAN", "AUTO");
     if (cpu_fan == "AUTO") {
@@ -687,16 +692,22 @@ bool TuringConfigWindow::save_config_values()
 
     try {
         config::update_json_file(main_directory() / "config.json", {
-            {"config", "THEME", (theme_cb.get_text())},
             {"config", "HW_SENSORS", map_key(hw_lib_map, hwlib_cb.get_text()).value_or("AUTO")},
             {"config", "ETH", (eth_cb.current() == 0 ? "" : eth_cb.get_text())},
             {"config", "WLO", (wl_cb.current() == 0 ? "" : wl_cb.get_text())},
-            {"config", "COM_PORT", (com_cb.current() == 0 ? "AUTO" : com_cb.get_text())},
             {"config", "CPU_FAN", (cpu_fan)},
-            {"display", "REVISION", revision->second},
-            {"display", "DISPLAY_REVERSE", map_key(reverse_map, orient_cb.get_text()).value_or(false)},
-            {"display", "BRIGHTNESS", static_cast<int>(brightness_slider.get_value())},
         });
+
+        // Display settings are the first element of the displays array; the other elements are kept
+        const fs::path config_file = main_directory() / "config.json";
+        auto displays = config::load_displays(config::load_json(config_file));
+        config::DisplayConfig &first = displays.front();
+        first.theme = theme_cb.get_text();
+        first.com_port = com_cb.current() == 0 ? "AUTO" : com_cb.get_text();
+        first.revision = revision->second;
+        first.display_reverse = map_key(reverse_map, orient_cb.get_text()).value_or(false);
+        first.brightness = static_cast<int>(brightness_slider.get_value());
+        config::save_displays(config_file, displays);
     } catch (const std::exception &e) {
         show_error(e.what());
         return false;
