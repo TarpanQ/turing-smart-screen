@@ -47,6 +47,13 @@ void init();
 std::optional<std::string> get_theme_file_path(const std::string &name);
 
 /**
+ * @brief INTERVAL (seconds) of a stats item in a theme: its own INTERVAL if it sets one (older themes), otherwise the
+ * INTERVAL of its category (STATS/<category>/INTERVAL).
+ * @param path Path of the item in the theme, starting with "STATS" (for example {"STATS", "CPU", "PERCENTAGE"})
+ */
+double item_interval(const YAML::Node &theme, const std::vector<std::string> &path);
+
+/**
  * @brief Shortest positive INTERVAL (seconds) of a stats item over the themes of all displays, 0 if none defines it.
  * @param path Path of the item in the theme, starting with "STATS" (for example {"STATS", "CPU", "PERCENTAGE"})
  */

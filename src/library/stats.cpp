@@ -229,11 +229,22 @@ YAML::Node theme_item(const YAML::Node &node, const std::vector<std::string> &pa
 
 }  // namespace
 
+double item_interval(const YAML::Node &theme, const std::vector<std::string> &path)
+{
+    // An item uses its own INTERVAL if the theme sets one (older themes), otherwise the INTERVAL of its category
+    const YAML::Node item = theme_item(theme, path);
+    if (item.IsMap() && item["INTERVAL"].IsDefined() && !item["INTERVAL"].IsNull()) {
+        return config::get(item, "INTERVAL", 0.0);
+    }
+    const std::vector<std::string> category(path.begin(), path.begin() + std::min<size_t>(path.size(), 2));
+    return config::get(theme_item(theme, category), "INTERVAL", 0.0);
+}
+
 double shared_interval(const std::vector<std::string> &path)
 {
     double interval = 0.0;
     for (const auto &display: displays()) {
-        const double display_interval = config::get(theme_item(display->theme, path), "INTERVAL", 0.0);
+        const double display_interval = item_interval(display->theme, path);
         if (display_interval > 0 && (interval == 0 || display_interval < interval)) {
             interval = display_interval;
         }

@@ -56,8 +56,9 @@ void set_thread_name(const std::string &threadname)
     pthread_setname_np(pthread_self(), threadname.substr(0, 15).c_str());
 }
 
-// Interval (seconds) of a stats item: STATS/<key>/INTERVAL, or STATS/<key>/<subkey>/INTERVAL. A job runs for every
-// display, so the shortest interval defined by the themes of the displays is used (0 if no display shows the item).
+// Interval (seconds) of a stats item, or of a category if no subkey: the INTERVAL of the category in the theme, unless
+// the item sets its own (see stats::item_interval). A job runs for every display, so the shortest interval of the
+// themes of the displays is used (0 if no display shows the item).
 double theme_interval(const std::string &key, const std::string &subkey = "")
 {
     return subkey.empty() ? stats::shared_interval({"STATS", key}) : stats::shared_interval({"STATS", key, subkey});
