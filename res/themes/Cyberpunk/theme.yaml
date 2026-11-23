@@ -13,22 +13,6 @@ static_images:
     WIDTH: 320
     HEIGHT: 480
 static_text:
-  CPU_MODEL:
-    TEXT: Your CPU model here
-    X: 50
-    Y: 127
-    FONT: generale-mono/GeneraleMonoA.ttf
-    FONT_SIZE: 15
-    FONT_COLOR: 255, 239, 8
-    BACKGROUND_IMAGE: background.png
-  GPU_MODEL:
-    TEXT: Your GPU model here
-    X: 50
-    Y: 215
-    FONT: generale-mono/GeneraleMonoA.ttf
-    FONT_SIZE: 15
-    FONT_COLOR: 255, 239, 8
-    BACKGROUND_IMAGE: background.png
   RAM_MODEL:
     TEXT: Your RAM model here
     X: 50
@@ -55,6 +39,16 @@ static_text:
     BACKGROUND_IMAGE: background.png
 STATS:
   CPU:
+    MODEL:
+      INTERVAL: 60
+      TEXT:
+        SHOW: True
+        X: 48
+        Y: 129
+        FONT: generale-mono/GeneraleMonoA.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 255, 239, 8
+        BACKGROUND_IMAGE: background.png
     PERCENTAGE:
       INTERVAL: 1
       TEXT:
@@ -101,6 +95,17 @@ STATS:
         BACKGROUND_IMAGE: background.png
   GPU:
     INTERVAL: 1
+    MODEL:
+      TEXT:
+        INTERVAL: 60
+        SHOW: True
+        SHOW_UNIT: True
+        X: 48
+        Y: 215
+        FONT: generale-mono/GeneraleMonoA.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 255, 239, 8                
+        BACKGROUND_IMAGE: background.png
     PERCENTAGE:
       GRAPH:
         SHOW: True
