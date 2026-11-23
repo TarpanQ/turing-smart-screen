@@ -322,6 +322,12 @@ void display_themed_value(const YAML::Node &theme_data, const std::optional<std:
     });
 }
 
+/** @brief Display the model name of a component as text, with the theme style (nothing if the model is unknown). */
+void display_themed_model(const YAML::Node &model_data, const std::string &model)
+{
+    display_themed_value(model_data["TEXT"], model.empty() ? std::nullopt : std::optional<std::string>(model));
+}
+
 /** @brief Display a percentage as text, with the theme style. */
 void display_themed_percent_value(const YAML::Node &theme_data, double value)
 {
@@ -615,6 +621,12 @@ void CPU::fan_speed()
     });
 }
 
+void CPU::model()
+{
+    const std::string model = sensors.cpu->model();
+    on_each_display([&] { display_themed_model(stats_node("CPU")["MODEL"], model); });
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Gpu
 
@@ -786,6 +798,12 @@ void Gpu::stats()
     });
 }
 
+void Gpu::model()
+{
+    const std::string model = sensors.gpu->model();
+    on_each_display([&] { display_themed_model(stats_node("GPU")["MODEL"], model); });
+}
+
 bool Gpu::is_available()
 {
     return sensors.gpu->is_available();
@@ -828,6 +846,12 @@ void Memory::stats()
         display_themed_value(memory_stats_theme_data["VIRTUAL"]["TOTAL"],
                              std::to_string((free + used) / (1024 * 1024)), 5, " M");
     });
+}
+
+void Memory::model()
+{
+    const std::string model = sensors.memory->model();
+    on_each_display([&] { display_themed_model(stats_node("MEMORY")["MODEL"], model); });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

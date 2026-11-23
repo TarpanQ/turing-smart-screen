@@ -97,6 +97,8 @@ public:
     static void temperature();
     /** @brief Display the CPU fan speed. */
     static void fan_speed();
+    /** @brief Display the CPU model name. */
+    static void model();
 };
 
 /** @brief GPU statistics displayed by the theme. */
@@ -105,6 +107,8 @@ class Gpu
 public:
     /** @brief Display the GPU statistics. */
     static void stats();
+    /** @brief Display the GPU model name. */
+    static void model();
     /** @brief True if the GPU statistics are available. */
     static bool is_available();
 };
@@ -115,6 +119,8 @@ class Memory
 public:
     /** @brief Display the memory statistics. */
     static void stats();
+    /** @brief Display the RAM module model. */
+    static void model();
 };
 
 /** @brief Disk statistics displayed by the theme. */

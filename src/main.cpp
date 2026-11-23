@@ -274,10 +274,13 @@ int main(int argc, char *argv[])
             scheduler::CPULoad(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             scheduler::CPUTemperature(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             scheduler::CPUFanSpeed(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
+            scheduler::CPUModel(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             if (stats::Gpu::is_available()) {
                 scheduler::GpuStats(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
+                scheduler::GpuModel(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             }
             scheduler::MemoryStats(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
+            scheduler::MemoryModel(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             scheduler::DiskStats(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             scheduler::NetStats(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             scheduler::DateStats(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);

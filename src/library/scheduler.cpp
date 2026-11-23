@@ -140,6 +140,12 @@ void CPUFanSpeed()
     schedule("CPU_FanSpeed", theme_interval("CPU", "FAN_SPEED"), stats::CPU::fan_speed);
 }
 
+/** @brief Periodic job updating the CPU model name on the display. */
+void CPUModel()
+{
+    schedule("CPU_Model", theme_interval("CPU", "MODEL"), stats::CPU::model);
+}
+
 /** @brief Periodic job updating the GPU statistics on the display. */
 void GpuStats()
 {
@@ -147,10 +153,22 @@ void GpuStats()
     schedule("GPU_Stats", theme_interval("GPU"), stats::Gpu::stats);
 }
 
+/** @brief Periodic job updating the GPU model name on the display. */
+void GpuModel()
+{
+    schedule("GPU_Model", theme_interval("GPU", "MODEL"), stats::Gpu::model);
+}
+
 /** @brief Periodic job updating the memory statistics on the display. */
 void MemoryStats()
 {
     schedule("Memory_Stats", theme_interval("MEMORY"), stats::Memory::stats);
+}
+
+/** @brief Periodic job updating the RAM module model on the display. */
+void MemoryModel()
+{
+    schedule("Memory_Model", theme_interval("MEMORY", "MODEL"), stats::Memory::model);
 }
 
 /** @brief Periodic job updating the disk statistics on the display. */

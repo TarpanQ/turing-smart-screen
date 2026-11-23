@@ -57,6 +57,7 @@ public:
     double percentage(std::optional<double> interval) override;
     /** @brief Fixed CPU frequency, in MHz. */
     double frequency() override;
+    std::string model() override;
     /** @brief Fixed system load averages. */
     std::array<double, 3> load() override;
     /** @brief Fixed CPU temperature, in degrees Celsius. */
@@ -77,6 +78,7 @@ public:
     double fan_percent() override;
     /** @brief Fixed GPU frequency, in MHz. */
     double frequency() override;
+    std::string model() override;
     /** @brief The fake GPU is always available. */
     bool is_available() override;
 };
@@ -93,6 +95,7 @@ public:
     int64_t virtual_used() override;
     /** @brief Fixed RAM free, in bytes. */
     int64_t virtual_free() override;
+    std::string model() override;
 };
 
 /** @brief Disk sensors returning fixed values. */

@@ -53,6 +53,10 @@ STATS:
         SHOW: False
       LINE_GRAPH:
         SHOW: False
+    MODEL:
+      INTERVAL: 0
+      TEXT:
+        SHOW: False
   GPU:
     INTERVAL: 0
     PERCENTAGE:
@@ -122,6 +126,10 @@ STATS:
         SHOW: False
       LINE_GRAPH:
         SHOW: False
+    MODEL:
+      INTERVAL: 0
+      TEXT:
+        SHOW: False
   MEMORY:
     INTERVAL: 0
     SWAP:
@@ -145,6 +153,10 @@ STATS:
       TOTAL:
         SHOW: False
       PERCENT_TEXT:
+        SHOW: False
+    MODEL:
+      INTERVAL: 0
+      TEXT:
         SHOW: False
   DISK:
     INTERVAL: 0

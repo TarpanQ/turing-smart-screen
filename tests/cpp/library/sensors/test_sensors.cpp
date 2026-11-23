@@ -22,6 +22,10 @@
  */
 
 #include <cmath>
+#include <cstdint>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -36,8 +40,11 @@ TEST(SensorsStubStatic, Values)
     auto s = sensors_stub_static::create();
     EXPECT_EQ(s.cpu->percentage(std::nullopt), 50.0);
     EXPECT_EQ(s.cpu->frequency(), 2400.0);
+    EXPECT_EQ(s.cpu->model(), "Stub CPU model");
     EXPECT_EQ(s.gpu->stats().memory_used_mb, 16384.0);
+    EXPECT_EQ(s.gpu->model(), "Stub GPU model");
     EXPECT_EQ(s.memory->virtual_used(), 32000000000);
+    EXPECT_EQ(s.memory->model(), "Stub RAM module");
     EXPECT_EQ(s.disk->disk_free(), 500000000000);
     EXPECT_EQ(s.net->stats("eth0", 1).uploaded, 1061000000);
 }
@@ -54,6 +61,64 @@ TEST(SensorsStubRandom, Ranges)
         EXPECT_GE(fps, 20);
         EXPECT_LE(fps, 120);
     }
+    EXPECT_FALSE(s.cpu->model().empty());
+    EXPECT_FALSE(s.gpu->model().empty());
+    EXPECT_FALSE(s.memory->model().empty());
+}
+
+/** @brief RAM module model from a SMBIOS Memory Device structure (type 17) and its strings. */
+TEST(SensorsPython, MemoryDeviceModel)
+{
+    // Formatted part of the structure (27 bytes): size at 0x0C, manufacturer string at 0x17, part number at 0x1A
+    auto structure = [](uint8_t size_low, uint8_t size_high, uint8_t manufacturer, uint8_t part_number,
+                        const std::vector<std::string> &strings) {
+        std::vector<uint8_t> raw(27, 0);
+        raw[0] = 17;
+        raw[1] = 27;
+        raw[0x0C] = size_low;
+        raw[0x0D] = size_high;
+        raw[0x17] = manufacturer;
+        raw[0x1A] = part_number;
+        for (const std::string &text: strings) {
+            raw.insert(raw.end(), text.begin(), text.end());
+            raw.push_back(0);
+        }
+        raw.push_back(0);  // End of the strings
+        return raw;
+    };
+
+    // Populated module: manufacturer and part number, separated by a space
+    EXPECT_EQ(sensors_python::memory_device_model(structure(0x00, 0x20, 1, 2, {"Kingston", "KF3200C16D4/16GX"})),
+              "Kingston KF3200C16D4/16GX");
+    // Unspecified manufacturer: only the part number
+    EXPECT_EQ(sensors_python::memory_device_model(structure(0x00, 0x20, 1, 2, {"Not Specified", "  CT16G4  DFD "})),
+              "CT16G4 DFD");
+    // Empty slot (size 0), and structure of another type
+    EXPECT_FALSE(sensors_python::memory_device_model(structure(0x00, 0x00, 1, 2, {"Kingston", "KF"})).has_value());
+    auto other_type = structure(0x00, 0x20, 1, 2, {"Kingston", "KF"});
+    other_type[0] = 4;
+    EXPECT_FALSE(sensors_python::memory_device_model(other_type).has_value());
+    // Truncated structure
+    EXPECT_FALSE(sensors_python::memory_device_model({17, 4}).has_value());
+}
+
+/** @brief Device name from the pci.ids database. */
+TEST(SensorsPython, PciDeviceName)
+{
+    const std::string pci_ids =
+        "# Comment line\n"
+        "1002  Advanced Micro Devices, Inc. [AMD/ATI]\n"
+        "\t744c  Navi 31 [Radeon RX 7900 XT]\n"
+        "\t\t1787 0e6c  Subsystem name\n"
+        "10de  NVIDIA Corporation\n"
+        "\t2717  GeForce RTX 4080 Laptop GPU\n";
+    std::istringstream amd(pci_ids);
+    EXPECT_EQ(sensors_python::pci_device_name(amd, 0x1002, 0x744c), "Navi 31 [Radeon RX 7900 XT]");
+    std::istringstream nvidia(pci_ids);
+    EXPECT_EQ(sensors_python::pci_device_name(nvidia, 0x10de, 0x2717), "GeForce RTX 4080 Laptop GPU");
+    // Device of another vendor, and unknown device: empty
+    std::istringstream unknown(pci_ids);
+    EXPECT_EQ(sensors_python::pci_device_name(unknown, 0x1002, 0x2717), "");
 }
 
 /** @brief Linux sensors return consistent values. */

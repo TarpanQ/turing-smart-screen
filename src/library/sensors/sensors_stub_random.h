@@ -37,6 +37,7 @@ public:
     double percentage(std::optional<double> interval) override;
     /** @brief Random CPU frequency, in MHz. */
     double frequency() override;
+    std::string model() override;
     /** @brief Random system load averages. */
     std::array<double, 3> load() override;
     /** @brief Random CPU temperature, in degrees Celsius. */
@@ -57,6 +58,7 @@ public:
     double fan_percent() override;
     /** @brief Random GPU frequency, in MHz. */
     double frequency() override;
+    std::string model() override;
     /** @brief The random GPU is always available. */
     bool is_available() override;
 };
@@ -73,6 +75,7 @@ public:
     int64_t virtual_used() override;
     /** @brief Random RAM free, in bytes. */
     int64_t virtual_free() override;
+    std::string model() override;
 };
 
 /** @brief Disk sensors returning random values. */

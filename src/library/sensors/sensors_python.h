@@ -25,8 +25,11 @@
 
 #pragma once
 
+#include <cstdint>
+#include <istream>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -53,6 +56,17 @@ std::vector<std::pair<std::string, std::vector<FanInfo>>> sensors_fans();
 
 bool is_cpu_fan(const std::string &label);
 
+/**
+ * @brief Model of the first populated RAM module, from the raw SMBIOS structure of a Memory Device (type 17):
+ * manufacturer and part number. std::nullopt if the module is not populated or the structure is invalid.
+ */
+std::optional<std::string> memory_device_model(const std::vector<uint8_t> &raw);
+
+/**
+ * @brief Name of a PCI device, from the pci.ids database read from input (in its format). Empty if not found.
+ */
+std::string pci_device_name(std::istream &pci_ids, uint16_t vendor, uint16_t device);
+
 /** @brief Kind of GPU. */
 enum class GpuType { UNSUPPORTED, AMD, NVIDIA };
 
@@ -64,6 +78,8 @@ public:
     double percentage(std::optional<double> interval) override;
     /** @brief CPU frequency, in MHz. */
     double frequency() override;
+    /** @brief CPU model name, from /proc/cpuinfo. */
+    std::string model() override;
     /** @brief System load averages. */
     std::array<double, 3> load() override;
     /** @brief CPU temperature, in degrees Celsius. */
@@ -89,6 +105,8 @@ public:
     double fan_percent() override;
     /** @brief Frequency of the NVIDIA GPU, in MHz. */
     double frequency() override;
+    /** @brief Name of the first NVIDIA GPU, through NVML. */
+    std::string model() override;
     /** @brief True if an NVIDIA GPU is available. */
     bool is_available() override;
 };
@@ -105,6 +123,8 @@ public:
     double fan_percent() override;
     /** @brief Frequency of the AMD GPU, in MHz. */
     double frequency() override;
+    /** @brief Name of the AMD GPU, from the PCI ids database. */
+    std::string model() override;
     /** @brief True if an AMD GPU is available. */
     bool is_available() override;
 };
@@ -121,6 +141,8 @@ public:
     double fan_percent() override;
     /** @brief Frequency of the GPU, in MHz. */
     double frequency() override;
+    /** @brief Name of the detected GPU. */
+    std::string model() override;
     // Detects the GPU: must be called once before the other functions
     /** @brief True if a GPU is available. */
     bool is_available() override;
@@ -143,6 +165,8 @@ public:
     int64_t virtual_used() override;
     /** @brief RAM free, in bytes. */
     int64_t virtual_free() override;
+    /** @brief Model of the first populated RAM module, from the SMBIOS tables (root only). */
+    std::string model() override;
 };
 
 /** @brief Disk sensors. */
