@@ -28,6 +28,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <ctime>
 #include <format>
@@ -218,6 +219,37 @@ std::string format_datetime(std::time_t timestamp, const std::string &format, co
 
 }  // namespace
 
+namespace {
+
+// Node of a stats item of a theme. Read-only: a missing key is not created in the theme
+YAML::Node theme_item(const YAML::Node &node, const std::vector<std::string> &path, size_t index = 0)
+{
+    return index == path.size() ? node : theme_item(node[path[index]], path, index + 1);
+}
+
+}  // namespace
+
+double shared_interval(const std::vector<std::string> &path)
+{
+    double interval = 0.0;
+    for (const auto &display: displays()) {
+        const double display_interval = config::get(theme_item(display->theme, path), "INTERVAL", 0.0);
+        if (display_interval > 0 && (interval == 0 || display_interval < interval)) {
+            interval = display_interval;
+        }
+    }
+    return interval;
+}
+
+int shared_history_size(const std::vector<std::string> &path)
+{
+    int size = 0;
+    for (const auto &display: displays()) {
+        size = std::max(size, history_size(theme_item(display->theme, path)));
+    }
+    return size;
+}
+
 void init()
 {
     const config::Json &cfg = config::CONFIG_DATA;
@@ -405,12 +437,16 @@ void display_themed_line_graph(const YAML::Node &theme_data, const std::vector<d
 
     const RGBColor line_color = config::get_color(theme_data, "LINE_COLOR", {0, 0, 0});
 
+    // The history is shared by the displays: this display shows the last values of its own HISTORY_SIZE
+    const size_t count = std::min(values.size(), static_cast<size_t>(std::max(history_size(theme_data), 1)));
+    const std::vector<double> shown_values(values.end() - static_cast<std::ptrdiff_t>(count), values.end());
+
     active_display().lcd->DisplayLineGraph({
         .x = config::get(theme_data, "X", 0),
         .y = config::get(theme_data, "Y", 0),
         .width = config::get(theme_data, "WIDTH", 1),
         .height = config::get(theme_data, "HEIGHT", 1),
-        .values = values,
+        .values = shown_values,
         .min_value = config::get(theme_data, "MIN_VALUE", 0.0),
         .max_value = config::get(theme_data, "MAX_VALUE", 100.0),
         .autoscale = config::get(theme_data, "AUTOSCALE", false),
@@ -469,11 +505,12 @@ std::vector<double> last_values_cpu_frequency;
 
 void CPU::percentage()
 {
-    const YAML::Node theme_data = stats_node("CPU")["PERCENTAGE"];
-    const YAML::Node interval = theme_data["INTERVAL"];
-    const double cpu_percentage = sensors.cpu->percentage(
-        interval.IsDefined() && !interval.IsNull() ? std::optional<double>(interval.as<double>()) : std::nullopt);
-    save_last_value(cpu_percentage, last_values_cpu_percentage, history_size(theme_data["LINE_GRAPH"]));
+    // The sensor measures the CPU usage over the interval shared by the displays (same as the job period)
+    const double interval = shared_interval({"STATS", "CPU", "PERCENTAGE"});
+    const double cpu_percentage =
+        sensors.cpu->percentage(interval > 0 ? std::optional<double>(interval) : std::nullopt);
+    save_last_value(cpu_percentage, last_values_cpu_percentage,
+                    shared_history_size({"STATS", "CPU", "PERCENTAGE", "LINE_GRAPH"}));
 
     on_each_display([&] {
         const YAML::Node display_theme = stats_node("CPU")["PERCENTAGE"];
@@ -487,8 +524,8 @@ void CPU::percentage()
 void CPU::frequency()
 {
     const double freq_ghz = sensors.cpu->frequency() / 1000;
-    const YAML::Node theme_data = stats_node("CPU")["FREQUENCY"];
-    save_last_value(freq_ghz, last_values_cpu_frequency, history_size(theme_data["LINE_GRAPH"]));
+    save_last_value(freq_ghz, last_values_cpu_frequency,
+                    shared_history_size({"STATS", "CPU", "FREQUENCY", "LINE_GRAPH"}));
 
     const std::string freq_text = std::format("{:.2f}", freq_ghz);
     on_each_display([&] {
@@ -516,7 +553,7 @@ void CPU::temperature()
 {
     const double temperature = sensors.cpu->temperature();
     save_last_value(temperature, last_values_cpu_temperature,
-                    history_size(stats_node("CPU")["TEMPERATURE"]["LINE_GRAPH"]));
+                    shared_history_size({"STATS", "CPU", "TEMPERATURE", "LINE_GRAPH"}));
 
     on_each_display([&] {
         double shown_temperature = temperature;
@@ -548,7 +585,8 @@ void CPU::temperature()
 void CPU::fan_speed()
 {
     const double fan_value = CPU_FAN != "AUTO" ? sensors.cpu->fan_percent(CPU_FAN) : sensors.cpu->fan_percent();
-    save_last_value(fan_value, last_values_cpu_fan_speed, history_size(stats_node("CPU")["FAN_SPEED"]["LINE_GRAPH"]));
+    save_last_value(fan_value, last_values_cpu_fan_speed,
+                    shared_history_size({"STATS", "CPU", "FAN_SPEED", "LINE_GRAPH"}));
 
     on_each_display([&] {
         double fan_percent = fan_value;
@@ -617,14 +655,17 @@ void Gpu::stats()
 
     // Histories are saved once, with the raw values (before the values not supported are replaced for a display)
     const YAML::Node theme_gpu_history = stats_node("GPU");
-    save_last_value(load, last_values_gpu_percentage, history_size(theme_gpu_history["PERCENTAGE"]["LINE_GRAPH"]));
+    save_last_value(load, last_values_gpu_percentage,
+                    shared_history_size({"STATS", "GPU", "PERCENTAGE", "LINE_GRAPH"}));
     save_last_value(memory_percentage, last_values_gpu_mem_percentage,
-                    history_size(theme_gpu_history["MEMORY_PERCENT"]["LINE_GRAPH"]));
+                    shared_history_size({"STATS", "GPU", "MEMORY_PERCENT", "LINE_GRAPH"}));
     save_last_value(temperature, last_values_gpu_temperature,
-                    history_size(theme_gpu_history["TEMPERATURE"]["LINE_GRAPH"]));
-    save_last_value(fps, last_values_gpu_fps, history_size(theme_gpu_history["FPS"]["LINE_GRAPH"]));
-    save_last_value(fan_percent, last_values_gpu_fan_speed, history_size(theme_gpu_history["FAN_SPEED"]["LINE_GRAPH"]));
-    save_last_value(freq_ghz, last_values_gpu_frequency, history_size(theme_gpu_history["FREQUENCY"]["LINE_GRAPH"]));
+                    shared_history_size({"STATS", "GPU", "TEMPERATURE", "LINE_GRAPH"}));
+    save_last_value(fps, last_values_gpu_fps, shared_history_size({"STATS", "GPU", "FPS", "LINE_GRAPH"}));
+    save_last_value(fan_percent, last_values_gpu_fan_speed,
+                    shared_history_size({"STATS", "GPU", "FAN_SPEED", "LINE_GRAPH"}));
+    save_last_value(freq_ghz, last_values_gpu_frequency,
+                    shared_history_size({"STATS", "GPU", "FREQUENCY", "LINE_GRAPH"}));
 
     on_each_display([&] {
         // Values of this display: a value not supported is replaced for this display only
@@ -762,11 +803,11 @@ void Memory::stats()
 {
     const double swap_percent = sensors.memory->swap_percent();
     save_last_value(swap_percent, last_values_memory_swap,
-                    history_size(stats_node("MEMORY")["SWAP"]["LINE_GRAPH"]));
+                    shared_history_size({"STATS", "MEMORY", "SWAP", "LINE_GRAPH"}));
 
     const double virtual_percent = sensors.memory->virtual_percent();
     save_last_value(virtual_percent, last_values_memory_virtual,
-                    history_size(stats_node("MEMORY")["VIRTUAL"]["LINE_GRAPH"]));
+                    shared_history_size({"STATS", "MEMORY", "VIRTUAL", "LINE_GRAPH"}));
 
     const int64_t used = sensors.memory->virtual_used();
     const int64_t free = sensors.memory->virtual_free();
@@ -803,7 +844,7 @@ void Disk::stats()
 
     const double disk_usage_percent = sensors.disk->disk_usage_percent();
     save_last_value(disk_usage_percent, last_values_disk_usage,
-                    history_size(stats_node("DISK")["USED"]["LINE_GRAPH"]));
+                    shared_history_size({"STATS", "DISK", "USED", "LINE_GRAPH"}));
 
     on_each_display([&] {
         const YAML::Node disk_theme_data = stats_node("DISK");
@@ -838,11 +879,13 @@ void show_themed_tax_rate(const YAML::Node &theme_data, double rate)
 }
 
 // Save the rates of an interface in the histories of its line graphs (read once for all the displays)
-void save_interface_history(const YAML::Node &card_theme_data, const sensors::Net::Stats &stats,
+void save_interface_history(const std::string &card, const sensors::Net::Stats &stats,
                             std::vector<double> &last_upload, std::vector<double> &last_download)
 {
-    save_last_value(stats.upload_rate, last_upload, history_size(card_theme_data["UPLOAD"]["LINE_GRAPH"]));
-    save_last_value(stats.download_rate, last_download, history_size(card_theme_data["DOWNLOAD"]["LINE_GRAPH"]));
+    save_last_value(stats.upload_rate, last_upload,
+                    shared_history_size({"STATS", "NET", card, "UPLOAD", "LINE_GRAPH"}));
+    save_last_value(stats.download_rate, last_download,
+                    shared_history_size({"STATS", "NET", card, "DOWNLOAD", "LINE_GRAPH"}));
 }
 
 void show_interface(const YAML::Node &card_theme_data, const sensors::Net::Stats &stats,
@@ -860,14 +903,14 @@ void show_interface(const YAML::Node &card_theme_data, const sensors::Net::Stats
 
 void Net::stats()
 {
-    const YAML::Node interval_node = stats_node("NET")["INTERVAL"];
-    const std::optional<double> interval = interval_node.IsDefined() && !interval_node.IsNull()
-                                               ? std::optional<double>(interval_node.as<double>()) : std::nullopt;
+    // The rates are computed over the interval shared by the displays (same as the job period)
+    const double shared = shared_interval({"STATS", "NET"});
+    const std::optional<double> interval = shared > 0 ? std::optional<double>(shared) : std::nullopt;
 
     const sensors::Net::Stats wlo_stats = sensors.net->stats(WLO_CARD, interval);
     const sensors::Net::Stats eth_stats = sensors.net->stats(ETH_CARD, interval);
-    save_interface_history(stats_node("NET")["WLO"], wlo_stats, last_values_wlo_upload, last_values_wlo_download);
-    save_interface_history(stats_node("NET")["ETH"], eth_stats, last_values_eth_upload, last_values_eth_download);
+    save_interface_history("WLO", wlo_stats, last_values_wlo_upload, last_values_wlo_download);
+    save_interface_history("ETH", eth_stats, last_values_eth_upload, last_values_eth_download);
 
     on_each_display([&] {
         const YAML::Node net_theme_data = stats_node("NET");
@@ -1121,7 +1164,7 @@ void Ping::stats()
         delay = ping(PING_DEST).value_or(NaN);
     }
 
-    save_last_value(delay, last_values_ping, history_size(stats_node("PING")["LINE_GRAPH"]));
+    save_last_value(delay, last_values_ping, shared_history_size({"STATS", "PING", "LINE_GRAPH"}));
 
     // When there is no answer, the text displays "-" instead of a delay
     const std::string delay_text = std::isnan(delay) ? "-" : std::to_string(to_int(delay));

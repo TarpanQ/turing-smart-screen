@@ -46,6 +46,19 @@ void init();
 /** @brief Full path of a file of the theme, std::nullopt if no name */
 std::optional<std::string> get_theme_file_path(const std::string &name);
 
+/**
+ * @brief Shortest positive INTERVAL (seconds) of a stats item over the themes of all displays, 0 if none defines it.
+ * @param path Path of the item in the theme, starting with "STATS" (for example {"STATS", "CPU", "PERCENTAGE"})
+ */
+double shared_interval(const std::vector<std::string> &path);
+
+/**
+ * @brief Largest HISTORY_SIZE of a line graph over the themes of all displays: the history is shared by the displays,
+ * and each display shows the last values of its own HISTORY_SIZE.
+ * @param path Path of the line graph in the theme, starting with "STATS"
+ */
+int shared_history_size(const std::vector<std::string> &path);
+
 void display_themed_value(const YAML::Node &theme_data, const std::optional<std::string> &value, int min_size = 0,
                           const std::string &unit = "");
 void display_themed_percent_value(const YAML::Node &theme_data, double value);

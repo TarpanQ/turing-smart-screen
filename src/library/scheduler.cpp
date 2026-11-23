@@ -56,12 +56,11 @@ void set_thread_name(const std::string &threadname)
     pthread_setname_np(pthread_self(), threadname.substr(0, 15).c_str());
 }
 
-// Interval (seconds) of a stats item in the theme: STATS/<key>/INTERVAL, or STATS/<key>/<subkey>/INTERVAL
+// Interval (seconds) of a stats item: STATS/<key>/INTERVAL, or STATS/<key>/<subkey>/INTERVAL. A job runs for every
+// display, so the shortest interval defined by the themes of the displays is used (0 if no display shows the item).
 double theme_interval(const std::string &key, const std::string &subkey = "")
 {
-    const YAML::Node &theme = config::THEME_DATA;
-    const YAML::Node node = subkey.empty() ? theme["STATS"][key] : theme["STATS"][key][subkey];
-    return config::get(node, "INTERVAL", 0.0);
+    return subkey.empty() ? stats::shared_interval({"STATS", key}) : stats::shared_interval({"STATS", key, subkey});
 }
 
 }  // namespace
