@@ -1,5 +1,21 @@
 # AGENTS.md
 
+## C++ Port (in progress)
+- The Python code is being converted to C++. Target platform: **Linux only (Ubuntu 26.04 LTS)**; Windows and macOS support is dropped in the C++ code.
+- C++ sources live in `src/` (`src/library/` mirrors `library/`, `src/tools/` mirrors `tools/`); C++ unit tests live in `tests/cpp/` (GoogleTest).
+- Wherever possible, one Python file becomes one `.h` + `.cpp` pair with the same base name (program entry points such as `main.cpp` have no header).
+- Build with the root `Makefile` (C++20, g++, dependencies found with `pkg-config`): `make deps`, `make`, `make test`, `make clean`. Programs are built into `build/bin/` (`main`, `configure`, `theme-editor`, `simple-program`, and the tools: `make tools`). Each `src/tools/*.cpp` file is a tool program; `res/themes/scale_theme.py` and `res/fonts/font-preview.py` are also ported there.
+- GUI programs (`configure`, `theme-editor`) use GTK 4 through gtkmm-4.0.
+- Files without Python counterpart replace Python dependencies: `src/library/lcd/image` (Pillow `Image`/`ImageDraw`), `src/library/lcd/font` (Pillow `ImageFont` with raqm: FreeType + HarfBuzz), `src/library/lcd/serial_port` (pyserial, termios), `src/library/ping` (ping3, ICMP socket), `src/library/tray_icon` (pystray: StatusNotifierItem + dbusmenu over D-Bus with GIO).
+- `src/library/sensors/sensors_python` keeps its name (selected by `HW_SENSORS: PYTHON`/`AUTO`) but reads Linux `/proc` and `/sys` directly instead of psutil/GPUtil/pyamdgpuinfo, plus NVIDIA NVML loaded at runtime. Custom sensors (`sensors_custom`) are C++ classes registered in `custom_data_sources()`: adding one requires rebuilding.
+- The library is initialized explicitly with `config::init()` (Python loads it on import); theme values are read with `config::get()` / `config::get_color()`, which return the default value for missing or empty keys.
+- `configure` writes `config.yaml` with `config::update_yaml_file()`, which only replaces the changed values and keeps comments and formatting (like ruamel.yaml in Python).
+- The rendering does not need to be pixel-identical to the Python/Pillow version, only close to it.
+- `config.yaml` and `res/` (themes, fonts, images) are shared, unchanged, by the Python and C++ versions.
+- The Python code stays complete and working until the C++ programs work end-to-end; then every converted Python file is deleted in one cleanup step. Until then, the Python sections below still describe the reference implementation, and the cross-platform rule applies to Python code only.
+- Display drivers are tested without hardware: `LcdComm::serial_factory` replaces the serial port by `MockSerial` (`tests/cpp/library/lcd/serial_mock.h`), and the recorded data is compared with the Python golden files (`tests/library/lcd/golden/`, revisions A, B, D) or with FNV-1a hashes of the current Python drivers output (revision C, whose golden files are outdated, and WeAct A/B).
+- Not converted: `library/pythoncheck.py`, `library/sensors/sensors_librehardwaremonitor.py` (Windows only), `tools/windows-installer/`, and the H.264 video / file upload helpers of `library/lcd/lcd_comm_turing_usb.py` (not used by the programs).
+
 ## Project Goal
 - Python system monitor for USB-C/TFT displays (Turing, XuanFang, Kipye, WeAct) with 3 usage modes: main app (`main.py`), config tool (`configure.py`), and theme editor (`theme-editor.py`).
 - The design clearly separates **sensor collection**, **theme rendering**, and **hardware driver** so multiple display revisions can be supported without changing business logic.
