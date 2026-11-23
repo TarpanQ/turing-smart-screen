@@ -14,10 +14,10 @@
     "displays": [
         {
             "COM_PORT": "/dev/ttyACM0",
-            "THEME": "3.5inchTheme2",
+            "THEME": "CustomDataExample",
             "REVISION": "A",
             "BRIGHTNESS": 41,
-            "DISPLAY_REVERSE": true,
+            "DISPLAY_REVERSE": false,
             "RESET_ON_STARTUP": true
         },
         {
