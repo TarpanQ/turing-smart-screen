@@ -52,12 +52,10 @@ std::optional<std::string> get_full_path(const std::string &path, const std::str
 
 }  // namespace
 
-Orientation get_theme_orientation()
+Orientation get_theme_orientation(const config::DisplayConfig &settings, const YAML::Node &theme)
 {
-    const YAML::Node &theme = config::THEME_DATA;
-    const YAML::Node &cfg = config::CONFIG_DATA;
     const std::string orientation = config::get(theme["display"], "DISPLAY_ORIENTATION", "");
-    const bool reverse = config::get(cfg["display"], "DISPLAY_REVERSE", false);
+    const bool reverse = settings.display_reverse;
     if (orientation == "portrait") {
         return reverse ? Orientation::REVERSE_PORTRAIT : Orientation::PORTRAIT;
     }
@@ -68,7 +66,7 @@ Orientation get_theme_orientation()
     return Orientation::PORTRAIT;
 }
 
-std::pair<int, int> get_theme_size()
+std::pair<int, int> get_theme_size(const YAML::Node &theme)
 {
     static const std::map<std::string, std::pair<int, int>> sizes = {
         {"0.96\"", {80, 160}},
@@ -83,33 +81,30 @@ std::pair<int, int> get_theme_size()
         {"9.2\"", {480, 1920}},  // 9.2" displays are 1920x462 but using 1920x480 to be compatible with 8.8" themes
         {"12.3\"", {720, 1920}},
     };
-    const YAML::Node &theme = config::THEME_DATA;
     const auto it = sizes.find(config::get(theme["display"], "DISPLAY_SIZE", ""));
     if (it != sizes.end()) {
         return it->second;
     }
-    logger.warning("Cannot find valid DISPLAY_SIZE property in selected theme {}, defaulting to 3.5\"",
-                   config::get(config::CONFIG_DATA["config"], "THEME", ""));
+    logger.warning("Cannot find valid DISPLAY_SIZE property in the selected theme, defaulting to 3.5\"");
     return {320, 480};
 }
 
-Display::Display()
+Display::Display(const config::DisplayConfig &display_settings, size_t index) : settings(display_settings)
 {
-    const auto [width, height] = get_theme_size();
-    const YAML::Node &cfg = config::CONFIG_DATA;
-    const std::string revision = config::get(cfg["display"], "REVISION", "");
-
-    const std::string com_port = config::get(cfg["config"], "COM_PORT", "AUTO");
+    load_theme();
+    const auto [width, height] = get_theme_size(theme);
+    const std::string &revision = settings.revision;
+    const std::string &com_port = settings.com_port;
 
     if (revision == "A") {
-        lcd = std::make_unique<LcdCommRevA>(com_port, 320, 480, &config::update_queue);
+        lcd = std::make_unique<LcdCommRevA>(com_port, 320, 480, &update_queue);
     } else if (revision == "B") {
-        lcd = std::make_unique<LcdCommRevB>(com_port, 320, 480, &config::update_queue);
+        lcd = std::make_unique<LcdCommRevB>(com_port, 320, 480, &update_queue);
     } else if (revision == "C") {
         // Because of issue with Turing rev. C size auto-detection, manually configure screen width/height from theme
-        lcd = std::make_unique<LcdCommRevC>(com_port, width, height, &config::update_queue);
+        lcd = std::make_unique<LcdCommRevC>(com_port, width, height, &update_queue);
     } else if (revision == "D") {
-        lcd = std::make_unique<LcdCommRevD>(com_port, 320, 480, &config::update_queue);
+        lcd = std::make_unique<LcdCommRevD>(com_port, 320, 480, &update_queue);
     } else if (revision == "TUR_USB") {
         try {
             lcd = std::make_unique<LcdCommTuringUSB>();
@@ -118,24 +113,35 @@ Display::Display()
             std::_Exit(1);
         }
     } else if (revision == "WEACT_A") {
-        lcd = std::make_unique<LcdCommWeActA>(com_port, 320, 480, &config::update_queue);
+        lcd = std::make_unique<LcdCommWeActA>(com_port, 320, 480, &update_queue);
     } else if (revision == "WEACT_B") {
-        lcd = std::make_unique<LcdCommWeActB>(com_port, 80, 160, &config::update_queue);
+        lcd = std::make_unique<LcdCommWeActB>(com_port, 80, 160, &update_queue);
     } else if (revision == "SIMU") {
-        // Simulated display: always set width/height from theme
-        lcd = std::make_unique<LcdSimulated>("AUTO", width, height);
+        // Simulated display: always set width/height from theme. Only the first one is shown on the web server
+        const std::string screenshot_file = index == 0 ? SCREENSHOT_FILE : "screencap-" + std::to_string(index) + ".png";
+        lcd = std::make_unique<LcdSimulated>("AUTO", width, height, nullptr, screenshot_file, index == 0);
     } else {
         logger.error("Unknown display revision '{}'", revision);
         std::_Exit(1);
     }
 }
 
+void Display::load_theme()
+{
+    try {
+        theme = config::read_theme(settings.theme);
+    } catch (const std::exception &e) {
+        // Errors are reported by the configuration checks at start-up; the theme editor shows them itself
+        logger.error("Theme {} not found or contains errors! ({})", settings.theme, e.what());
+        theme = YAML::Node(YAML::NodeType::Map);
+    }
+}
+
 void Display::initialize_display()
 {
     // Reset screen in case it was in an unstable state (screen is also cleared)
-    // Can be disabled by config. option. Assume true if key not present in config.yaml
-    const YAML::Node &cfg = config::CONFIG_DATA;
-    if (config::get(cfg["display"], "RESET_ON_STARTUP", true)) {
+    // Can be disabled by config. option. Assume true if key not present in config.json
+    if (settings.reset_on_startup) {
         lcd->Reset();
     } else {
         logger.debug("RESET_ON_STARTUP is false: display will not be reset");
@@ -148,19 +154,16 @@ void Display::initialize_display()
     turn_on();
 
     // Set orientation
-    lcd->SetOrientation(get_theme_orientation());
+    lcd->SetOrientation(get_theme_orientation(settings, theme));
 }
 
 void Display::turn_on()
 {
-    const YAML::Node &cfg = config::CONFIG_DATA;
-    const YAML::Node &theme = config::THEME_DATA;
-
     // Turn screen on in case it was turned off previously
     lcd->ScreenOn();
 
     // Set brightness
-    lcd->SetBrightness(cfg["display"]["BRIGHTNESS"].as<int>());
+    lcd->SetBrightness(settings.brightness);
 
     // Set backplate RGB LED color (for supported HW only)
     lcd->SetBackplateLedColor(config::get_color(theme["display"], "DISPLAY_RGB_LED", {255, 255, 255}));
@@ -177,7 +180,6 @@ void Display::turn_off()
 
 void Display::display_static_images()
 {
-    const YAML::Node &theme = config::THEME_DATA;
     const YAML::Node images = theme["static_images"];
     if (!images.IsDefined() || !images.IsMap()) {
         return;
@@ -197,7 +199,6 @@ void Display::display_static_images()
 
 void Display::display_static_text()
 {
-    const YAML::Node &theme = config::THEME_DATA;
     const YAML::Node texts = theme["static_text"];
     if (!texts.IsDefined() || !texts.IsMap()) {
         return;
@@ -225,8 +226,19 @@ void Display::display_static_text()
     }
 }
 
+std::vector<std::unique_ptr<Display>> &displays()
+{
+    static std::vector<std::unique_ptr<Display>> instances = [] {
+        std::vector<std::unique_ptr<Display>> created;
+        for (const auto &settings: config::DISPLAYS) {
+            created.push_back(std::make_unique<Display>(settings, created.size()));
+        }
+        return created;
+    }();
+    return instances;
+}
+
 Display &display()
 {
-    static Display instance;
-    return instance;
+    return *displays().front();
 }

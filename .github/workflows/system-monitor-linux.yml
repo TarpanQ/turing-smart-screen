@@ -27,7 +27,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libyaml-cpp-dev libfreetype-dev libharfbuzz-dev \
+        sudo apt-get install -y build-essential pkg-config libyaml-cpp-dev nlohmann-json3-dev libfreetype-dev libharfbuzz-dev \
           libglib2.0-dev libpng-dev libjpeg-dev libusb-1.0-0-dev libcurl4-openssl-dev libicu-dev \
           libgtkmm-4.0-dev libgtest-dev
 
@@ -39,12 +39,15 @@ jobs:
 
     - name: Configure system monitor
       run: |
-        # For tests there is no real HW: use simulated LCD mode
-        sed -i "/REVISION:/c\  REVISION: SIMU" config.yaml
+        # config.json is not versioned: start from the example
+        cp config.json.example config.json
 
-        # Setup selected theme in config.yaml
+        # For tests there is no real HW: use simulated LCD mode
+        jq '.displays[0].REVISION = "SIMU"' config.json > config.json.tmp && mv config.json.tmp config.json
+
+        # Setup selected theme in config.json
         echo "Using theme ${{ matrix.theme }}"
-        sed -i "/THEME:/c\  THEME: ${{ matrix.theme }}" config.yaml
+        jq --arg theme "${{ matrix.theme }}" '.displays[0].THEME = $theme' config.json > config.json.tmp && mv config.json.tmp config.json
 
     - name: Run system monitor for 20 seconds
       run: |

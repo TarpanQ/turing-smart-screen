@@ -36,6 +36,7 @@
 #include <pthread.h>
 
 #include "library/config.h"
+#include "library/display.h"
 #include "library/log.h"
 #include "library/stats.h"
 
@@ -55,12 +56,12 @@ void set_thread_name(const std::string &threadname)
     pthread_setname_np(pthread_self(), threadname.substr(0, 15).c_str());
 }
 
-// Interval (seconds) of a stats item in the theme: STATS/<key>/INTERVAL, or STATS/<key>/<subkey>/INTERVAL
+// Interval (seconds) of a stats item, or of a category if no subkey: the INTERVAL of the category in the theme, unless
+// the item sets its own (see stats::item_interval). A job runs for every display, so the shortest interval of the
+// themes of the displays is used (0 if no display shows the item).
 double theme_interval(const std::string &key, const std::string &subkey = "")
 {
-    const YAML::Node &theme = config::THEME_DATA;
-    const YAML::Node node = subkey.empty() ? theme["STATS"][key] : theme["STATS"][key][subkey];
-    return config::get(node, "INTERVAL", 0.0);
+    return subkey.empty() ? stats::shared_interval({"STATS", key}) : stats::shared_interval({"STATS", key, subkey});
 }
 
 }  // namespace
@@ -140,6 +141,12 @@ void CPUFanSpeed()
     schedule("CPU_FanSpeed", theme_interval("CPU", "FAN_SPEED"), stats::CPU::fan_speed);
 }
 
+/** @brief Periodic job updating the CPU model name on the display. */
+void CPUModel()
+{
+    schedule("CPU_Model", theme_interval("CPU", "MODEL"), stats::CPU::model);
+}
+
 /** @brief Periodic job updating the GPU statistics on the display. */
 void GpuStats()
 {
@@ -147,10 +154,22 @@ void GpuStats()
     schedule("GPU_Stats", theme_interval("GPU"), stats::Gpu::stats);
 }
 
+/** @brief Periodic job updating the GPU model name on the display. */
+void GpuModel()
+{
+    schedule("GPU_Model", theme_interval("GPU", "MODEL"), stats::Gpu::model);
+}
+
 /** @brief Periodic job updating the memory statistics on the display. */
 void MemoryStats()
 {
     schedule("Memory_Stats", theme_interval("MEMORY"), stats::Memory::stats);
+}
+
+/** @brief Periodic job updating the RAM module model on the display. */
+void MemoryModel()
+{
+    schedule("Memory_Model", theme_interval("MEMORY", "MODEL"), stats::Memory::model);
 }
 
 /** @brief Periodic job updating the disk statistics on the display. */
@@ -196,9 +215,9 @@ void PingStats()
     schedule("Ping_Stats", theme_interval("PING"), stats::Ping::stats);
 }
 
-void QueueHandler()
+void QueueHandler(UpdateQueue &queue)
 {
-    std::thread([] {
+    std::thread([&queue] {
         set_thread_name("Queue_Handler");
         auto execute = [](const UpdateQueue::Request &request) {
             if (!request) {
@@ -214,13 +233,13 @@ void QueueHandler()
         while (true) {
             if (STOPPING) {
                 // Empty the action queue to allow program to exit cleanly
-                while (const auto request = config::update_queue.get(std::chrono::milliseconds(0))) {
+                while (const auto request = queue.get(std::chrono::milliseconds(0))) {
                     execute(*request);
                 }
                 break;
             }
             // Execute first action in the queue
-            if (const auto request = config::update_queue.get(std::chrono::milliseconds(100))) {
+            if (const auto request = queue.get(std::chrono::milliseconds(100))) {
                 execute(*request);
             }
         }
@@ -230,7 +249,8 @@ void QueueHandler()
 /** @brief True if the display queue has no pending request. */
 bool is_queue_empty()
 {
-    return config::update_queue.empty();
+    return std::all_of(displays().begin(), displays().end(),
+                       [](const std::unique_ptr<Display> &display) { return display->update_queue.empty(); });
 }
 
 }  // namespace scheduler

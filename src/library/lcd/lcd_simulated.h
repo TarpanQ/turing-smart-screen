@@ -60,9 +60,13 @@ private:
 class LcdSimulated : public LcdComm
 {
 public:
-    /** @brief Create a simulated display, the screen is saved to screencap.png. */
+    /**
+     * @brief Create a simulated display, the screen is saved to screenshot_file. The web server showing the screen (on
+     * port 5678) is started only if webserver is true, and only one display can run it.
+     */
     LcdSimulated(const std::string &com_port = "AUTO", int display_width = 320, int display_height = 480,
-                 UpdateQueue *update_queue = nullptr);
+                 UpdateQueue *update_queue = nullptr, const std::string &screenshot_file = SCREENSHOT_FILE,
+                 bool webserver = true);
     ~LcdSimulated() override;
 
     std::optional<std::string> auto_detect_com_port() override;
@@ -94,5 +98,7 @@ private:
     /** @brief Save the screen image to SCREENSHOT_FILE (through a temporary file, so that readers never get a partial file) */
     void save_screenshot();
 
+    /** @brief File where the screen is saved */
+    std::string screenshot_file_name;
     std::unique_ptr<SimulatedLcdWebServer> webServer;
 };

@@ -23,7 +23,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libyaml-cpp-dev libfreetype-dev libharfbuzz-dev \
+        sudo apt-get install -y build-essential pkg-config libyaml-cpp-dev nlohmann-json3-dev libfreetype-dev libharfbuzz-dev \
           libglib2.0-dev libpng-dev libjpeg-dev libusb-1.0-0-dev libcurl4-openssl-dev libicu-dev \
           libgtkmm-4.0-dev libgtest-dev
 
@@ -34,7 +34,8 @@ jobs:
       run: |
         mkdir -p ./dist/turing-system-monitor
         cp build/bin/main build/bin/configure build/bin/theme-editor ./dist/turing-system-monitor/
-        cp -r res config.yaml ./dist/turing-system-monitor/
+        cp -r res ./dist/turing-system-monitor/
+        cp config.json.example ./dist/turing-system-monitor/config.json
         echo "${{github.event.release.tag_name}}" > ./dist/turing-system-monitor/version.txt
         ln -s configure ./dist/turing-system-monitor/turing-smart-screen
 

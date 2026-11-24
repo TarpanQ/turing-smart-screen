@@ -24,6 +24,7 @@
 #include <cmath>
 
 #include <gtest/gtest.h>
+#include <yaml-cpp/yaml.h>
 
 #include "library/stats.h"
 
@@ -56,4 +57,35 @@ TEST(Stats, SaveLastValue)
     stats::save_last_value(5, values, 2);
     ASSERT_EQ(values.size(), 2u);
     EXPECT_EQ(values[1], 5);
+}
+
+/** @brief INTERVAL of a stats item: its own if the theme sets one, otherwise the one of its category. */
+TEST(Stats, ItemInterval)
+{
+    const YAML::Node theme = YAML::Load(R"(
+STATS:
+  CPU:
+    INTERVAL: 5
+    PERCENTAGE:
+      TEXT:
+        SHOW: True
+    FREQUENCY:
+      INTERVAL: 2
+    TEMPERATURE:
+      INTERVAL: 0
+  GPU:
+    MODEL:
+      TEXT:
+        SHOW: True
+)");
+    // No INTERVAL on the item: the category one is used
+    EXPECT_EQ(stats::item_interval(theme, {"STATS", "CPU", "PERCENTAGE"}), 5.0);
+    // The item's own INTERVAL overrides the category one (older themes)
+    EXPECT_EQ(stats::item_interval(theme, {"STATS", "CPU", "FREQUENCY"}), 2.0);
+    // An explicit 0 on the item disables it, even if the category has an interval
+    EXPECT_EQ(stats::item_interval(theme, {"STATS", "CPU", "TEMPERATURE"}), 0.0);
+    // Category without INTERVAL and item not defined: 0
+    EXPECT_EQ(stats::item_interval(theme, {"STATS", "GPU", "MODEL"}), 0.0);
+    // The category itself
+    EXPECT_EQ(stats::item_interval(theme, {"STATS", "CPU"}), 5.0);
 }

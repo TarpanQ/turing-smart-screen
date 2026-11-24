@@ -26,8 +26,6 @@
 
 #include "library/config.h"
 
-#include <algorithm>
-#include <cctype>
 #include <cstdlib>
 #include <fstream>
 
@@ -39,23 +37,52 @@ namespace config {
 
 fs::path MAIN_DIRECTORY;
 std::string FONTS_DIR;
-/** @brief Content of config.yaml. */
-YAML::Node CONFIG_DATA;
+/** @brief Content of config.json. */
+Json CONFIG_DATA = Json::object();
 /** @brief Default values of the theme settings. */
 YAML::Node THEME_DEFAULT;
 /** @brief Content of the theme file (theme.yaml) in use. */
 YAML::Node THEME_DATA;
-UpdateQueue update_queue;
+std::vector<DisplayConfig> DISPLAYS;
 
 namespace {
 
+void write_json_file(const fs::path &path, const Json &data)
+{
+    std::ofstream out(path, std::ios::trunc);
+    if (!out) {
+        throw std::runtime_error("Cannot write " + path.string());
+    }
+    out << data.dump(4) << "\n";
+    if (!out) {
+        throw std::runtime_error("Cannot write " + path.string());
+    }
+}
+
 bool is_main_directory(const fs::path &dir)
 {
+    // config.json may not exist yet: the example is enough to recognize the directory (see create_user_config)
     std::error_code ec;
-    return fs::is_regular_file(dir / "config.yaml", ec) && fs::is_directory(dir / "res" / "themes", ec);
+    return (fs::is_regular_file(dir / "config.json", ec) || fs::is_regular_file(dir / "config.json.example", ec)) &&
+           fs::is_directory(dir / "res" / "themes", ec);
 }
 
 }  // namespace
+
+void create_user_config(const fs::path &dir)
+{
+    std::error_code ec;
+    const fs::path user_config = dir / "config.json";
+    if (fs::exists(user_config, ec) || !fs::is_regular_file(dir / "config.json.example", ec)) {
+        return;
+    }
+    fs::copy_file(dir / "config.json.example", user_config, ec);
+    if (ec) {
+        logger.error("Cannot create {} from config.json.example: {}", user_config.string(), ec.message());
+    } else {
+        logger.info("Created {} from config.json.example", user_config.string());
+    }
+}
 
 fs::path find_main_directory()
 {
@@ -74,10 +101,79 @@ fs::path find_main_directory()
     return fs::current_path();
 }
 
-/** @brief Load a YAML file, throws if it cannot be read or parsed. */
+/** @brief Load a JSON configuration file. */
+Json load_json(const fs::path &configfile)
+{
+    std::ifstream in(configfile);
+    if (!in) {
+        throw std::runtime_error("Cannot read " + configfile.string());
+    }
+    Json data = Json::parse(in);
+    if (!data.is_object()) {
+        throw std::runtime_error(configfile.string() + " does not contain a JSON object");
+    }
+    return data;
+}
+
+DisplayConfig DisplayConfig::from_json(const Json &node)
+{
+    DisplayConfig display;
+    display.com_port = get(node, "COM_PORT", std::string("AUTO"));
+    display.theme = node.at("THEME").get<std::string>();
+    display.revision = node.at("REVISION").get<std::string>();
+    display.brightness = node.at("BRIGHTNESS").get<int>();
+    display.display_reverse = get(node, "DISPLAY_REVERSE", false);
+    display.reset_on_startup = get(node, "RESET_ON_STARTUP", true);
+    return display;
+}
+
+Json DisplayConfig::to_json() const
+{
+    return Json{{"COM_PORT", com_port},
+                {"THEME", theme},
+                {"REVISION", revision},
+                {"BRIGHTNESS", brightness},
+                {"DISPLAY_REVERSE", display_reverse},
+                {"RESET_ON_STARTUP", reset_on_startup}};
+}
+
+std::vector<DisplayConfig> load_displays(const Json &root)
+{
+    const Json displays = root.is_object() && root.contains("displays") ? root.at("displays") : Json();
+    if (!displays.is_array() || displays.empty()) {
+        throw std::runtime_error("config.json must contain a non-empty \"displays\" array");
+    }
+    std::vector<DisplayConfig> result;
+    for (const Json &node: displays) {
+        result.push_back(DisplayConfig::from_json(node));
+    }
+    return result;
+}
+
+/** @brief Write the displays array of a configuration file, keeping the other sections. */
+void save_displays(const fs::path &path, const std::vector<DisplayConfig> &displays)
+{
+    Json data = load_json(path);
+    Json array = Json::array();
+    for (const DisplayConfig &display: displays) {
+        array.push_back(display.to_json());
+    }
+    data["displays"] = array;
+    write_json_file(path, data);
+}
+
+/** @brief Load a YAML file (theme or default values). */
 YAML::Node load_yaml(const fs::path &configfile)
 {
     return YAML::LoadFile(configfile.string());
+}
+
+Json section(const Json &root, const std::string &name)
+{
+    if (root.is_object() && root.contains(name) && root.at(name).is_object()) {
+        return root.at(name);
+    }
+    return Json::object();
 }
 
 void copy_default(const YAML::Node &default_values, YAML::Node theme)
@@ -94,172 +190,37 @@ void copy_default(const YAML::Node &default_values, YAML::Node theme)
     }
 }
 
-std::string yaml_scalar(const std::string &value)
+/** @brief Update the values of a configuration file, keeping the order of its keys. */
+void update_json_file(const fs::path &path, const std::vector<ConfigUpdate> &updates)
 {
-    static const std::vector<std::string> special_words = {"true", "false", "yes", "no", "on", "off", "null", "~", "y",
-                                                           "n"};
-    std::string lower;
-    for (unsigned char c: value) {
-        lower.push_back(static_cast<char>(std::tolower(c)));
-    }
-    bool plain = !value.empty() && value.front() != ' ' && value.back() != ' ' &&
-                 std::find(special_words.begin(), special_words.end(), lower) == special_words.end() &&
-                 std::string("-?:,[]{}#&*!|>'\"%@`").find(value.front()) == std::string::npos &&
-                 value.find(": ") == std::string::npos && value.find(" #") == std::string::npos;
-    for (unsigned char c: value) {
-        if (c < 0x20 || c == '"' || c == '\\') {
-            plain = false;
-        }
-    }
-    if (plain) {
-        return value;
-    }
-    std::string quoted = "\"";
-    for (char c: value) {
-        if (c == '"' || c == '\\') {
-            quoted.push_back('\\');
-        }
-        quoted.push_back(c);
-    }
-    return quoted + "\"";
-}
-
-namespace {
-
-// Length of the YAML value at the start of text (up to the comment or the end of line)
-size_t yaml_value_length(const std::string &text)
-{
-    if (!text.empty() && (text[0] == '"' || text[0] == '\'')) {
-        const char quote = text[0];
-        for (size_t i = 1; i < text.size(); i++) {
-            if (text[i] == '\\' && quote == '"') {
-                i++;
-            } else if (text[i] == quote) {
-                if (quote == '\'' && i + 1 < text.size() && text[i + 1] == '\'') {
-                    i++;  // '' is an escaped quote in single-quoted strings
-                } else {
-                    return i + 1;
-                }
-            }
-        }
-        return text.size();
-    }
-    const size_t comment = text.find(" #");
-    size_t length = comment == std::string::npos ? text.size() : comment;
-    while (length > 0 && text[length - 1] == ' ') {
-        length--;
-    }
-    return length;
-}
-
-}  // namespace
-
-std::string update_yaml_text(const std::string &text, const std::vector<YamlUpdate> &updates)
-{
-    std::vector<std::string> lines;
-    {
-        size_t start = 0, end;
-        while ((end = text.find('\n', start)) != std::string::npos) {
-            lines.push_back(text.substr(start, end - start));
-            start = end + 1;
-        }
-        if (start < text.size()) {
-            lines.push_back(text.substr(start));
-        }
-    }
-
-    auto indentation = [](const std::string &line) { return line.find_first_not_of(' '); };
-    auto is_content = [&](const std::string &line) {
-        const size_t indent = indentation(line);
-        return indent != std::string::npos && line[indent] != '#';
-    };
-
+    Json data = load_json(path);
     for (const auto &update: updates) {
-        // Section: top-level "section:" line
-        size_t section_line = lines.size();
-        for (size_t i = 0; i < lines.size(); i++) {
-            if (lines[i].rfind(update.section + ":", 0) == 0) {
-                section_line = i;
-                break;
-            }
+        if (!data.contains(update.section) || !data.at(update.section).is_object()) {
+            data[update.section] = Json::object();
         }
-        if (section_line == lines.size()) {
-            lines.push_back(update.section + ":");
-            lines.push_back("  " + update.key + ": " + update.value);
-            continue;
-        }
-
-        // Keys of the section: lines indented until the next top-level content line
-        size_t section_end = section_line + 1;
-        size_t last_content = section_line;
-        bool found = false;
-        for (; section_end < lines.size(); section_end++) {
-            const std::string &line = lines[section_end];
-            if (is_content(line) && indentation(line) == 0) {
-                break;
-            }
-            if (!is_content(line)) {
-                continue;
-            }
-            last_content = section_end;
-            const size_t indent = indentation(line);
-            if (line.compare(indent, update.key.size() + 1, update.key + ":") == 0) {
-                // Replace the value, keep the comment
-                size_t value_start = indent + update.key.size() + 1;
-                while (value_start < line.size() && line[value_start] == ' ') {
-                    value_start++;
-                }
-                const size_t value_length = yaml_value_length(line.substr(value_start));
-                lines[section_end] = line.substr(0, indent) + update.key + ": " + update.value +
-                                     line.substr(value_start + value_length);
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            const std::string indent = last_content > section_line
-                                           ? lines[last_content].substr(0, indentation(lines[last_content]))
-                                           : "  ";
-            lines.insert(lines.begin() + static_cast<long>(last_content) + 1, indent + update.key + ": " + update.value);
-        }
+        data[update.section][update.key] = update.value;
     }
-
-    std::string result;
-    for (const auto &line: lines) {
-        result += line + "\n";
-    }
-    return result;
+    write_json_file(path, data);
 }
 
-/** @brief Update the values of a YAML file in place, keeping its comments and formatting. */
-void update_yaml_file(const fs::path &path, const std::vector<YamlUpdate> &updates)
+YAML::Node read_theme(const std::string &theme_name)
 {
-    std::ifstream in(path);
-    if (!in) {
-        throw std::runtime_error("Cannot read " + path.string());
+    const fs::path theme_path = fs::path("res/themes") / theme_name;
+    YAML::Node theme_data = load_yaml(MAIN_DIRECTORY / theme_path / "theme.yaml");
+    if (!theme_data.IsMap()) {
+        throw std::runtime_error("theme.yaml is not a map");
     }
-    const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    in.close();
-    const std::string updated = update_yaml_text(text, updates);
-    std::ofstream out(path, std::ios::trunc);
-    out << updated;
-    if (!out) {
-        throw std::runtime_error("Cannot write " + path.string());
-    }
+    theme_data["PATH"] = (MAIN_DIRECTORY / theme_path).string() + "/";
+    copy_default(THEME_DEFAULT, theme_data);
+    return theme_data;
 }
 
 void load_theme(bool exit_on_error)
 {
     try {
-        const std::string theme_name = CONFIG_DATA["config"]["THEME"].as<std::string>();
-        const fs::path theme_path = fs::path("res/themes") / theme_name;
-        logger.info("Loading theme {} from {}", theme_name, (theme_path / "theme.yaml").string());
-        YAML::Node theme_data = load_yaml(MAIN_DIRECTORY / theme_path / "theme.yaml");
-        if (!theme_data.IsMap()) {
-            throw std::runtime_error("theme.yaml is not a map");
-        }
-        theme_data["PATH"] = (MAIN_DIRECTORY / theme_path).string() + "/";
-        THEME_DATA = theme_data;
+        const std::string theme_name = DISPLAYS.front().theme;
+        logger.info("Loading theme {} from {}", theme_name, (fs::path("res/themes") / theme_name / "theme.yaml").string());
+        THEME_DATA = read_theme(theme_name);
     } catch (const std::exception &e) {
         logger.error("Theme not found or contains errors! ({})", e.what());
         if (exit_on_error) {
@@ -267,17 +228,13 @@ void load_theme(bool exit_on_error)
         }
         throw std::runtime_error(std::string("Theme not found or contains errors: ") + e.what());
     }
-
-    copy_default(THEME_DEFAULT, THEME_DATA);
 }
-
 void check_theme_compatible(const std::string &display_size)
 {
     // Check if theme is compatible with hardware revision
     if (display_size != get(THEME_DATA["display"], "DISPLAY_SIZE", "3.5\"")) {
         logger.error("The selected theme {} is not compatible with your display revision {}",
-                     CONFIG_DATA["config"]["THEME"].as<std::string>(),
-                     CONFIG_DATA["display"]["REVISION"].as<std::string>());
+                     DISPLAYS.front().theme, DISPLAYS.front().revision);
         std::_Exit(1);
     }
 }
@@ -298,18 +255,28 @@ void init(bool with_theme)
 {
     MAIN_DIRECTORY = find_main_directory();
     FONTS_DIR = (MAIN_DIRECTORY / "res" / "fonts").string() + "/";
+    create_user_config(MAIN_DIRECTORY);
 
     try {
-        CONFIG_DATA = load_yaml(MAIN_DIRECTORY / "config.yaml");
+        CONFIG_DATA = load_json(MAIN_DIRECTORY / "config.json");
+        DISPLAYS = load_displays(CONFIG_DATA);
         THEME_DEFAULT = load_yaml(MAIN_DIRECTORY / "res/themes/default.yaml");
     } catch (const std::exception &e) {
         logger.error("Cannot load configuration from {}: {}", MAIN_DIRECTORY.string(), e.what());
         std::_Exit(1);
     }
 
-    // Load theme
+    // Load theme of the first display, and check that the theme of every display is valid
     if (with_theme) {
         load_theme();
+        for (const auto &display: DISPLAYS) {
+            try {
+                read_theme(display.theme);
+            } catch (const std::exception &e) {
+                logger.error("Theme {} not found or contains errors! ({})", display.theme, e.what());
+                std::_Exit(1);
+            }
+        }
     }
 }
 

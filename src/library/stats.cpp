@@ -28,9 +28,11 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <ctime>
 #include <format>
+#include <functional>
 #include <fstream>
 #include <limits>
 #include <map>
@@ -66,11 +68,39 @@ std::string PING_DEST;
 
 sensors::Sensors sensors;
 
-// Theme data, read-only: const access never modifies the YAML tree (shared by all the threads)
+// The display being drawn by this thread: each display draws the stats with its own theme and LCD driver
+thread_local Display *drawing_display = nullptr;
+
+Display &active_display()
+{
+    return drawing_display != nullptr ? *drawing_display : display();
+}
+
+// Restores "no display being drawn" when the drawing of a display ends (even on an exception)
+class DrawingDisplay
+{
+public:
+    explicit DrawingDisplay(Display *display) { drawing_display = display; }
+    ~DrawingDisplay() { drawing_display = nullptr; }
+    DrawingDisplay(const DrawingDisplay &) = delete;
+    DrawingDisplay &operator=(const DrawingDisplay &) = delete;
+};
+
+// Draw a stat on every display: the function is called once per display, with that display active.
+// Sensor values and histories must be read before, so that they are read once for all the displays.
+void on_each_display(const std::function<void()> &draw)
+{
+    for (auto &display: displays()) {
+        const DrawingDisplay drawing(display.get());
+        draw();
+    }
+}
+
+// Theme of the display being drawn (of the first display when nothing is being drawn).
+// Read-only: const access never modifies the YAML tree
 const YAML::Node &theme_stats()
 {
-    static const YAML::Node &theme = config::THEME_DATA;
-    return theme;
+    return active_display().theme;
 }
 
 YAML::Node stats_node(const std::string &key)
@@ -189,14 +219,56 @@ std::string format_datetime(std::time_t timestamp, const std::string &format, co
 
 }  // namespace
 
+namespace {
+
+// Node of a stats item of a theme. Read-only: a missing key is not created in the theme
+YAML::Node theme_item(const YAML::Node &node, const std::vector<std::string> &path, size_t index = 0)
+{
+    return index == path.size() ? node : theme_item(node[path[index]], path, index + 1);
+}
+
+}  // namespace
+
+double item_interval(const YAML::Node &theme, const std::vector<std::string> &path)
+{
+    // An item uses its own INTERVAL if the theme sets one (older themes), otherwise the INTERVAL of its category
+    const YAML::Node item = theme_item(theme, path);
+    if (item.IsMap() && item["INTERVAL"].IsDefined() && !item["INTERVAL"].IsNull()) {
+        return config::get(item, "INTERVAL", 0.0);
+    }
+    const std::vector<std::string> category(path.begin(), path.begin() + std::min<size_t>(path.size(), 2));
+    return config::get(theme_item(theme, category), "INTERVAL", 0.0);
+}
+
+double shared_interval(const std::vector<std::string> &path)
+{
+    double interval = 0.0;
+    for (const auto &display: displays()) {
+        const double display_interval = item_interval(display->theme, path);
+        if (display_interval > 0 && (interval == 0 || display_interval < interval)) {
+            interval = display_interval;
+        }
+    }
+    return interval;
+}
+
+int shared_history_size(const std::vector<std::string> &path)
+{
+    int size = 0;
+    for (const auto &display: displays()) {
+        size = std::max(size, history_size(theme_item(display->theme, path)));
+    }
+    return size;
+}
+
 void init()
 {
-    const YAML::Node &cfg = config::CONFIG_DATA;
-    ETH_CARD = config::get(cfg["config"], "ETH", "");
-    WLO_CARD = config::get(cfg["config"], "WLO", "");
-    HW_SENSORS = config::get(cfg["config"], "HW_SENSORS", "AUTO");
-    CPU_FAN = config::get(cfg["config"], "CPU_FAN", "AUTO");
-    PING_DEST = config::get(cfg["config"], "PING", "127.0.0.1");
+    const config::Json &cfg = config::CONFIG_DATA;
+    ETH_CARD = config::get(config::section(cfg, "config"), "ETH", "");
+    WLO_CARD = config::get(config::section(cfg, "config"), "WLO", "");
+    HW_SENSORS = config::get(config::section(cfg, "config"), "HW_SENSORS", "AUTO");
+    CPU_FAN = config::get(config::section(cfg, "config"), "CPU_FAN", "AUTO");
+    PING_DEST = config::get(config::section(cfg, "config"), "PING", "127.0.0.1");
 
     if (HW_SENSORS == "PYTHON" || HW_SENSORS == "AUTO") {
         sensors = sensors_python::create();
@@ -210,7 +282,7 @@ void init()
         logger.warning("Stub sensors, not real HW sensors");
         sensors = sensors_stub_static::create();
     } else {
-        logger.error("Unsupported HW_SENSORS value in config.yaml");
+        logger.error("Unsupported HW_SENSORS value in config.json");
         std::_Exit(1);
     }
 
@@ -245,7 +317,7 @@ void display_themed_value(const YAML::Node &theme_data, const std::optional<std:
         text += unit;
     }
 
-    display().lcd->DisplayText({
+    active_display().lcd->DisplayText({
         .text = text,
         .x = config::get(theme_data, "X", 0),
         .y = config::get(theme_data, "Y", 0),
@@ -259,6 +331,12 @@ void display_themed_value(const YAML::Node &theme_data, const std::optional<std:
         .align = config::get(theme_data, "ALIGN", "left"),
         .anchor = config::get(theme_data, "ANCHOR", "lt"),
     });
+}
+
+/** @brief Display the model name of a component as text, with the theme style (nothing if the model is unknown). */
+void display_themed_model(const YAML::Node &model_data, const std::string &model)
+{
+    display_themed_value(model_data["TEXT"], model.empty() ? std::nullopt : std::optional<std::string>(model));
 }
 
 /** @brief Display a percentage as text, with the theme style. */
@@ -280,7 +358,7 @@ void display_themed_progress_bar(const YAML::Node &theme_data, double value)
         return;
     }
 
-    display().lcd->DisplayProgressBar({
+    active_display().lcd->DisplayProgressBar({
         .x = config::get(theme_data, "X", 0),
         .y = config::get(theme_data, "Y", 0),
         .width = config::get(theme_data, "WIDTH", 0),
@@ -327,7 +405,7 @@ void display_themed_radial_bar(const YAML::Node &theme_data, double value, const
         offset = {text_offset[0].as<int>(), text_offset[1].as<int>()};
     }
 
-    display().lcd->DisplayRadialProgressBar({
+    active_display().lcd->DisplayRadialProgressBar({
         .xc = config::get(theme_data, "X", 0),
         .yc = config::get(theme_data, "Y", 0),
         .radius = config::get(theme_data, "RADIUS", 1),
@@ -376,12 +454,16 @@ void display_themed_line_graph(const YAML::Node &theme_data, const std::vector<d
 
     const RGBColor line_color = config::get_color(theme_data, "LINE_COLOR", {0, 0, 0});
 
-    display().lcd->DisplayLineGraph({
+    // The history is shared by the displays: this display shows the last values of its own HISTORY_SIZE
+    const size_t count = std::min(values.size(), static_cast<size_t>(std::max(history_size(theme_data), 1)));
+    const std::vector<double> shown_values(values.end() - static_cast<std::ptrdiff_t>(count), values.end());
+
+    active_display().lcd->DisplayLineGraph({
         .x = config::get(theme_data, "X", 0),
         .y = config::get(theme_data, "Y", 0),
         .width = config::get(theme_data, "WIDTH", 1),
         .height = config::get(theme_data, "HEIGHT", 1),
-        .values = values,
+        .values = shown_values,
         .min_value = config::get(theme_data, "MIN_VALUE", 0.0),
         .max_value = config::get(theme_data, "MAX_VALUE", 100.0),
         .autoscale = config::get(theme_data, "AUTOSCALE", false),
@@ -440,99 +522,120 @@ std::vector<double> last_values_cpu_frequency;
 
 void CPU::percentage()
 {
-    const YAML::Node theme_data = stats_node("CPU")["PERCENTAGE"];
-    const YAML::Node interval = theme_data["INTERVAL"];
-    const double cpu_percentage = sensors.cpu->percentage(
-        interval.IsDefined() && !interval.IsNull() ? std::optional<double>(interval.as<double>()) : std::nullopt);
-    save_last_value(cpu_percentage, last_values_cpu_percentage, history_size(theme_data["LINE_GRAPH"]));
+    // The sensor measures the CPU usage over the interval shared by the displays (same as the job period)
+    const double interval = shared_interval({"STATS", "CPU", "PERCENTAGE"});
+    const double cpu_percentage =
+        sensors.cpu->percentage(interval > 0 ? std::optional<double>(interval) : std::nullopt);
+    save_last_value(cpu_percentage, last_values_cpu_percentage,
+                    shared_history_size({"STATS", "CPU", "PERCENTAGE", "LINE_GRAPH"}));
 
-    display_themed_progress_bar(theme_data["GRAPH"], cpu_percentage);
-    display_themed_percent_radial_bar(theme_data["RADIAL"], cpu_percentage);
-    display_themed_percent_value(theme_data["TEXT"], cpu_percentage);
-    display_themed_line_graph(theme_data["LINE_GRAPH"], last_values_cpu_percentage);
+    on_each_display([&] {
+        const YAML::Node display_theme = stats_node("CPU")["PERCENTAGE"];
+        display_themed_progress_bar(display_theme["GRAPH"], cpu_percentage);
+        display_themed_percent_radial_bar(display_theme["RADIAL"], cpu_percentage);
+        display_themed_percent_value(display_theme["TEXT"], cpu_percentage);
+        display_themed_line_graph(display_theme["LINE_GRAPH"], last_values_cpu_percentage);
+    });
 }
 
 void CPU::frequency()
 {
     const double freq_ghz = sensors.cpu->frequency() / 1000;
-    const YAML::Node theme_data = stats_node("CPU")["FREQUENCY"];
-
-    save_last_value(freq_ghz, last_values_cpu_frequency, history_size(theme_data["LINE_GRAPH"]));
+    save_last_value(freq_ghz, last_values_cpu_frequency,
+                    shared_history_size({"STATS", "CPU", "FREQUENCY", "LINE_GRAPH"}));
 
     const std::string freq_text = std::format("{:.2f}", freq_ghz);
-    display_themed_value(theme_data["TEXT"], freq_text, 4, " GHz");
-    display_themed_progress_bar(theme_data["GRAPH"], freq_ghz);
-    display_themed_radial_bar(theme_data["RADIAL"], freq_ghz, freq_text, 4, " GHz");
-    display_themed_line_graph(theme_data["LINE_GRAPH"], last_values_cpu_frequency);
+    on_each_display([&] {
+        const YAML::Node display_theme = stats_node("CPU")["FREQUENCY"];
+        display_themed_value(display_theme["TEXT"], freq_text, 4, " GHz");
+        display_themed_progress_bar(display_theme["GRAPH"], freq_ghz);
+        display_themed_radial_bar(display_theme["RADIAL"], freq_ghz, freq_text, 4, " GHz");
+        display_themed_line_graph(display_theme["LINE_GRAPH"], last_values_cpu_frequency);
+    });
 }
 
 void CPU::load()
 {
     const auto cpu_load = sensors.cpu->load();
-    const YAML::Node load_theme_data = stats_node("CPU")["LOAD"];
 
-    display_themed_percent_value(load_theme_data["ONE"]["TEXT"], cpu_load[0]);
-    display_themed_percent_value(load_theme_data["FIVE"]["TEXT"], cpu_load[1]);
-    display_themed_percent_value(load_theme_data["FIFTEEN"]["TEXT"], cpu_load[2]);
+    on_each_display([&] {
+        const YAML::Node load_theme_data = stats_node("CPU")["LOAD"];
+        display_themed_percent_value(load_theme_data["ONE"]["TEXT"], cpu_load[0]);
+        display_themed_percent_value(load_theme_data["FIVE"]["TEXT"], cpu_load[1]);
+        display_themed_percent_value(load_theme_data["FIFTEEN"]["TEXT"], cpu_load[2]);
+    });
 }
 
 void CPU::temperature()
 {
-    double temperature = sensors.cpu->temperature();
-    const YAML::Node theme_data = stats_node("CPU")["TEMPERATURE"];
-    save_last_value(temperature, last_values_cpu_temperature, history_size(theme_data["LINE_GRAPH"]));
+    const double temperature = sensors.cpu->temperature();
+    save_last_value(temperature, last_values_cpu_temperature,
+                    shared_history_size({"STATS", "CPU", "TEMPERATURE", "LINE_GRAPH"}));
 
-    const YAML::Node cpu_temp_text_data = theme_data["TEXT"];
-    const YAML::Node cpu_temp_radial_data = theme_data["RADIAL"];
-    const YAML::Node cpu_temp_graph_data = theme_data["GRAPH"];
-    const YAML::Node cpu_temp_line_graph_data = theme_data["LINE_GRAPH"];
+    on_each_display([&] {
+        double shown_temperature = temperature;
+        const YAML::Node theme_data = stats_node("CPU")["TEMPERATURE"];
+        const YAML::Node cpu_temp_text_data = theme_data["TEXT"];
+        const YAML::Node cpu_temp_radial_data = theme_data["RADIAL"];
+        const YAML::Node cpu_temp_graph_data = theme_data["GRAPH"];
+        const YAML::Node cpu_temp_line_graph_data = theme_data["LINE_GRAPH"];
 
-    if (std::isnan(temperature)) {
-        temperature = 0;
-        if (is_shown(cpu_temp_text_data) || is_shown(cpu_temp_radial_data) || is_shown(cpu_temp_graph_data) ||
-            is_shown(cpu_temp_line_graph_data)) {
-            logger.warning("Your CPU temperature is not supported yet");
-            hide(cpu_temp_text_data);
-            hide(cpu_temp_radial_data);
-            hide(cpu_temp_graph_data);
-            hide(cpu_temp_line_graph_data);
+        if (std::isnan(shown_temperature)) {
+            shown_temperature = 0;
+            if (is_shown(cpu_temp_text_data) || is_shown(cpu_temp_radial_data) || is_shown(cpu_temp_graph_data) ||
+                is_shown(cpu_temp_line_graph_data)) {
+                logger.warning("Your CPU temperature is not supported yet");
+                hide(cpu_temp_text_data);
+                hide(cpu_temp_radial_data);
+                hide(cpu_temp_graph_data);
+                hide(cpu_temp_line_graph_data);
+            }
         }
-    }
 
-    display_themed_temperature_value(cpu_temp_text_data, temperature);
-    display_themed_progress_bar(cpu_temp_graph_data, temperature);
-    display_themed_temperature_radial_bar(cpu_temp_radial_data, temperature);
-    display_themed_line_graph(cpu_temp_line_graph_data, last_values_cpu_temperature);
+        display_themed_temperature_value(cpu_temp_text_data, shown_temperature);
+        display_themed_progress_bar(cpu_temp_graph_data, shown_temperature);
+        display_themed_temperature_radial_bar(cpu_temp_radial_data, shown_temperature);
+        display_themed_line_graph(cpu_temp_line_graph_data, last_values_cpu_temperature);
+    });
 }
 
 void CPU::fan_speed()
 {
-    double fan_percent = CPU_FAN != "AUTO" ? sensors.cpu->fan_percent(CPU_FAN) : sensors.cpu->fan_percent();
+    const double fan_value = CPU_FAN != "AUTO" ? sensors.cpu->fan_percent(CPU_FAN) : sensors.cpu->fan_percent();
+    save_last_value(fan_value, last_values_cpu_fan_speed,
+                    shared_history_size({"STATS", "CPU", "FAN_SPEED", "LINE_GRAPH"}));
 
-    const YAML::Node theme_data = stats_node("CPU")["FAN_SPEED"];
-    save_last_value(fan_percent, last_values_cpu_fan_speed, history_size(theme_data["LINE_GRAPH"]));
+    on_each_display([&] {
+        double fan_percent = fan_value;
+        const YAML::Node theme_data = stats_node("CPU")["FAN_SPEED"];
+        const YAML::Node cpu_fan_text_data = theme_data["TEXT"];
+        const YAML::Node cpu_fan_radial_data = theme_data["RADIAL"];
+        const YAML::Node cpu_fan_graph_data = theme_data["GRAPH"];
+        const YAML::Node cpu_fan_line_graph_data = theme_data["LINE_GRAPH"];
 
-    const YAML::Node cpu_fan_text_data = theme_data["TEXT"];
-    const YAML::Node cpu_fan_radial_data = theme_data["RADIAL"];
-    const YAML::Node cpu_fan_graph_data = theme_data["GRAPH"];
-    const YAML::Node cpu_fan_line_graph_data = theme_data["LINE_GRAPH"];
-
-    if (std::isnan(fan_percent)) {
-        fan_percent = 0;
-        if (is_shown(cpu_fan_text_data) || is_shown(cpu_fan_radial_data) || is_shown(cpu_fan_graph_data) ||
-            is_shown(cpu_fan_line_graph_data)) {
-            logger.warning("Your CPU Fan sensor could not be auto-detected. Select it from Configuration UI.");
-            hide(cpu_fan_text_data);
-            hide(cpu_fan_radial_data);
-            hide(cpu_fan_graph_data);
-            hide(cpu_fan_line_graph_data);
+        if (std::isnan(fan_percent)) {
+            fan_percent = 0;
+            if (is_shown(cpu_fan_text_data) || is_shown(cpu_fan_radial_data) || is_shown(cpu_fan_graph_data) ||
+                is_shown(cpu_fan_line_graph_data)) {
+                logger.warning("Your CPU Fan sensor could not be auto-detected. Select it from Configuration UI.");
+                hide(cpu_fan_text_data);
+                hide(cpu_fan_radial_data);
+                hide(cpu_fan_graph_data);
+                hide(cpu_fan_line_graph_data);
+            }
         }
-    }
 
-    display_themed_percent_value(cpu_fan_text_data, fan_percent);
-    display_themed_progress_bar(cpu_fan_graph_data, fan_percent);
-    display_themed_percent_radial_bar(cpu_fan_radial_data, fan_percent);
-    display_themed_line_graph(cpu_fan_line_graph_data, last_values_cpu_fan_speed);
+        display_themed_percent_value(cpu_fan_text_data, fan_percent);
+        display_themed_progress_bar(cpu_fan_graph_data, fan_percent);
+        display_themed_percent_radial_bar(cpu_fan_radial_data, fan_percent);
+        display_themed_line_graph(cpu_fan_line_graph_data, last_values_cpu_fan_speed);
+    });
+}
+
+void CPU::model()
+{
+    const std::string model = sensors.cpu->model();
+    on_each_display([&] { display_themed_model(stats_node("CPU")["MODEL"], model); });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -569,127 +672,147 @@ void hide_if_unsupported(double &value, const std::vector<YAML::Node> &items, co
 void Gpu::stats()
 {
     auto [load, memory_percentage, memory_used_mb, total_memory_mb, temperature] = sensors.gpu->stats();
-    double fps = sensors.gpu->fps();
-    double fan_percent = sensors.gpu->fan_percent();
+    const double fps = sensors.gpu->fps();
+    const double fan_percent = sensors.gpu->fan_percent();
     const double freq_ghz = sensors.gpu->frequency() / 1000;
 
-    const YAML::Node theme_gpu_data = stats_node("GPU");
-
-    save_last_value(load, last_values_gpu_percentage, history_size(theme_gpu_data["PERCENTAGE"]["LINE_GRAPH"]));
+    // Histories are saved once, with the raw values (before the values not supported are replaced for a display)
+    const YAML::Node theme_gpu_history = stats_node("GPU");
+    save_last_value(load, last_values_gpu_percentage,
+                    shared_history_size({"STATS", "GPU", "PERCENTAGE", "LINE_GRAPH"}));
     save_last_value(memory_percentage, last_values_gpu_mem_percentage,
-                    history_size(theme_gpu_data["MEMORY_PERCENT"]["LINE_GRAPH"]));
-    save_last_value(temperature, last_values_gpu_temperature, history_size(theme_gpu_data["TEMPERATURE"]["LINE_GRAPH"]));
-    save_last_value(fps, last_values_gpu_fps, history_size(theme_gpu_data["FPS"]["LINE_GRAPH"]));
-    save_last_value(fan_percent, last_values_gpu_fan_speed, history_size(theme_gpu_data["FAN_SPEED"]["LINE_GRAPH"]));
-    save_last_value(freq_ghz, last_values_gpu_frequency, history_size(theme_gpu_data["FREQUENCY"]["LINE_GRAPH"]));
+                    shared_history_size({"STATS", "GPU", "MEMORY_PERCENT", "LINE_GRAPH"}));
+    save_last_value(temperature, last_values_gpu_temperature,
+                    shared_history_size({"STATS", "GPU", "TEMPERATURE", "LINE_GRAPH"}));
+    save_last_value(fps, last_values_gpu_fps, shared_history_size({"STATS", "GPU", "FPS", "LINE_GRAPH"}));
+    save_last_value(fan_percent, last_values_gpu_fan_speed,
+                    shared_history_size({"STATS", "GPU", "FAN_SPEED", "LINE_GRAPH"}));
+    save_last_value(freq_ghz, last_values_gpu_frequency,
+                    shared_history_size({"STATS", "GPU", "FREQUENCY", "LINE_GRAPH"}));
 
-    // ------------------------------- for backward compatibility only
-    const YAML::Node gpu_mem_graph_data = theme_gpu_data["MEMORY"]["GRAPH"];
-    const YAML::Node gpu_mem_radial_data = theme_gpu_data["MEMORY"]["RADIAL"];
-    double memory_percentage_compat = memory_percentage;
-    hide_if_unsupported(memory_percentage_compat, {gpu_mem_graph_data, gpu_mem_radial_data},
-                        "Your GPU memory relative usage (%) is not supported yet");
+    on_each_display([&] {
+        // Values of this display: a value not supported is replaced for this display only
+        double load_shown = load;
+        double memory_percentage_shown = memory_percentage;
+        double memory_used_shown = memory_used_mb;
+        double total_memory_shown = total_memory_mb;
+        double temperature_shown = temperature;
+        double fps_shown = fps < 0 ? NaN : fps;
+        double fan_shown = fan_percent;
+        const YAML::Node theme_gpu_data = stats_node("GPU");
 
-    const YAML::Node gpu_mem_text_data = theme_gpu_data["MEMORY"]["TEXT"];
-    double memory_used_mb_compat = memory_used_mb;
-    hide_if_unsupported(memory_used_mb_compat, {gpu_mem_text_data}, "Your GPU memory absolute usage (M) is not supported yet");
+        // ------------------------------- for backward compatibility only
+        const YAML::Node gpu_mem_graph_data = theme_gpu_data["MEMORY"]["GRAPH"];
+        const YAML::Node gpu_mem_radial_data = theme_gpu_data["MEMORY"]["RADIAL"];
+        double memory_percentage_compat = memory_percentage_shown;
+        hide_if_unsupported(memory_percentage_compat, {gpu_mem_graph_data, gpu_mem_radial_data},
+                            "Your GPU memory relative usage (%) is not supported yet");
 
-    display_themed_progress_bar(gpu_mem_graph_data, memory_percentage_compat);
-    display_themed_percent_radial_bar(gpu_mem_radial_data, memory_percentage_compat);
-    display_themed_value(gpu_mem_text_data, std::to_string(to_int(memory_used_mb_compat)), 5, " M");
-    // ------------------------------- end of backward compatibility only
+        const YAML::Node gpu_mem_text_data = theme_gpu_data["MEMORY"]["TEXT"];
+        double memory_used_mb_compat = memory_used_shown;
+        hide_if_unsupported(memory_used_mb_compat, {gpu_mem_text_data},
+                            "Your GPU memory absolute usage (M) is not supported yet");
 
-    // GPU usage (%)
-    const YAML::Node gpu_percent_graph_data = theme_gpu_data["PERCENTAGE"]["GRAPH"];
-    const YAML::Node gpu_percent_radial_data = theme_gpu_data["PERCENTAGE"]["RADIAL"];
-    const YAML::Node gpu_percent_text_data = theme_gpu_data["PERCENTAGE"]["TEXT"];
-    const YAML::Node gpu_percent_line_graph_data = theme_gpu_data["PERCENTAGE"]["LINE_GRAPH"];
-    hide_if_unsupported(load, {gpu_percent_graph_data, gpu_percent_text_data, gpu_percent_radial_data,
-                               gpu_percent_line_graph_data}, "Your GPU load is not supported yet");
+        display_themed_progress_bar(gpu_mem_graph_data, memory_percentage_compat);
+        display_themed_percent_radial_bar(gpu_mem_radial_data, memory_percentage_compat);
+        display_themed_value(gpu_mem_text_data, std::to_string(to_int(memory_used_mb_compat)), 5, " M");
+        // ------------------------------- end of backward compatibility only
 
-    display_themed_progress_bar(gpu_percent_graph_data, load);
-    display_themed_percent_radial_bar(gpu_percent_radial_data, load);
-    display_themed_percent_value(gpu_percent_text_data, load);
-    display_themed_line_graph(gpu_percent_line_graph_data, last_values_gpu_percentage);
+        // GPU usage (%)
+        const YAML::Node gpu_percent_graph_data = theme_gpu_data["PERCENTAGE"]["GRAPH"];
+        const YAML::Node gpu_percent_radial_data = theme_gpu_data["PERCENTAGE"]["RADIAL"];
+        const YAML::Node gpu_percent_text_data = theme_gpu_data["PERCENTAGE"]["TEXT"];
+        const YAML::Node gpu_percent_line_graph_data = theme_gpu_data["PERCENTAGE"]["LINE_GRAPH"];
+        hide_if_unsupported(load_shown, {gpu_percent_graph_data, gpu_percent_text_data, gpu_percent_radial_data,
+                                         gpu_percent_line_graph_data}, "Your GPU load is not supported yet");
 
-    // GPU mem. usage (%)
-    const YAML::Node gpu_mem_percent_graph_data = theme_gpu_data["MEMORY_PERCENT"]["GRAPH"];
-    const YAML::Node gpu_mem_percent_radial_data = theme_gpu_data["MEMORY_PERCENT"]["RADIAL"];
-    const YAML::Node gpu_mem_percent_text_data = theme_gpu_data["MEMORY_PERCENT"]["TEXT"];
-    const YAML::Node gpu_mem_percent_line_graph_data = theme_gpu_data["MEMORY_PERCENT"]["LINE_GRAPH"];
-    hide_if_unsupported(memory_percentage, {gpu_mem_percent_graph_data, gpu_mem_percent_radial_data,
-                                            gpu_mem_percent_text_data, gpu_mem_percent_line_graph_data},
-                        "Your GPU memory relative usage (%) is not supported yet");
+        display_themed_progress_bar(gpu_percent_graph_data, load_shown);
+        display_themed_percent_radial_bar(gpu_percent_radial_data, load_shown);
+        display_themed_percent_value(gpu_percent_text_data, load_shown);
+        display_themed_line_graph(gpu_percent_line_graph_data, last_values_gpu_percentage);
 
-    display_themed_progress_bar(gpu_mem_percent_graph_data, memory_percentage);
-    display_themed_percent_radial_bar(gpu_mem_percent_radial_data, memory_percentage);
-    display_themed_percent_value(gpu_mem_percent_text_data, memory_percentage);
-    display_themed_line_graph(gpu_mem_percent_line_graph_data, last_values_gpu_mem_percentage);
+        // GPU mem. usage (%)
+        const YAML::Node gpu_mem_percent_graph_data = theme_gpu_data["MEMORY_PERCENT"]["GRAPH"];
+        const YAML::Node gpu_mem_percent_radial_data = theme_gpu_data["MEMORY_PERCENT"]["RADIAL"];
+        const YAML::Node gpu_mem_percent_text_data = theme_gpu_data["MEMORY_PERCENT"]["TEXT"];
+        const YAML::Node gpu_mem_percent_line_graph_data = theme_gpu_data["MEMORY_PERCENT"]["LINE_GRAPH"];
+        hide_if_unsupported(memory_percentage_shown, {gpu_mem_percent_graph_data, gpu_mem_percent_radial_data,
+                                                      gpu_mem_percent_text_data, gpu_mem_percent_line_graph_data},
+                            "Your GPU memory relative usage (%) is not supported yet");
 
-    // GPU mem. absolute usage (M)
-    const YAML::Node gpu_mem_used_text_data = theme_gpu_data["MEMORY_USED"]["TEXT"];
-    hide_if_unsupported(memory_used_mb, {gpu_mem_used_text_data},
-                        "Your GPU memory absolute usage (M) is not supported yet");
-    display_themed_value(gpu_mem_used_text_data, std::to_string(to_int(memory_used_mb)), 5, " M");
+        display_themed_progress_bar(gpu_mem_percent_graph_data, memory_percentage_shown);
+        display_themed_percent_radial_bar(gpu_mem_percent_radial_data, memory_percentage_shown);
+        display_themed_percent_value(gpu_mem_percent_text_data, memory_percentage_shown);
+        display_themed_line_graph(gpu_mem_percent_line_graph_data, last_values_gpu_mem_percentage);
 
-    // GPU mem. total memory (M)
-    const YAML::Node gpu_mem_total_text_data = theme_gpu_data["MEMORY_TOTAL"]["TEXT"];
-    hide_if_unsupported(total_memory_mb, {gpu_mem_total_text_data},
-                        "Your GPU total memory capacity (M) is not supported yet");
-    display_themed_value(gpu_mem_total_text_data, std::to_string(to_int(total_memory_mb)), 5, " M");
+        // GPU mem. absolute usage (M)
+        const YAML::Node gpu_mem_used_text_data = theme_gpu_data["MEMORY_USED"]["TEXT"];
+        hide_if_unsupported(memory_used_shown, {gpu_mem_used_text_data},
+                            "Your GPU memory absolute usage (M) is not supported yet");
+        display_themed_value(gpu_mem_used_text_data, std::to_string(to_int(memory_used_shown)), 5, " M");
 
-    // GPU temperature (°C)
-    const YAML::Node gpu_temp_text_data = theme_gpu_data["TEMPERATURE"]["TEXT"];
-    const YAML::Node gpu_temp_radial_data = theme_gpu_data["TEMPERATURE"]["RADIAL"];
-    const YAML::Node gpu_temp_graph_data = theme_gpu_data["TEMPERATURE"]["GRAPH"];
-    const YAML::Node gpu_temp_line_graph_data = theme_gpu_data["TEMPERATURE"]["LINE_GRAPH"];
-    hide_if_unsupported(temperature, {gpu_temp_text_data, gpu_temp_radial_data, gpu_temp_graph_data,
-                                      gpu_temp_line_graph_data}, "Your GPU temperature is not supported yet");
+        // GPU mem. total memory (M)
+        const YAML::Node gpu_mem_total_text_data = theme_gpu_data["MEMORY_TOTAL"]["TEXT"];
+        hide_if_unsupported(total_memory_shown, {gpu_mem_total_text_data},
+                            "Your GPU total memory capacity (M) is not supported yet");
+        display_themed_value(gpu_mem_total_text_data, std::to_string(to_int(total_memory_shown)), 5, " M");
 
-    display_themed_temperature_value(gpu_temp_text_data, temperature);
-    display_themed_progress_bar(gpu_temp_graph_data, temperature);
-    display_themed_temperature_radial_bar(gpu_temp_radial_data, temperature);
-    display_themed_line_graph(gpu_temp_line_graph_data, last_values_gpu_temperature);
+        // GPU temperature (°C)
+        const YAML::Node gpu_temp_text_data = theme_gpu_data["TEMPERATURE"]["TEXT"];
+        const YAML::Node gpu_temp_radial_data = theme_gpu_data["TEMPERATURE"]["RADIAL"];
+        const YAML::Node gpu_temp_graph_data = theme_gpu_data["TEMPERATURE"]["GRAPH"];
+        const YAML::Node gpu_temp_line_graph_data = theme_gpu_data["TEMPERATURE"]["LINE_GRAPH"];
+        hide_if_unsupported(temperature_shown, {gpu_temp_text_data, gpu_temp_radial_data, gpu_temp_graph_data,
+                                                gpu_temp_line_graph_data}, "Your GPU temperature is not supported yet");
 
-    // GPU FPS
-    const YAML::Node gpu_fps_text_data = theme_gpu_data["FPS"]["TEXT"];
-    const YAML::Node gpu_fps_radial_data = theme_gpu_data["FPS"]["RADIAL"];
-    const YAML::Node gpu_fps_graph_data = theme_gpu_data["FPS"]["GRAPH"];
-    const YAML::Node gpu_fps_line_graph_data = theme_gpu_data["FPS"]["LINE_GRAPH"];
-    if (fps < 0) {
-        fps = NaN;
-    }
-    hide_if_unsupported(fps, {gpu_fps_text_data, gpu_fps_radial_data, gpu_fps_graph_data, gpu_fps_line_graph_data},
-                        "Your GPU FPS is not supported yet");
+        display_themed_temperature_value(gpu_temp_text_data, temperature_shown);
+        display_themed_progress_bar(gpu_temp_graph_data, temperature_shown);
+        display_themed_temperature_radial_bar(gpu_temp_radial_data, temperature_shown);
+        display_themed_line_graph(gpu_temp_line_graph_data, last_values_gpu_temperature);
 
-    display_themed_progress_bar(gpu_fps_graph_data, fps);
-    display_themed_value(gpu_fps_text_data, std::to_string(to_int(fps)), 4, " FPS");
-    display_themed_radial_bar(gpu_fps_radial_data, to_int(fps), std::to_string(to_int(fps)), 4, " FPS");
-    display_themed_line_graph(gpu_fps_line_graph_data, last_values_gpu_fps);
+        // GPU FPS
+        const YAML::Node gpu_fps_text_data = theme_gpu_data["FPS"]["TEXT"];
+        const YAML::Node gpu_fps_radial_data = theme_gpu_data["FPS"]["RADIAL"];
+        const YAML::Node gpu_fps_graph_data = theme_gpu_data["FPS"]["GRAPH"];
+        const YAML::Node gpu_fps_line_graph_data = theme_gpu_data["FPS"]["LINE_GRAPH"];
+        hide_if_unsupported(fps_shown, {gpu_fps_text_data, gpu_fps_radial_data, gpu_fps_graph_data,
+                                        gpu_fps_line_graph_data}, "Your GPU FPS is not supported yet");
 
-    // GPU Fan Speed (%)
-    const YAML::Node gpu_fan_text_data = theme_gpu_data["FAN_SPEED"]["TEXT"];
-    const YAML::Node gpu_fan_radial_data = theme_gpu_data["FAN_SPEED"]["RADIAL"];
-    const YAML::Node gpu_fan_graph_data = theme_gpu_data["FAN_SPEED"]["GRAPH"];
-    const YAML::Node gpu_fan_line_graph_data = theme_gpu_data["FAN_SPEED"]["LINE_GRAPH"];
-    hide_if_unsupported(fan_percent, {gpu_fan_text_data, gpu_fan_radial_data, gpu_fan_graph_data,
-                                      gpu_fan_line_graph_data}, "Your GPU Fan Speed is not supported yet");
+        display_themed_progress_bar(gpu_fps_graph_data, fps_shown);
+        display_themed_value(gpu_fps_text_data, std::to_string(to_int(fps_shown)), 4, " FPS");
+        display_themed_radial_bar(gpu_fps_radial_data, to_int(fps_shown), std::to_string(to_int(fps_shown)), 4, " FPS");
+        display_themed_line_graph(gpu_fps_line_graph_data, last_values_gpu_fps);
 
-    display_themed_percent_value(gpu_fan_text_data, fan_percent);
-    display_themed_progress_bar(gpu_fan_graph_data, fan_percent);
-    display_themed_percent_radial_bar(gpu_fan_radial_data, fan_percent);
-    display_themed_line_graph(gpu_fan_line_graph_data, last_values_gpu_fan_speed);
+        // GPU Fan Speed (%)
+        const YAML::Node gpu_fan_text_data = theme_gpu_data["FAN_SPEED"]["TEXT"];
+        const YAML::Node gpu_fan_radial_data = theme_gpu_data["FAN_SPEED"]["RADIAL"];
+        const YAML::Node gpu_fan_graph_data = theme_gpu_data["FAN_SPEED"]["GRAPH"];
+        const YAML::Node gpu_fan_line_graph_data = theme_gpu_data["FAN_SPEED"]["LINE_GRAPH"];
+        hide_if_unsupported(fan_shown, {gpu_fan_text_data, gpu_fan_radial_data, gpu_fan_graph_data,
+                                        gpu_fan_line_graph_data}, "Your GPU Fan Speed is not supported yet");
 
-    // GPU Frequency (Ghz)
-    const YAML::Node gpu_freq_text_data = theme_gpu_data["FREQUENCY"]["TEXT"];
-    const YAML::Node gpu_freq_radial_data = theme_gpu_data["FREQUENCY"]["RADIAL"];
-    const YAML::Node gpu_freq_graph_data = theme_gpu_data["FREQUENCY"]["GRAPH"];
-    const YAML::Node gpu_freq_line_graph_data = theme_gpu_data["FREQUENCY"]["LINE_GRAPH"];
-    const std::string freq_text = std::format("{:.2f}", freq_ghz);
-    display_themed_value(gpu_freq_text_data, freq_text, 4, " GHz");
-    display_themed_progress_bar(gpu_freq_graph_data, freq_ghz);
-    display_themed_radial_bar(gpu_freq_radial_data, freq_ghz, freq_text, 4, " GHz");
-    display_themed_line_graph(gpu_freq_line_graph_data, last_values_gpu_frequency);
+        display_themed_percent_value(gpu_fan_text_data, fan_shown);
+        display_themed_progress_bar(gpu_fan_graph_data, fan_shown);
+        display_themed_percent_radial_bar(gpu_fan_radial_data, fan_shown);
+        display_themed_line_graph(gpu_fan_line_graph_data, last_values_gpu_fan_speed);
+
+        // GPU Frequency (Ghz)
+        const YAML::Node gpu_freq_text_data = theme_gpu_data["FREQUENCY"]["TEXT"];
+        const YAML::Node gpu_freq_radial_data = theme_gpu_data["FREQUENCY"]["RADIAL"];
+        const YAML::Node gpu_freq_graph_data = theme_gpu_data["FREQUENCY"]["GRAPH"];
+        const YAML::Node gpu_freq_line_graph_data = theme_gpu_data["FREQUENCY"]["LINE_GRAPH"];
+        const std::string freq_text = std::format("{:.2f}", freq_ghz);
+        display_themed_value(gpu_freq_text_data, freq_text, 4, " GHz");
+        display_themed_progress_bar(gpu_freq_graph_data, freq_ghz);
+        display_themed_radial_bar(gpu_freq_radial_data, freq_ghz, freq_text, 4, " GHz");
+        display_themed_line_graph(gpu_freq_line_graph_data, last_values_gpu_frequency);
+    });
+}
+
+void Gpu::model()
+{
+    const std::string model = sensors.gpu->model();
+    on_each_display([&] { display_themed_model(stats_node("GPU")["MODEL"], model); });
 }
 
 bool Gpu::is_available()
@@ -707,29 +830,39 @@ std::vector<double> last_values_memory_virtual;
 
 void Memory::stats()
 {
-    const YAML::Node memory_stats_theme_data = stats_node("MEMORY");
-
     const double swap_percent = sensors.memory->swap_percent();
     save_last_value(swap_percent, last_values_memory_swap,
-                    history_size(memory_stats_theme_data["SWAP"]["LINE_GRAPH"]));
-    display_themed_progress_bar(memory_stats_theme_data["SWAP"]["GRAPH"], swap_percent);
-    display_themed_percent_radial_bar(memory_stats_theme_data["SWAP"]["RADIAL"], swap_percent);
-    display_themed_line_graph(memory_stats_theme_data["SWAP"]["LINE_GRAPH"], last_values_memory_swap);
+                    shared_history_size({"STATS", "MEMORY", "SWAP", "LINE_GRAPH"}));
 
     const double virtual_percent = sensors.memory->virtual_percent();
     save_last_value(virtual_percent, last_values_memory_virtual,
-                    history_size(memory_stats_theme_data["VIRTUAL"]["LINE_GRAPH"]));
-    display_themed_progress_bar(memory_stats_theme_data["VIRTUAL"]["GRAPH"], virtual_percent);
-    display_themed_percent_radial_bar(memory_stats_theme_data["VIRTUAL"]["RADIAL"], virtual_percent);
-    display_themed_percent_value(memory_stats_theme_data["VIRTUAL"]["PERCENT_TEXT"], virtual_percent);
-    display_themed_line_graph(memory_stats_theme_data["VIRTUAL"]["LINE_GRAPH"], last_values_memory_virtual);
+                    shared_history_size({"STATS", "MEMORY", "VIRTUAL", "LINE_GRAPH"}));
 
     const int64_t used = sensors.memory->virtual_used();
     const int64_t free = sensors.memory->virtual_free();
-    display_themed_value(memory_stats_theme_data["VIRTUAL"]["USED"], std::to_string(used / (1024 * 1024)), 5, " M");
-    display_themed_value(memory_stats_theme_data["VIRTUAL"]["FREE"], std::to_string(free / (1024 * 1024)), 5, " M");
-    display_themed_value(memory_stats_theme_data["VIRTUAL"]["TOTAL"], std::to_string((free + used) / (1024 * 1024)),
-                         5, " M");
+
+    on_each_display([&] {
+        const YAML::Node memory_stats_theme_data = stats_node("MEMORY");
+        display_themed_progress_bar(memory_stats_theme_data["SWAP"]["GRAPH"], swap_percent);
+        display_themed_percent_radial_bar(memory_stats_theme_data["SWAP"]["RADIAL"], swap_percent);
+        display_themed_line_graph(memory_stats_theme_data["SWAP"]["LINE_GRAPH"], last_values_memory_swap);
+
+        display_themed_progress_bar(memory_stats_theme_data["VIRTUAL"]["GRAPH"], virtual_percent);
+        display_themed_percent_radial_bar(memory_stats_theme_data["VIRTUAL"]["RADIAL"], virtual_percent);
+        display_themed_percent_value(memory_stats_theme_data["VIRTUAL"]["PERCENT_TEXT"], virtual_percent);
+        display_themed_line_graph(memory_stats_theme_data["VIRTUAL"]["LINE_GRAPH"], last_values_memory_virtual);
+
+        display_themed_value(memory_stats_theme_data["VIRTUAL"]["USED"], std::to_string(used / (1024 * 1024)), 5, " M");
+        display_themed_value(memory_stats_theme_data["VIRTUAL"]["FREE"], std::to_string(free / (1024 * 1024)), 5, " M");
+        display_themed_value(memory_stats_theme_data["VIRTUAL"]["TOTAL"],
+                             std::to_string((free + used) / (1024 * 1024)), 5, " M");
+    });
+}
+
+void Memory::model()
+{
+    const std::string model = sensors.memory->model();
+    on_each_display([&] { display_themed_model(stats_node("MEMORY")["MODEL"], model); });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -744,18 +877,21 @@ void Disk::stats()
     const int64_t used = sensors.disk->disk_used();
     const int64_t free = sensors.disk->disk_free();
 
-    const YAML::Node disk_theme_data = stats_node("DISK");
-
     const double disk_usage_percent = sensors.disk->disk_usage_percent();
-    save_last_value(disk_usage_percent, last_values_disk_usage, history_size(disk_theme_data["USED"]["LINE_GRAPH"]));
-    display_themed_progress_bar(disk_theme_data["USED"]["GRAPH"], disk_usage_percent);
-    display_themed_percent_radial_bar(disk_theme_data["USED"]["RADIAL"], disk_usage_percent);
-    display_themed_percent_value(disk_theme_data["USED"]["PERCENT_TEXT"], disk_usage_percent);
-    display_themed_line_graph(disk_theme_data["USED"]["LINE_GRAPH"], last_values_disk_usage);
+    save_last_value(disk_usage_percent, last_values_disk_usage,
+                    shared_history_size({"STATS", "DISK", "USED", "LINE_GRAPH"}));
 
-    display_themed_value(disk_theme_data["USED"]["TEXT"], std::to_string(used / 1000000000), 5, " G");
-    display_themed_value(disk_theme_data["TOTAL"]["TEXT"], std::to_string((free + used) / 1000000000), 5, " G");
-    display_themed_value(disk_theme_data["FREE"]["TEXT"], std::to_string(free / 1000000000), 5, " G");
+    on_each_display([&] {
+        const YAML::Node disk_theme_data = stats_node("DISK");
+        display_themed_progress_bar(disk_theme_data["USED"]["GRAPH"], disk_usage_percent);
+        display_themed_percent_radial_bar(disk_theme_data["USED"]["RADIAL"], disk_usage_percent);
+        display_themed_percent_value(disk_theme_data["USED"]["PERCENT_TEXT"], disk_usage_percent);
+        display_themed_line_graph(disk_theme_data["USED"]["LINE_GRAPH"], last_values_disk_usage);
+
+        display_themed_value(disk_theme_data["USED"]["TEXT"], std::to_string(used / 1000000000), 5, " G");
+        display_themed_value(disk_theme_data["TOTAL"]["TEXT"], std::to_string((free + used) / 1000000000), 5, " G");
+        display_themed_value(disk_theme_data["FREE"]["TEXT"], std::to_string(free / 1000000000), 5, " G");
+    });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -777,15 +913,23 @@ void show_themed_tax_rate(const YAML::Node &theme_data, double rate)
     display_themed_value(theme_data, bytes2human(rate, "{:.1f} ", "/s"), 10);
 }
 
+// Save the rates of an interface in the histories of its line graphs (read once for all the displays)
+void save_interface_history(const std::string &card, const sensors::Net::Stats &stats,
+                            std::vector<double> &last_upload, std::vector<double> &last_download)
+{
+    save_last_value(stats.upload_rate, last_upload,
+                    shared_history_size({"STATS", "NET", card, "UPLOAD", "LINE_GRAPH"}));
+    save_last_value(stats.download_rate, last_download,
+                    shared_history_size({"STATS", "NET", card, "DOWNLOAD", "LINE_GRAPH"}));
+}
+
 void show_interface(const YAML::Node &card_theme_data, const sensors::Net::Stats &stats,
                     std::vector<double> &last_upload, std::vector<double> &last_download)
 {
-    save_last_value(stats.upload_rate, last_upload, history_size(card_theme_data["UPLOAD"]["LINE_GRAPH"]));
     show_themed_tax_rate(card_theme_data["UPLOAD"]["TEXT"], stats.upload_rate);
     show_themed_total_data(card_theme_data["UPLOADED"]["TEXT"], static_cast<double>(stats.uploaded));
     display_themed_line_graph(card_theme_data["UPLOAD"]["LINE_GRAPH"], last_upload);
 
-    save_last_value(stats.download_rate, last_download, history_size(card_theme_data["DOWNLOAD"]["LINE_GRAPH"]));
     show_themed_tax_rate(card_theme_data["DOWNLOAD"]["TEXT"], stats.download_rate);
     show_themed_total_data(card_theme_data["DOWNLOADED"]["TEXT"], static_cast<double>(stats.downloaded));
     display_themed_line_graph(card_theme_data["DOWNLOAD"]["LINE_GRAPH"], last_download);
@@ -794,15 +938,20 @@ void show_interface(const YAML::Node &card_theme_data, const sensors::Net::Stats
 
 void Net::stats()
 {
-    const YAML::Node net_theme_data = stats_node("NET");
-    const YAML::Node interval_node = net_theme_data["INTERVAL"];
-    const std::optional<double> interval = interval_node.IsDefined() && !interval_node.IsNull()
-                                               ? std::optional<double>(interval_node.as<double>()) : std::nullopt;
+    // The rates are computed over the interval shared by the displays (same as the job period)
+    const double shared = shared_interval({"STATS", "NET"});
+    const std::optional<double> interval = shared > 0 ? std::optional<double>(shared) : std::nullopt;
 
-    show_interface(net_theme_data["WLO"], sensors.net->stats(WLO_CARD, interval), last_values_wlo_upload,
-                   last_values_wlo_download);
-    show_interface(net_theme_data["ETH"], sensors.net->stats(ETH_CARD, interval), last_values_eth_upload,
-                   last_values_eth_download);
+    const sensors::Net::Stats wlo_stats = sensors.net->stats(WLO_CARD, interval);
+    const sensors::Net::Stats eth_stats = sensors.net->stats(ETH_CARD, interval);
+    save_interface_history("WLO", wlo_stats, last_values_wlo_upload, last_values_wlo_download);
+    save_interface_history("ETH", eth_stats, last_values_eth_upload, last_values_eth_download);
+
+    on_each_display([&] {
+        const YAML::Node net_theme_data = stats_node("NET");
+        show_interface(net_theme_data["WLO"], wlo_stats, last_values_wlo_upload, last_values_wlo_download);
+        show_interface(net_theme_data["ETH"], eth_stats, last_values_eth_upload, last_values_eth_download);
+    });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -820,18 +969,20 @@ void Date::stats()
 
     const std::string lc_time = get_lc_time();
 
-    const YAML::Node date_theme_data = stats_node("DATE");
-    const YAML::Node day_theme_data = date_theme_data["DAY"]["TEXT"];
-    if (is_shown(day_theme_data)) {
-        const std::string date_format = config::get(day_theme_data, "FORMAT", "medium");
-        display_themed_value(day_theme_data, format_datetime(date_now, date_format, lc_time, false));
-    }
+    on_each_display([&] {
+        const YAML::Node date_theme_data = stats_node("DATE");
+        const YAML::Node day_theme_data = date_theme_data["DAY"]["TEXT"];
+        if (is_shown(day_theme_data)) {
+            const std::string date_format = config::get(day_theme_data, "FORMAT", "medium");
+            display_themed_value(day_theme_data, format_datetime(date_now, date_format, lc_time, false));
+        }
 
-    const YAML::Node hour_theme_data = date_theme_data["HOUR"]["TEXT"];
-    if (is_shown(hour_theme_data)) {
-        const std::string time_format = config::get(hour_theme_data, "FORMAT", "medium");
-        display_themed_value(hour_theme_data, format_datetime(date_now, time_format, lc_time, true));
-    }
+        const YAML::Node hour_theme_data = date_theme_data["HOUR"]["TEXT"];
+        if (is_shown(hour_theme_data)) {
+            const std::string time_format = config::get(hour_theme_data, "FORMAT", "medium");
+            display_themed_value(hour_theme_data, format_datetime(date_now, time_format, lc_time, true));
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -858,9 +1009,11 @@ void SystemUptime::stats()
         uptimeformatted = std::format("{} day{}, ", days, days == 1 ? "" : "s") + uptimeformatted;
     }
 
-    const YAML::Node systemuptime_theme_data = stats_node("UPTIME");
-    display_themed_value(systemuptime_theme_data["SECONDS"]["TEXT"], std::to_string(uptimesec));
-    display_themed_value(systemuptime_theme_data["FORMATTED"]["TEXT"], uptimeformatted);
+    on_each_display([&] {
+        const YAML::Node systemuptime_theme_data = stats_node("UPTIME");
+        display_themed_value(systemuptime_theme_data["SECONDS"]["TEXT"], std::to_string(uptimesec));
+        display_themed_value(systemuptime_theme_data["FORMATTED"]["TEXT"], uptimeformatted);
+    });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -868,56 +1021,59 @@ void SystemUptime::stats()
 
 void Custom::stats()
 {
-    const YAML::Node custom_theme_data = stats_node("CUSTOM");
-    if (!custom_theme_data.IsDefined() || !custom_theme_data.IsMap()) {
-        return;
-    }
-    for (const auto &item: custom_theme_data) {
-        const std::string custom_stat = item.first.as<std::string>();
-        if (custom_stat == "INTERVAL") {
-            continue;
-        }
-
-        // Get the custom sensor class from sensors_custom based on the class name
-        auto &sources = sensors_custom::custom_data_sources();
-        const auto source = sources.find(custom_stat);
-        if (source == sources.end()) {
-            logger.error("Error loading custom sensor class {} from sensors_custom: class not found", custom_stat);
+    on_each_display([&] {
+        const YAML::Node custom_theme_data = stats_node("CUSTOM");
+        if (!custom_theme_data.IsDefined() || !custom_theme_data.IsMap()) {
             return;
         }
-        const std::optional<double> numeric_value = source->second->as_numeric();
-        std::optional<std::string> string_value = source->second->as_string();
-        const std::optional<std::vector<double>> last_values = source->second->last_values();
+        for (const auto &item: custom_theme_data) {
+            const std::string custom_stat = item.first.as<std::string>();
+            if (custom_stat == "INTERVAL") {
+                continue;
+            }
 
-        if (!string_value && numeric_value) {
-            string_value = std::format("{}", *numeric_value);
+            // Get the custom sensor class from sensors_custom based on the class name
+            auto &sources = sensors_custom::custom_data_sources();
+            const auto source = sources.find(custom_stat);
+            if (source == sources.end()) {
+                logger.error("Error loading custom sensor class {} from sensors_custom: class not found", custom_stat);
+                return;
+            }
+            const std::optional<double> numeric_value = source->second->as_numeric();
+            std::optional<std::string> string_value = source->second->as_string();
+            const std::optional<std::vector<double>> last_values = source->second->last_values();
+
+            if (!string_value && numeric_value) {
+                string_value = std::format("{}", *numeric_value);
+            }
+
+            const YAML::Node &stat_theme_data = item.second;
+
+            // Display text
+            if (const YAML::Node theme_data = stat_theme_data["TEXT"]; theme_data.IsDefined() && string_value) {
+                display_themed_value(theme_data, string_value);
+            }
+
+            // Display graph from numeric value
+            if (const YAML::Node theme_data = stat_theme_data["GRAPH"];
+                theme_data.IsDefined() && numeric_value && !std::isnan(*numeric_value)) {
+                display_themed_progress_bar(theme_data, *numeric_value);
+            }
+
+            // Display radial from numeric and text value
+            if (const YAML::Node theme_data = stat_theme_data["RADIAL"];
+                theme_data.IsDefined() && numeric_value && !std::isnan(*numeric_value) && string_value) {
+                display_themed_radial_bar(theme_data, *numeric_value, std::format("{}", *numeric_value), 0, "",
+                                          string_value);
+            }
+
+            // Display plot graph from histo values
+            if (const YAML::Node theme_data = stat_theme_data["LINE_GRAPH"];
+                theme_data.IsDefined() && last_values) {
+                display_themed_line_graph(theme_data, *last_values);
+            }
         }
-
-        const YAML::Node &stat_theme_data = item.second;
-
-        // Display text
-        if (const YAML::Node theme_data = stat_theme_data["TEXT"]; theme_data.IsDefined() && string_value) {
-            display_themed_value(theme_data, string_value);
-        }
-
-        // Display graph from numeric value
-        if (const YAML::Node theme_data = stat_theme_data["GRAPH"];
-            theme_data.IsDefined() && numeric_value && !std::isnan(*numeric_value)) {
-            display_themed_progress_bar(theme_data, *numeric_value);
-        }
-
-        // Display radial from numeric and text value
-        if (const YAML::Node theme_data = stat_theme_data["RADIAL"];
-            theme_data.IsDefined() && numeric_value && !std::isnan(*numeric_value) && string_value) {
-            display_themed_radial_bar(theme_data, *numeric_value, std::format("{}", *numeric_value), 0, "",
-                                      string_value);
-        }
-
-        // Display plot graph from histo values
-        if (const YAML::Node theme_data = stat_theme_data["LINE_GRAPH"]; theme_data.IsDefined() && last_values) {
-            display_themed_line_graph(theme_data, *last_values);
-        }
-    }
+    });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -928,16 +1084,15 @@ void Weather::stats()
     static const std::map<std::string, std::string> WEATHER_UNITS = {
         {"metric", "°C"}, {"imperial", "°F"}, {"standard", "°K"}};
 
-    const YAML::Node weather_theme_data = stats_node("WEATHER");
-    const YAML::Node wtemperature_theme_data = weather_theme_data["TEMPERATURE"]["TEXT"];
-    const YAML::Node wfelt_theme_data = weather_theme_data["TEMPERATURE_FELT"]["TEXT"];
-    const YAML::Node wupdatetime_theme_data = weather_theme_data["UPDATE_TIME"]["TEXT"];
-    const YAML::Node wdescription_theme_data = weather_theme_data["WEATHER_DESCRIPTION"]["TEXT"];
-    const YAML::Node whumidity_theme_data = weather_theme_data["HUMIDITY"]["TEXT"];
-
-    const bool activate = is_shown(wtemperature_theme_data) || is_shown(wfelt_theme_data) ||
-                          is_shown(wupdatetime_theme_data) || is_shown(wdescription_theme_data) ||
-                          is_shown(whumidity_theme_data);
+    // The weather is requested once, and only if at least one display shows it
+    const bool activate = std::any_of(displays().begin(), displays().end(), [](const std::unique_ptr<Display> &display) {
+        const YAML::Node weather_theme_data = display->theme["STATS"]["WEATHER"];
+        return is_shown(weather_theme_data["TEMPERATURE"]["TEXT"]) ||
+               is_shown(weather_theme_data["TEMPERATURE_FELT"]["TEXT"]) ||
+               is_shown(weather_theme_data["UPDATE_TIME"]["TEXT"]) ||
+               is_shown(weather_theme_data["WEATHER_DESCRIPTION"]["TEXT"]) ||
+               is_shown(weather_theme_data["HUMIDITY"]["TEXT"]);
+    });
     if (!activate) {
         return;
     }
@@ -951,12 +1106,12 @@ void Weather::stats()
         humidity = "45%";
     } else {
         // API Parameters
-        const YAML::Node &cfg = config::CONFIG_DATA;
-        const std::string lat = config::get(cfg["config"], "WEATHER_LATITUDE", "");
-        const std::string lon = config::get(cfg["config"], "WEATHER_LONGITUDE", "");
-        const std::string api_key = config::get(cfg["config"], "WEATHER_API_KEY", "");
-        const std::string units = config::get(cfg["config"], "WEATHER_UNITS", "metric");
-        const std::string lang = config::get(cfg["config"], "WEATHER_LANGUAGE", "en");
+        const config::Json &cfg = config::CONFIG_DATA;
+        const std::string lat = config::get(config::section(cfg, "config"), "WEATHER_LATITUDE", "");
+        const std::string lon = config::get(config::section(cfg, "config"), "WEATHER_LONGITUDE", "");
+        const std::string api_key = config::get(config::section(cfg, "config"), "WEATHER_API_KEY", "");
+        const std::string units = config::get(config::section(cfg, "config"), "WEATHER_UNITS", "metric");
+        const std::string lang = config::get(config::section(cfg, "config"), "WEATHER_LANGUAGE", "en");
         const auto unit_it = WEATHER_UNITS.find(units);
         const std::string deg = unit_it != WEATHER_UNITS.end() ? unit_it->second : "°?";
         if (!api_key.empty()) {
@@ -1002,21 +1157,24 @@ void Weather::stats()
                 desc = "Error fetching OpenWeatherMap API";
             }
         } else {
-            logger.warning("No OpenWeatherMap API key provided in config.yaml");
+            logger.warning("No OpenWeatherMap API key provided in config.json");
             desc = "No OpenWeatherMap API key";
         }
     }
 
-    // Display Temperature
-    display_themed_value(wtemperature_theme_data, temp);
-    // Display Temperature Felt
-    display_themed_value(wfelt_theme_data, feel);
-    // Display Update Time
-    display_themed_value(wupdatetime_theme_data, time);
-    // Display Humidity
-    display_themed_value(whumidity_theme_data, humidity);
-    // Display Weather Description (or error message)
-    display_themed_value(wdescription_theme_data, desc);
+    on_each_display([&] {
+        const YAML::Node weather_theme_data = stats_node("WEATHER");
+        // Display Temperature
+        display_themed_value(weather_theme_data["TEMPERATURE"]["TEXT"], temp);
+        // Display Temperature Felt
+        display_themed_value(weather_theme_data["TEMPERATURE_FELT"]["TEXT"], feel);
+        // Display Update Time
+        display_themed_value(weather_theme_data["UPDATE_TIME"]["TEXT"], time);
+        // Display Humidity
+        display_themed_value(weather_theme_data["HUMIDITY"]["TEXT"], humidity);
+        // Display Weather Description (or error message)
+        display_themed_value(weather_theme_data["WEATHER_DESCRIPTION"]["TEXT"], desc);
+    });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1028,8 +1186,6 @@ std::vector<double> last_values_ping;
 
 void Ping::stats()
 {
-    const YAML::Node theme_data = stats_node("PING");
-
     double delay;
     if (HW_SENSORS == "STATIC") {
         // For static sensors, use predefined ping delay
@@ -1043,14 +1199,17 @@ void Ping::stats()
         delay = ping(PING_DEST).value_or(NaN);
     }
 
-    save_last_value(delay, last_values_ping, history_size(theme_data["LINE_GRAPH"]));
+    save_last_value(delay, last_values_ping, shared_history_size({"STATS", "PING", "LINE_GRAPH"}));
 
     // When there is no answer, the text displays "-" instead of a delay
     const std::string delay_text = std::isnan(delay) ? "-" : std::to_string(to_int(delay));
-    display_themed_progress_bar(theme_data["GRAPH"], delay);
-    display_themed_radial_bar(theme_data["RADIAL"], to_int(delay), delay_text, 6, "ms");
-    display_themed_value(theme_data["TEXT"], delay_text, 6, "ms");
-    display_themed_line_graph(theme_data["LINE_GRAPH"], last_values_ping);
+    on_each_display([&] {
+        const YAML::Node theme_data = stats_node("PING");
+        display_themed_progress_bar(theme_data["GRAPH"], delay);
+        display_themed_radial_bar(theme_data["RADIAL"], to_int(delay), delay_text, 6, "ms");
+        display_themed_value(theme_data["TEXT"], delay_text, 6, "ms");
+        display_themed_line_graph(theme_data["LINE_GRAPH"], last_values_ping);
+    });
 }
 
 }  // namespace stats

@@ -1,0 +1,24 @@
+{
+    "config": {
+        "HW_SENSORS": "AUTO",
+        "ETH": "",
+        "WLO": "",
+        "CPU_FAN": "AUTO",
+        "PING": "8.8.8.8",
+        "WEATHER_API_KEY": "",
+        "WEATHER_LATITUDE": 45.75,
+        "WEATHER_LONGITUDE": 4.85,
+        "WEATHER_UNITS": "metric",
+        "WEATHER_LANGUAGE": "en"
+    },
+    "displays": [
+        {
+            "COM_PORT": "AUTO",
+            "THEME": "3.5inchTheme2",
+            "REVISION": "A",
+            "BRIGHTNESS": 20,
+            "DISPLAY_REVERSE": false,
+            "RESET_ON_STARTUP": true
+        }
+    ]
+}

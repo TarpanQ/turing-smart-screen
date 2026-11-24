@@ -10,7 +10,7 @@
 - Entry points: `src/main.cpp`, `src/configure.cpp`, `src/theme-editor.cpp`, `src/simple-program.cpp` (no header).
 - Each other `.cpp` file has a `.h` file with the same base name, in the same directory.
 - Unit tests live in `tests/cpp/` (GoogleTest), with the same layout as `src/library/`.
-- `config.yaml` and `res/` (themes, fonts, images) are user data and resources, used as-is by the programs.
+- `config.json` and `res/` (themes, fonts, images) are user data and resources, used as-is by the programs. The keys of `config.json` are described in `README.config`.
 - Not converted and kept: `library/pythoncheck.py`, `library/sensors/sensors_librehardwaremonitor.py` (Windows only), `tools/windows-installer/`, `external/LibreHardwareMonitor/`.
 
 ## Build and tests
@@ -22,8 +22,8 @@
 
 ## Essential architecture (read before coding)
 - **Entry point**: `src/main.cpp` loads the configuration, initializes the display, starts the scheduler, the tray icon and the OS signal handling.
-- **Central config**: `src/library/config.cpp` loads `config.yaml`, then `res/themes/<THEME>/theme.yaml`, with default values for missing keys. The library is initialized explicitly with `config::init()`. Theme values are read with `config::get()` / `config::get_color()`, which return the default value for missing or empty keys.
-- **Configuration writing**: `config::update_yaml_file()` replaces only the changed values and keeps comments and formatting.
+- **Central config**: `src/library/config.cpp` loads `config.json`, then `res/themes/<THEME>/theme.yaml`, with default values for missing keys. The library is initialized explicitly with `config::init()`. Theme values are read with `config::get()` / `config::get_color()`, which return the default value for missing or empty keys.
+- **Configuration writing**: `config::update_json_file()` replaces the changed values of `config.json` and keeps the order of the keys. The meaning of every key is documented in `README.config`.
 - **LCD driver factory**: `src/library/display.cpp` selects the implementation via `REVISION` (`A/B/C/D/TUR_USB/WEACT_A/WEACT_B/SIMU`).
 - **Hardware drivers**: `src/library/lcd/` contains the `LcdComm*` classes (serial/USB) with a common API (`InitializeComm`, `DisplayBitmap`, `DisplayText`, `SetBrightness`, etc.).
 - **Sensors and stats rendering**: `src/library/stats.cpp` collects metrics (CPU/GPU/RAM/disk/net/weather) and applies theme styles. Sensors are in `src/library/sensors/`.
@@ -32,7 +32,7 @@
 - **Sensors**: `sensors_python` (selected by `HW_SENSORS: PYTHON` or `AUTO`) reads Linux `/proc` and `/sys` directly, plus NVIDIA NVML loaded at runtime. Custom sensors (`sensors_custom`) are C++ classes registered in `custom_data_sources()`: adding one requires rebuilding.
 
 ## Data flow (practical)
-- `config.yaml` selects the hardware, the theme and the options.
+- `config.json` selects the hardware, the theme and the options.
 - `src/library/stats.cpp` retrieves values based on `HW_SENSORS` (`AUTO`, `PYTHON`, `STUB`, ...).
 - `src/library/display.cpp` and the `LcdComm*` driver convert images and text, then push them to the display.
 - Dev mode without hardware: `REVISION: SIMU` writes a capture (`screencap.png`) through `src/library/lcd/lcd_simulated.cpp`.
@@ -55,7 +55,7 @@
 - Keep the comments in sync with the code when you change a function.
 
 ## Repository-specific conventions
-- YAML-first configuration: avoid hardcoding. Add options to `config.yaml` first, then load them in `src/library/config.cpp`.
+- JSON-first configuration: avoid hardcoding. Add options to `config.json` first (and describe them in `README.config`), then read them in `src/library/config.cpp` and the code that uses them. The settings of each display are the elements of the `displays` array (`config::DisplayConfig`, `config::DISPLAYS`); the common settings are in `config`. Themes stay in YAML (`theme.yaml`).
 - Hardware routing goes through `REVISION`: do not add a new revision outside the factory in `src/library/display.cpp`.
 - Periodic updates go through `src/library/scheduler.cpp`: avoid ad-hoc threads that write to the device.
 - UI rendering depends on theme keys (example structure in `res/themes/default.yaml`): keep the schema compatible.
@@ -79,6 +79,6 @@
 - Display selection and dimensions: `src/library/display.cpp`
 - Scheduler/periodic jobs: `src/library/scheduler.cpp`
 - Sensor collection/rendering: `src/library/stats.cpp`
-- User config schema: `config.yaml`
+- User config schema: `config.json` (documented in `README.config`)
 - Low-level API example: `src/simple-program.cpp`
 - Build: `Makefile`

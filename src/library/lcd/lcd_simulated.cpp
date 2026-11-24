@@ -42,7 +42,6 @@
 
 namespace {
 
-constexpr const char *TMP_FILE = "tmp";
 
 void send_all(int fd, const std::string &data)
 {
@@ -160,13 +159,16 @@ void SimulatedLcdWebServer::handle_client(int client_fd)
 // LcdSimulated
 
 LcdSimulated::LcdSimulated(const std::string &com_port, int display_width, int display_height,
-                           UpdateQueue *update_queue)
-    : LcdComm(com_port, display_width, display_height, update_queue)
+                           UpdateQueue *update_queue, const std::string &screenshot_file, bool webserver)
+    : LcdComm(com_port, display_width, display_height, update_queue), screenshot_file_name(screenshot_file)
 {
     screen_image = Image(get_width(), get_height(), {255, 255, 255});
     save_screenshot();
     orientation = Orientation::PORTRAIT;
 
+    if (!webserver) {
+        return;
+    }
     try {
         webServer = std::make_unique<SimulatedLcdWebServer>("localhost", WEBSERVER_PORT);
         logger.debug("To see your simulated screen, open http://{}:{} in a browser", "localhost", WEBSERVER_PORT);
@@ -276,8 +278,10 @@ void LcdSimulated::DisplayPILImage(const Image &input, int x, int y, int image_w
 
 void LcdSimulated::save_screenshot()
 {
-    screen_image.save(TMP_FILE);
-    if (std::rename(TMP_FILE, SCREENSHOT_FILE) != 0) {
-        logger.error("Cannot write {}: {}", SCREENSHOT_FILE, std::strerror(errno));
+    // Written to a temporary file first, so that the screenshot is never read while it is being written
+    const std::string tmp_file = screenshot_file_name + ".tmp";
+    screen_image.save(tmp_file);
+    if (std::rename(tmp_file.c_str(), screenshot_file_name.c_str()) != 0) {
+        logger.error("Cannot write {}: {}", screenshot_file_name, std::strerror(errno));
     }
 }

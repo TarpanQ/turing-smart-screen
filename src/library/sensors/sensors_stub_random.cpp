@@ -52,6 +52,7 @@ int64_t randint(int64_t a, int64_t b)
 double Cpu::percentage(std::optional<double>) { return uniform(0, 100); }
 
 double Cpu::frequency() { return uniform(800, 3400); }
+std::string Cpu::model() { return "Random CPU model"; }
 
 std::array<double, 3> Cpu::load() { return {uniform(0, 100), uniform(0, 100), uniform(0, 100)}; }
 
@@ -69,10 +70,12 @@ int Gpu::fps() { return static_cast<int>(randint(20, 120)); }
 double Gpu::fan_percent() { return uniform(0, 100); }
 
 double Gpu::frequency() { return uniform(800, 3400); }
+std::string Gpu::model() { return "Random GPU model"; }
 
 bool Gpu::is_available() { return true; }
 
 double Memory::swap_percent() { return uniform(0, 100); }
+std::string Memory::model() { return "Random RAM module"; }
 
 double Memory::virtual_percent() { return uniform(0, 100); }
 

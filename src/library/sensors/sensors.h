@@ -48,6 +48,9 @@ public:
     /** @brief Current CPU frequency, in MHz. */
     virtual double frequency() = 0;
 
+    /** @brief CPU model name (for example "13th Gen Intel(R) Core(TM) i9-13980HX"), empty if unknown. */
+    virtual std::string model() = 0;
+
     // 1 / 5 / 15min load average
     /** @brief System load averages over 1, 5 and 15 minutes. */
     virtual std::array<double, 3> load() = 0;
@@ -85,6 +88,9 @@ public:
     /** @brief Statistics of the GPU. */
     virtual Stats stats() = 0;
 
+    /** @brief GPU model name (for example "NVIDIA GeForce RTX 4080 Laptop GPU"), empty if unknown. */
+    virtual std::string model() = 0;
+
     // Frames per second, -1 if not supported
     /** @brief Frames per second of the GPU. */
     virtual int fps() = 0;
@@ -107,6 +113,11 @@ class Memory
 public:
     virtual ~Memory() = default;
 
+    /**
+     * @brief Model of the RAM modules (manufacturer and part number of the first populated module), empty if unknown.
+     * Read from the SMBIOS tables, which only root can read: empty for other users.
+     */
+    virtual std::string model() = 0;
     /** @brief Swap usage, in percent. */
     virtual double swap_percent() = 0;
     /** @brief RAM usage, in percent. */
@@ -155,7 +166,7 @@ public:
     virtual Stats stats(const std::string &if_name, std::optional<double> interval) = 0;
 };
 
-/** @brief A set of sensors (selected by HW_SENSORS in config.yaml) */
+/** @brief A set of sensors (selected by HW_SENSORS in config.json) */
 struct Sensors
 {
     /** @brief CPU sensors. */

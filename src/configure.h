@@ -20,17 +20,21 @@
 
 /**
  * @file configure.h
- * @brief The system monitor configuration GUI (GTK 4 with gtkmm). Values are written to config.yaml keeping its comments and formatting.
+ * @brief The system monitor configuration GUI (GTK 4 with gtkmm). Values are written to config.json, see README.config for their meaning.
  */
 
 #pragma once
 
 #include <map>
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include <gtkmm.h>
 #include <yaml-cpp/yaml.h>
+
+#include "library/config.h"
 
 /** @brief Drop-down list of strings (replaces ttk.Combobox in read-only mode) */
 class StringDropDown : public Gtk::DropDown
@@ -62,6 +66,20 @@ private:
     Glib::RefPtr<Gtk::StringList> list;
 };
 
+/** @brief Controls of one display tab, holding the settings of one display of the displays array. */
+struct DisplayTab
+{
+    DisplayTab();
+
+    /** @brief Page of the tab, containing the controls. */
+    Gtk::Fixed *page = nullptr;
+    StringDropDown model_cb, size_cb, com_cb, orient_cb, theme_cb;
+    Gtk::Scale brightness_slider;
+    Gtk::Label brightness_val_label, brightness_warning_label;
+    /** @brief Index of the last COM port chosen (not automatic detection), kept when a choice is refused */
+    int last_com_index = 0;
+};
+
 class TuringConfigWindow;
 
 /** @brief Sub-window for weather & ping configuration */
@@ -72,7 +90,7 @@ public:
     explicit MoreConfigWindow(TuringConfigWindow &main_window);
 
     /** @brief Fill the fields with the values of the configuration. */
-    void load_config_values(const YAML::Node &config);
+    void load_config_values(const config::Json &cfg);
     /** @brief Show the window. */
     void show_window();
 
@@ -107,35 +125,66 @@ class TuringConfigWindow : public Gtk::ApplicationWindow
 public:
     TuringConfigWindow();
 
-    /** @brief Save the additional settings (ping, weather) in config.yaml. */
+    /** @brief Save the additional settings (ping, weather) in config.json. */
     void save_additional_config(const std::string &ping, const std::string &api_key, const std::string &lat,
                                 const std::string &lon, const std::string &unit, const std::string &lang);
 
 private:
     void load_theme_preview();
+    /** @brief The display tab currently selected. */
+    DisplayTab &current_tab();
+    /** @brief Add a tab with the settings of a display, after the existing tabs. */
+    DisplayTab &add_display_tab(const config::DisplayConfig &display);
+    /** @brief Set the controls of a tab to the settings of a display. */
+    void apply_display(DisplayTab &tab, const config::DisplayConfig &display);
+    /** @brief With several displays, a tab cannot use the automatic COM port detection. */
+    void enforce_com_rule(DisplayTab &tab);
+    /** @brief COM port choice of a tab: automatic detection is refused when there are several displays. */
+    void on_com_change(DisplayTab &tab);
+    /** @brief Once all the displays are loaded, keep the COM ports that exist and choose a free port for the others. */
+    /** @brief Returns false if a display could not get a COM port. */
+    bool validate_com_ports(const std::vector<config::DisplayConfig> &displays);
+    /** @brief Show an error and close the window: the configuration cannot be opened. */
+    void refuse_configuration();
+    /** @brief First COM port (not automatic detection) not used by another tab, nullopt if none. */
+    std::optional<std::string> default_new_port();
+    /** @brief Name the tabs after their index (":0", ":1", ...). */
+    void refresh_tab_labels();
+    /** @brief Index of the tab under the position (in the notebook coordinates), -1 if none. */
+    int tab_index_at(double x, double y);
+    void on_tab_right_click(double x, double y);
+    void on_add_display();
+    void on_close_display();
     void load_config_values();
     /** @brief Returns false (with an error message) if the values cannot be saved */
     bool save_config_values();
 
-    void on_theme_change();
+    void on_theme_change(DisplayTab &tab);
     void on_open_theme_folder_click();
     void on_theme_editor_click();
     void on_save_click();
     void on_saverun_click();
-    void on_brightness_change();
-    void on_model_change();
-    void on_size_change();
+    void on_brightness_change(DisplayTab &tab);
+    void on_model_change(DisplayTab &tab);
+    void on_size_change(DisplayTab &tab);
     void on_hwlib_change();
-    void show_hide_brightness_warning();
+    void show_hide_brightness_warning(DisplayTab &tab);
     bool on_fan_speed_update();
     void show_error(const std::string &message);
 
     Gtk::Fixed layout;
     Gtk::Picture theme_preview;
     Gtk::Label theme_author;
-    StringDropDown model_cb, size_cb, com_cb, orient_cb, theme_cb, hwlib_cb, eth_cb, wl_cb, cpu_fan_cb;
-    Gtk::Scale brightness_slider;
-    Gtk::Label brightness_val_label, brightness_warning_label, cpu_fan_label;
+    Gtk::Notebook notebook;
+    std::vector<std::unique_ptr<DisplayTab>> tabs;
+    Gtk::PopoverMenu *tab_menu = nullptr;
+    Glib::RefPtr<Gio::SimpleAction> add_display_action, close_display_action;
+    /** @brief Index of the tab that was right-clicked, -1 if none */
+    int context_tab = -1;
+    /** @brief True if the configuration cannot be opened (not enough COM ports for the displays) */
+    bool configuration_refused = false;
+    StringDropDown hwlib_cb, eth_cb, wl_cb, cpu_fan_cb;
+    Gtk::Label cpu_fan_label;
     Gtk::Button weather_ping_btn, open_theme_folder_btn, edit_theme_btn, save_btn, save_run_btn;
 
     MoreConfigWindow more_config_window;

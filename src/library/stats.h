@@ -40,11 +40,31 @@ namespace stats {
 /** @brief Default number of values kept for the line graphs. */
 constexpr int DEFAULT_HISTORY_SIZE = 10;
 
-/** @brief Select the sensors from HW_SENSORS in config.yaml. Exits the program if the value is not supported. */
+/** @brief Select the sensors from HW_SENSORS in config.json. Exits the program if the value is not supported. */
 void init();
 
 /** @brief Full path of a file of the theme, std::nullopt if no name */
 std::optional<std::string> get_theme_file_path(const std::string &name);
+
+/**
+ * @brief INTERVAL (seconds) of a stats item in a theme: its own INTERVAL if it sets one (older themes), otherwise the
+ * INTERVAL of its category (STATS/<category>/INTERVAL).
+ * @param path Path of the item in the theme, starting with "STATS" (for example {"STATS", "CPU", "PERCENTAGE"})
+ */
+double item_interval(const YAML::Node &theme, const std::vector<std::string> &path);
+
+/**
+ * @brief Shortest positive INTERVAL (seconds) of a stats item over the themes of all displays, 0 if none defines it.
+ * @param path Path of the item in the theme, starting with "STATS" (for example {"STATS", "CPU", "PERCENTAGE"})
+ */
+double shared_interval(const std::vector<std::string> &path);
+
+/**
+ * @brief Largest HISTORY_SIZE of a line graph over the themes of all displays: the history is shared by the displays,
+ * and each display shows the last values of its own HISTORY_SIZE.
+ * @param path Path of the line graph in the theme, starting with "STATS"
+ */
+int shared_history_size(const std::vector<std::string> &path);
 
 void display_themed_value(const YAML::Node &theme_data, const std::optional<std::string> &value, int min_size = 0,
                           const std::string &unit = "");
@@ -84,6 +104,8 @@ public:
     static void temperature();
     /** @brief Display the CPU fan speed. */
     static void fan_speed();
+    /** @brief Display the CPU model name. */
+    static void model();
 };
 
 /** @brief GPU statistics displayed by the theme. */
@@ -92,6 +114,8 @@ class Gpu
 public:
     /** @brief Display the GPU statistics. */
     static void stats();
+    /** @brief Display the GPU model name. */
+    static void model();
     /** @brief True if the GPU statistics are available. */
     static bool is_available();
 };
@@ -102,6 +126,8 @@ class Memory
 public:
     /** @brief Display the memory statistics. */
     static void stats();
+    /** @brief Display the RAM module model. */
+    static void model();
 };
 
 /** @brief Disk statistics displayed by the theme. */

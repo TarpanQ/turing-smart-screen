@@ -28,8 +28,11 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
+#include <format>
 #include <fstream>
+#include <iterator>
 #include <optional>
 #include <set>
 #include <sstream>
@@ -83,6 +86,20 @@ std::string lower(std::string s)
 {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
     return s;
+}
+
+// Names read from the system: runs of spaces collapsed to one, no leading or trailing space
+std::string normalize_spaces(const std::string &text)
+{
+    std::istringstream words(text);
+    std::string word, result;
+    while (words >> word) {
+        if (!result.empty()) {
+            result += ' ';
+        }
+        result += word;
+    }
+    return result;
 }
 
 // Rounding to 1 decimal like psutil percentages
@@ -179,6 +196,7 @@ struct nvmlMemory_t
 constexpr nvmlReturn_t NVML_SUCCESS = 0;
 constexpr int NVML_TEMPERATURE_GPU = 0;
 constexpr int NVML_CLOCK_GRAPHICS = 0;
+constexpr unsigned int NVML_DEVICE_NAME_BUFFER_SIZE = 64;
 
 class Nvml
 {
@@ -214,6 +232,8 @@ public:
     nvmlReturn_t (*DeviceGetTemperature)(nvmlDevice_t, int, unsigned int *) = nullptr;
     nvmlReturn_t (*DeviceGetClockInfo)(nvmlDevice_t, int, unsigned int *) = nullptr;
     nvmlReturn_t (*DeviceGetFanSpeed)(nvmlDevice_t, unsigned int *) = nullptr;
+    // Optional: only used for the GPU model, so it is not required to use the other functions
+    nvmlReturn_t (*DeviceGetName)(nvmlDevice_t, char *, unsigned int) = nullptr;
 
 private:
     Nvml()
@@ -233,6 +253,7 @@ private:
             reinterpret_cast<decltype(DeviceGetTemperature)>(dlsym(handle, "nvmlDeviceGetTemperature"));
         DeviceGetClockInfo = reinterpret_cast<decltype(DeviceGetClockInfo)>(dlsym(handle, "nvmlDeviceGetClockInfo"));
         DeviceGetFanSpeed = reinterpret_cast<decltype(DeviceGetFanSpeed)>(dlsym(handle, "nvmlDeviceGetFanSpeed"));
+        DeviceGetName = reinterpret_cast<decltype(DeviceGetName)>(dlsym(handle, "nvmlDeviceGetName"));
         initialized = init && DeviceGetCount && DeviceGetHandleByIndex && DeviceGetUtilizationRates &&
                       DeviceGetMemoryInfo && DeviceGetTemperature && DeviceGetClockInfo && DeviceGetFanSpeed &&
                       init() == NVML_SUCCESS;
@@ -429,6 +450,81 @@ bool is_cpu_fan(const std::string &label)
     return l.find("cpu") != std::string::npos || l.find("proc") != std::string::npos;
 }
 
+std::optional<std::string> memory_device_model(const std::vector<uint8_t> &raw)
+{
+    // Formatted part of a Memory Device structure (type 17): the size is a 16-bit value at 0x0C (0 if the slot is
+    // empty), the manufacturer and the part number are string indexes at 0x17 and 0x1A
+    constexpr uint8_t MEMORY_DEVICE_TYPE = 17;
+    constexpr size_t SIZE_OFFSET = 0x0C, MANUFACTURER_OFFSET = 0x17, PART_NUMBER_OFFSET = 0x1A;
+    if (raw.size() < 2 || raw[0] != MEMORY_DEVICE_TYPE) {
+        return std::nullopt;
+    }
+    const size_t formatted_length = raw[1];
+    if (formatted_length <= PART_NUMBER_OFFSET || raw.size() < formatted_length) {
+        return std::nullopt;
+    }
+    if ((raw[SIZE_OFFSET] | (raw[SIZE_OFFSET + 1] << 8)) == 0) {
+        return std::nullopt;
+    }
+
+    // The strings follow the formatted part, each one ends with a NUL byte, and the list ends with an empty string
+    std::vector<std::string> strings;
+    std::string current;
+    for (size_t i = formatted_length; i < raw.size(); i++) {
+        if (raw[i] != 0) {
+            current += static_cast<char>(raw[i]);
+        } else if (current.empty()) {
+            break;
+        } else {
+            strings.push_back(current);
+            current.clear();
+        }
+    }
+    // String indexes start at 1, 0 means no string
+    const auto string_at = [&strings](uint8_t index) -> std::string {
+        return index >= 1 && index <= strings.size() ? strings[index - 1] : std::string();
+    };
+
+    std::string model;
+    for (const std::string &part: {string_at(raw[MANUFACTURER_OFFSET]), string_at(raw[PART_NUMBER_OFFSET])}) {
+        const std::string name = normalize_spaces(part);
+        if (name.empty() || name == "Not Specified" || name == "Unknown") {
+            continue;
+        }
+        if (!model.empty()) {
+            model += ' ';
+        }
+        model += name;
+    }
+    if (model.empty()) {
+        return std::nullopt;
+    }
+    return model;
+}
+
+std::string pci_device_name(std::istream &pci_ids, uint16_t vendor, uint16_t device)
+{
+    // pci.ids format: "vvvv  Vendor name" lines, each followed by its "\tdddd  Device name" lines
+    const std::string vendor_id = std::format("{:04x}", vendor);
+    const std::string device_id = std::format("{:04x}", device);
+    bool in_vendor = false;
+    std::string line;
+    while (std::getline(pci_ids, line)) {
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+        if (line[0] != '\t') {
+            in_vendor = line.rfind(vendor_id, 0) == 0;
+            continue;
+        }
+        // Subsystem lines start with two tabs, and never match the device id
+        if (in_vendor && line.size() > 6 && line.compare(1, device_id.size(), device_id) == 0) {
+            return normalize_spaces(line.substr(6));
+        }
+    }
+    return {};
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Cpu
 
@@ -498,6 +594,19 @@ double Cpu::frequency()
         }
     }
     return count > 0 ? sum / count : NaN;
+}
+
+std::string Cpu::model()
+{
+    std::ifstream cpuinfo("/proc/cpuinfo");
+    std::string line;
+    while (std::getline(cpuinfo, line)) {
+        if (line.rfind("model name", 0) == 0) {
+            const auto colon = line.find(':');
+            return colon == std::string::npos ? std::string() : normalize_spaces(line.substr(colon + 1));
+        }
+    }
+    return {};
 }
 
 std::array<double, 3> Cpu::load()
@@ -578,6 +687,15 @@ double Gpu::frequency()
     }
 }
 
+std::string Gpu::model()
+{
+    switch (detected_gpu) {
+        case GpuType::AMD: return amd.model();
+        case GpuType::NVIDIA: return nvidia.model();
+        default: return {};
+    }
+}
+
 bool Gpu::is_available()
 {
     // Always use Nvidia GPU if available
@@ -651,6 +769,20 @@ double GpuNvidia::fan_percent()
     });
 }
 
+std::string GpuNvidia::model()
+{
+    Nvml &nvml = Nvml::instance();
+    const auto devices = nvml.devices();
+    if (devices.empty() || !nvml.DeviceGetName) {
+        return {};
+    }
+    char name[NVML_DEVICE_NAME_BUFFER_SIZE] = {};
+    if (nvml.DeviceGetName(devices.front(), name, NVML_DEVICE_NAME_BUFFER_SIZE) != NVML_SUCCESS) {
+        return {};
+    }
+    return normalize_spaces(name);
+}
+
 double GpuNvidia::frequency()
 {
     Nvml &nvml = Nvml::instance();
@@ -711,6 +843,26 @@ double GpuAmd::fan_percent()
     return NaN;
 }
 
+std::string GpuAmd::model()
+{
+    const auto device = amd_gpu_device();
+    if (!device) {
+        return {};
+    }
+    // The PCI device id of the card, for example "0x744c"
+    const auto device_id = read_first_line(*device / "device");
+    if (!device_id) {
+        return {};
+    }
+    std::ifstream pci_ids("/usr/share/hwdata/pci.ids");
+    if (!pci_ids) {
+        pci_ids.open("/usr/share/misc/pci.ids");
+    }
+    constexpr uint16_t AMD_VENDOR_ID = 0x1002;
+    const auto device_code = static_cast<uint16_t>(std::strtoul(device_id->c_str(), nullptr, 16));
+    return pci_device_name(pci_ids, AMD_VENDOR_ID, device_code);
+}
+
 double GpuAmd::frequency()
 {
     const auto device = amd_gpu_device();
@@ -746,6 +898,27 @@ bool GpuAmd::is_available()
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Memory
+
+std::string Memory::model()
+{
+    // One entry per SMBIOS structure: the Memory Device structures (type 17) are named "17-<n>". Root only.
+    std::vector<fs::path> entries;
+    std::error_code ec;
+    for (const auto &entry: fs::directory_iterator("/sys/firmware/dmi/entries", ec)) {
+        if (entry.path().filename().string().rfind("17-", 0) == 0) {
+            entries.push_back(entry.path());
+        }
+    }
+    std::sort(entries.begin(), entries.end());
+    for (const auto &entry: entries) {
+        std::ifstream file(entry / "raw", std::ios::binary);
+        const std::vector<uint8_t> raw((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        if (const auto model = memory_device_model(raw)) {
+            return *model;
+        }
+    }
+    return {};
+}
 
 double Memory::swap_percent()
 {
@@ -845,7 +1018,7 @@ sensors::Net::Stats Net::stats(const std::string &if_name, std::optional<double>
     }
 
     if (!pnic_after) {
-        logger.warning("Network interface '{}' not found. Check names in config.yaml.", if_name);
+        logger.warning("Network interface '{}' not found. Check names in config.json.", if_name);
         return result;
     }
 

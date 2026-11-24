@@ -2,8 +2,8 @@
 # This is not a theme! Do not use this file to create a new theme, as a lot of content is missing: use theme_example.yaml
 STATS:
   CPU:
+    INTERVAL: 0
     PERCENTAGE:
-      INTERVAL: 0
       TEXT:
         SHOW: False
       GRAPH:
@@ -13,7 +13,6 @@ STATS:
       LINE_GRAPH:
         SHOW: False
     FREQUENCY:
-      INTERVAL: 0
       TEXT:
         SHOW: False
       GRAPH:
@@ -23,7 +22,6 @@ STATS:
       LINE_GRAPH:
         SHOW: False
     LOAD:
-      INTERVAL: 0
       ONE:
         TEXT:
           SHOW: False
@@ -34,7 +32,6 @@ STATS:
         TEXT:
           SHOW: False
     TEMPERATURE:
-      INTERVAL: 0
       TEXT:
         SHOW: False
       GRAPH:
@@ -44,7 +41,6 @@ STATS:
       LINE_GRAPH:
         SHOW: False
     FAN_SPEED:
-      INTERVAL: 0
       TEXT:
         SHOW: False
       GRAPH:
@@ -52,6 +48,9 @@ STATS:
       RADIAL:
         SHOW: False
       LINE_GRAPH:
+        SHOW: False
+    MODEL:
+      TEXT:
         SHOW: False
   GPU:
     INTERVAL: 0
@@ -122,6 +121,9 @@ STATS:
         SHOW: False
       LINE_GRAPH:
         SHOW: False
+    MODEL:
+      TEXT:
+        SHOW: False
   MEMORY:
     INTERVAL: 0
     SWAP:
@@ -145,6 +147,9 @@ STATS:
       TOTAL:
         SHOW: False
       PERCENT_TEXT:
+        SHOW: False
+    MODEL:
+      TEXT:
         SHOW: False
   DISK:
     INTERVAL: 0

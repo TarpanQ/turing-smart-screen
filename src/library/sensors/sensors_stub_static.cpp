@@ -29,6 +29,7 @@ namespace sensors_stub_static {
 double Cpu::percentage(std::optional<double>) { return PERCENTAGE_SENSOR_VALUE; }
 
 double Cpu::frequency() { return CPU_FREQ_MHZ; }
+std::string Cpu::model() { return "Stub CPU model"; }
 
 std::array<double, 3> Cpu::load()
 {
@@ -53,10 +54,12 @@ int Gpu::fps() { return GPU_FPS; }
 double Gpu::fan_percent() { return PERCENTAGE_SENSOR_VALUE; }
 
 double Gpu::frequency() { return GPU_FREQ_MHZ; }
+std::string Gpu::model() { return "Stub GPU model"; }
 
 bool Gpu::is_available() { return true; }
 
 double Memory::swap_percent() { return PERCENTAGE_SENSOR_VALUE; }
+std::string Memory::model() { return "Stub RAM module"; }
 
 double Memory::virtual_percent() { return PERCENTAGE_SENSOR_VALUE; }
 

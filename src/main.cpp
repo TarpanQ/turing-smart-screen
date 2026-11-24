@@ -47,6 +47,7 @@
 
 #include "library/config.h"
 #include "library/display.h"
+#include "library/instance.h"
 #include "library/log.h"
 #include "library/scheduler.h"
 #include "library/stats.h"
@@ -89,7 +90,9 @@ void wait_for_empty_queue(int timeout = 5)
 [[noreturn]] void clean_stop()
 {
     // Turn screen and LEDs off before stopping
-    display().turn_off();
+    for (auto &display: displays()) {
+        display->turn_off();
+    }
 
     // Do not stop the program now in case data transmission was in progress
     // Instead, ask the scheduler to empty the action queue before stopping
@@ -193,6 +196,16 @@ int main(int argc, char *argv[])
     // Parse command-line arguments
     const std::optional<int> theme_screenshots = parse_arguments(argc, argv);
 
+    // Only one instance drives the screens: a second one (for example started at login) exits at once
+    const int instance_lock = instance::acquire_lock();
+    if (instance_lock == -1) {
+        std::cout << "The system monitor is already running" << std::endl;
+        return 0;
+    }
+    if (instance_lock == -2) {
+        std::cerr << "Warning: cannot create the lock file, several instances could run at the same time" << std::endl;
+    }
+
     // The stopping signals are handled by the main thread (sigwait below), to send a complete frame to the LCD before
     // exit: they are blocked in all threads, including the threads created later that inherit this mask
     sigset_t stop_signals;
@@ -219,23 +232,31 @@ int main(int argc, char *argv[])
     }
 
     try {
-        // Load config.yaml and the theme
+        // Load config.json and the theme
         config::init();
 
         // Initialize the display
         logger.info("Initialize display");
-        display().initialize_display();
+        for (auto &display: displays()) {
+            display->initialize_display();
+        }
 
-        // Start serial queue handler
+        // Start the serial queue handler of each display
         if (!theme_screenshots) {
-            scheduler::QueueHandler();
+            for (auto &display: displays()) {
+                scheduler::QueueHandler(display->update_queue);
+            }
         }
 
         // Create all static images
-        display().display_static_images();
+        for (auto &display: displays()) {
+            display->display_static_images();
+        }
 
         // Create all static texts
-        display().display_static_text();
+        for (auto &display: displays()) {
+            display->display_static_text();
+        }
 
         // Wait for static images/text to be displayed before starting monitoring (to avoid filling the queue while
         // waiting)
@@ -253,10 +274,13 @@ int main(int argc, char *argv[])
             scheduler::CPULoad(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             scheduler::CPUTemperature(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             scheduler::CPUFanSpeed(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
+            scheduler::CPUModel(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             if (stats::Gpu::is_available()) {
                 scheduler::GpuStats(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
+                scheduler::GpuModel(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             }
             scheduler::MemoryStats(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
+            scheduler::MemoryModel(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             scheduler::DiskStats(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             scheduler::NetStats(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
             scheduler::DateStats(); std::this_thread::sleep_for(DELAY_BETWEEN_THREADS);
