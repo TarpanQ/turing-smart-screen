@@ -294,20 +294,9 @@ int main(int argc, char *argv[])
             // Run a predefined number of time to generate theme screenshot then close
             for (int i = 0; i < *theme_screenshots; i++) {
                 logger.debug("Iteration #{}", i);
-                stats::CPU::percentage();
-                stats::CPU::frequency();
-                stats::CPU::load();
-                stats::CPU::temperature();
-                stats::CPU::fan_speed();
-                stats::Gpu::stats();
-                stats::Memory::stats();
-                stats::Disk::stats();
-                stats::Net::stats();
-                stats::Date::stats();
-                stats::SystemUptime::stats();
-                stats::Custom::stats();
-                stats::Weather::stats();
-                stats::Ping::stats();
+                for (auto &display: displays()) {
+                    stats::draw_all_once(*display);
+                }
             }
             logger.debug("Finished theme generation, program will close.");
             clean_stop();

@@ -39,8 +39,8 @@ class Display
 {
 public:
     /**
-     * @brief Create the LCD driver selected by the revision, and load the theme. Exits the program if the revision is
-     * unknown. index is the position of the display in config.json: the first one shows the simulated screen on the web
+     * @brief Create the LCD driver selected by the revision, and load the theme. Throws std::runtime_error if the revision
+     * is unknown or the driver cannot be opened. index is the position of the display in config.json: the first one shows the simulated screen on the web
      * server, the others save their screenshot in screencap-<index>.png.
      */
     Display(const config::DisplayConfig &display_settings, size_t index);

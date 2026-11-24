@@ -249,6 +249,18 @@ public:
     /** @brief Height of the screen, in pixels, for the current orientation. */
     int get_height() const;
 
+    /** @brief Area of a text, in pixels: left, top, right and bottom (excluded), as computed when it is drawn. */
+    struct TextArea
+    {
+        int left, top, right, bottom;
+    };
+    /** @brief Start (true) or stop recording the area of each text drawn with DisplayText(), for the theme editor. */
+    void set_record_text_areas(bool enabled);
+    /** @brief Forget the text areas recorded so far. */
+    void clear_text_areas();
+    /** @brief Area of the last text recorded at origin (x, y), std::nullopt if none. */
+    std::optional<TextArea> text_area(int x, int y);
+
     /** @brief Open the serial port. */
     void openSerial();
     /** @brief Close the serial port. */
@@ -366,4 +378,9 @@ private:
      * narrower/shorter than what replaces it, regardless of font metrics ("ghosting" prevention).
      */
     std::map<std::pair<int, int>, std::tuple<int, int, int, int>> text_bbox_cache;
+
+    /** @brief True while the text areas are recorded (theme editor only) */
+    bool record_text_areas = false;
+    /** @brief Text areas recorded by DisplayText(), by (x, y) origin */
+    std::map<std::pair<int, int>, TextArea> text_areas;
 };

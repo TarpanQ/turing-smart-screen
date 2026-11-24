@@ -88,8 +88,16 @@ public:
 
 // Draw a stat on every display: the function is called once per display, with that display active.
 // Sensor values and histories must be read before, so that they are read once for all the displays.
+// Display drawn alone by draw_all_once(), in the thread calling it (nullptr: all the displays are drawn)
+thread_local Display *only_display = nullptr;
+
 void on_each_display(const std::function<void()> &draw)
 {
+    if (only_display != nullptr) {
+        const DrawingDisplay drawing(only_display);
+        draw();
+        return;
+    }
     for (auto &display: displays()) {
         const DrawingDisplay drawing(display.get());
         draw();
@@ -1210,6 +1218,34 @@ void Ping::stats()
         display_themed_value(theme_data["TEXT"], delay_text, 6, "ms");
         display_themed_line_graph(theme_data["LINE_GRAPH"], last_values_ping);
     });
+}
+
+void draw_all_once(Display &display)
+{
+    // Only this display is drawn, in this thread. The sensor values are read once for each call.
+    only_display = &display;
+    struct Reset
+    {
+        ~Reset() { only_display = nullptr; }
+    } reset;
+
+    CPU::percentage();
+    CPU::frequency();
+    CPU::load();
+    CPU::temperature();
+    CPU::fan_speed();
+    CPU::model();
+    Gpu::stats();
+    Gpu::model();
+    Memory::stats();
+    Memory::model();
+    Disk::stats();
+    Net::stats();
+    Date::stats();
+    SystemUptime::stats();
+    Custom::stats();
+    Weather::stats();
+    Ping::stats();
 }
 
 }  // namespace stats
