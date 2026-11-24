@@ -145,3 +145,12 @@ external/LibreHardwareMonitor/LibreHardwareMonitorLib.sys
 
 # User configuration, created from config.json.example
 /config.json
+
+# Editor backups
+config.json~
+
+# Local theme test folder and Landscape35 source files
+/res/themes/test/
+/res/themes/Landscape35/background-inkscape-project.svg
+/res/themes/Landscape35/background.xcf
+/res/themes/Landscape35/preview.png
