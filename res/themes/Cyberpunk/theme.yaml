@@ -13,14 +13,6 @@ static_images:
     WIDTH: 320
     HEIGHT: 480
 static_text:
-  RAM_MODEL:
-    TEXT: Your RAM model here
-    X: 50
-    Y: 303
-    FONT: generale-mono/GeneraleMonoA.ttf
-    FONT_SIZE: 15
-    FONT_COLOR: 255, 239, 8
-    BACKGROUND_IMAGE: background.png
   DISK_USED:
     TEXT: DISK USED
     X: 43
@@ -43,10 +35,10 @@ STATS:
       INTERVAL: 60
       TEXT:
         SHOW: True
-        X: 48
-        Y: 129
+        X: 43
+        Y: 126
         FONT: generale-mono/GeneraleMonoA.ttf
-        FONT_SIZE: 10
+        FONT_SIZE: 12
         FONT_COLOR: 255, 239, 8
         BACKGROUND_IMAGE: background.png
     PERCENTAGE:
@@ -100,10 +92,10 @@ STATS:
         INTERVAL: 60
         SHOW: True
         SHOW_UNIT: True
-        X: 48
-        Y: 215
+        X: 43
+        Y: 212
         FONT: generale-mono/GeneraleMonoA.ttf
-        FONT_SIZE: 10
+        FONT_SIZE: 12
         FONT_COLOR: 255, 239, 8                
         BACKGROUND_IMAGE: background.png
     PERCENTAGE:
@@ -188,6 +180,18 @@ STATS:
         FONT_SIZE: 40
         FONT_COLOR: 2, 216, 243
         BACKGROUND_IMAGE: background.png
+    MODEL:
+      TEXT:
+        SHOW: true
+        SHOW_UNIT: True
+        X: 43
+        Y: 300
+        FONT: generale-mono/GeneraleMonoA.ttf
+        FONT_SIZE: 12
+        FONT_COLOR: 255, 239, 8                
+        BACKGROUND_IMAGE: background.png
+        ALIGN: left
+        ANCHOR: lt
   DISK:
     INTERVAL: 10
     USED:
