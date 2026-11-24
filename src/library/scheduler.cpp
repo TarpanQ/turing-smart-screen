@@ -253,4 +253,18 @@ bool is_queue_empty()
                        [](const std::unique_ptr<Display> &display) { return display->update_queue.empty(); });
 }
 
+void drain_queue(UpdateQueue &queue)
+{
+    while (const auto request = queue.get(std::chrono::milliseconds(0))) {
+        if (!*request) {
+            continue;
+        }
+        try {
+            (*request)();
+        } catch (const std::exception &e) {
+            logger.error("Error sending data to the display: {}", e.what());
+        }
+    }
+}
+
 }  // namespace scheduler

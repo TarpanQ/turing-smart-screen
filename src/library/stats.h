@@ -35,7 +35,15 @@
 
 #include <yaml-cpp/yaml.h>
 
+class Display;
+
 namespace stats {
+
+/**
+ * @brief Draw every stat once on the given display only (the values of the theme elements that are shown), with the
+ * sensor values read for this call. Used for the theme screenshots and to show a theme once on a display.
+ */
+void draw_all_once(Display &display);
 
 /** @brief Default number of values kept for the line graphs. */
 constexpr int DEFAULT_HISTORY_SIZE = 10;

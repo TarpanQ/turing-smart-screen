@@ -73,4 +73,10 @@ void QueueHandler(UpdateQueue &queue);
 /** @brief True if no display queue has a pending request. */
 bool is_queue_empty();
 
+/**
+ * @brief Execute the requests waiting in the queue of a display, in this thread, and return when it is empty. Used when
+ * no queue handler thread runs for the display.
+ */
+void drain_queue(UpdateQueue &queue);
+
 }  // namespace scheduler

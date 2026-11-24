@@ -129,6 +129,28 @@ int LcdComm::get_height() const
     return display_width;
 }
 
+void LcdComm::set_record_text_areas(bool enabled)
+{
+    std::lock_guard lock(cache_mutex);
+    record_text_areas = enabled;
+}
+
+void LcdComm::clear_text_areas()
+{
+    std::lock_guard lock(cache_mutex);
+    text_areas.clear();
+}
+
+std::optional<LcdComm::TextArea> LcdComm::text_area(int x, int y)
+{
+    std::lock_guard lock(cache_mutex);
+    const auto it = text_areas.find({x, y});
+    if (it == text_areas.end()) {
+        return std::nullopt;
+    }
+    return it->second;
+}
+
 void LcdComm::openSerial()
 {
     if (serial_factory) {
@@ -332,6 +354,9 @@ void LcdComm::DisplayText(const TextOptions &options)
         const auto bbox_key = std::make_pair(x, y);
         const auto prev = text_bbox_cache.find(bbox_key);
         const auto new_bbox = std::make_tuple(left, top, right, bottom);
+        if (record_text_areas) {
+            text_areas[bbox_key] = TextArea{left, top, right, bottom};
+        }
         if (prev != text_bbox_cache.end()) {
             const auto [prev_left, prev_top, prev_right, prev_bottom] = prev->second;
             left = std::min(left, prev_left);

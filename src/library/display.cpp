@@ -26,6 +26,7 @@
 
 #include <cstdlib>
 #include <map>
+#include <stdexcept>
 #include <optional>
 #include <string>
 
@@ -109,8 +110,8 @@ Display::Display(const config::DisplayConfig &display_settings, size_t index) : 
         try {
             lcd = std::make_unique<LcdCommTuringUSB>();
         } catch (const std::runtime_error &e) {
-            logger.error("Cannot open Turing USB display: {}", e.what());
-            std::_Exit(1);
+            // The caller decides what to do: the system monitor stops, the theme editor shows the error
+            throw std::runtime_error(std::string("Cannot open Turing USB display: ") + e.what());
         }
     } else if (revision == "WEACT_A") {
         lcd = std::make_unique<LcdCommWeActA>(com_port, 320, 480, &update_queue);
@@ -121,8 +122,7 @@ Display::Display(const config::DisplayConfig &display_settings, size_t index) : 
         const std::string screenshot_file = index == 0 ? SCREENSHOT_FILE : "screencap-" + std::to_string(index) + ".png";
         lcd = std::make_unique<LcdSimulated>("AUTO", width, height, nullptr, screenshot_file, index == 0);
     } else {
-        logger.error("Unknown display revision '{}'", revision);
-        std::_Exit(1);
+        throw std::runtime_error("Unknown display revision '" + revision + "'");
     }
 }
 
