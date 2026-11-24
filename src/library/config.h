@@ -91,6 +91,12 @@ extern YAML::Node THEME_DATA;
 std::filesystem::path find_main_directory();
 
 /**
+ * @brief Create config.json in dir from config.json.example if config.json does not exist yet. config.json is the
+ * user configuration: it is not versioned, the example is the default configuration.
+ */
+void create_user_config(const std::filesystem::path &dir);
+
+/**
  * @brief Load a JSON configuration file.
  * Throws std::runtime_error if the file cannot be read or is not a JSON object, nlohmann::json::exception if it is not
  * valid JSON.

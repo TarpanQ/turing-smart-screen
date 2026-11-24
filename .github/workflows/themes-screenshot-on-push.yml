@@ -39,6 +39,9 @@ jobs:
 
     - name: Configure system monitor for screenshot
       run: |
+        # config.json is not versioned: start from the example
+        cp config.json.example config.json
+
         # Use random data
         jq '.config.HW_SENSORS = "STUB"' config.json > config.json.tmp && mv config.json.tmp config.json
 

@@ -191,7 +191,11 @@ std::optional<K> map_key(const std::vector<std::pair<K, std::string>> &map, cons
 
 fs::path main_directory()
 {
-    static const fs::path dir = config::find_main_directory();
+    static const fs::path dir = [] {
+        const fs::path found = config::find_main_directory();
+        config::create_user_config(found);
+        return found;
+    }();
     return dir;
 }
 

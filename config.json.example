@@ -1,8 +1,8 @@
 {
     "config": {
         "HW_SENSORS": "AUTO",
-        "ETH": "lo",
-        "WLO": "wlo1",
+        "ETH": "",
+        "WLO": "",
         "CPU_FAN": "AUTO",
         "PING": "8.8.8.8",
         "WEATHER_API_KEY": "",
@@ -13,19 +13,11 @@
     },
     "displays": [
         {
-            "COM_PORT": "/dev/ttyACM0",
-            "THEME": "CustomDataExample",
+            "COM_PORT": "AUTO",
+            "THEME": "3.5inchTheme2",
             "REVISION": "A",
-            "BRIGHTNESS": 41,
+            "BRIGHTNESS": 20,
             "DISPLAY_REVERSE": false,
-            "RESET_ON_STARTUP": true
-        },
-        {
-            "COM_PORT": "/dev/ttyACM1",
-            "THEME": "Cyberpunk",
-            "REVISION": "A",
-            "BRIGHTNESS": 50,
-            "DISPLAY_REVERSE": true,
             "RESET_ON_STARTUP": true
         }
     ]

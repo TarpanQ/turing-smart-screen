@@ -39,6 +39,9 @@ jobs:
 
     - name: Configure system monitor
       run: |
+        # config.json is not versioned: start from the example
+        cp config.json.example config.json
+
         # For tests there is no real HW: use simulated LCD mode
         jq '.displays[0].REVISION = "SIMU"' config.json > config.json.tmp && mv config.json.tmp config.json
 

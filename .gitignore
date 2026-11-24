@@ -142,3 +142,6 @@ tmp
 
 version.txt
 external/LibreHardwareMonitor/LibreHardwareMonitorLib.sys
+
+# User configuration, created from config.json.example
+/config.json

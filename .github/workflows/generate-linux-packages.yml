@@ -34,7 +34,8 @@ jobs:
       run: |
         mkdir -p ./dist/turing-system-monitor
         cp build/bin/main build/bin/configure build/bin/theme-editor ./dist/turing-system-monitor/
-        cp -r res config.json ./dist/turing-system-monitor/
+        cp -r res ./dist/turing-system-monitor/
+        cp config.json.example ./dist/turing-system-monitor/config.json
         echo "${{github.event.release.tag_name}}" > ./dist/turing-system-monitor/version.txt
         ln -s configure ./dist/turing-system-monitor/turing-smart-screen
 

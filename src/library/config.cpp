@@ -61,11 +61,28 @@ void write_json_file(const fs::path &path, const Json &data)
 
 bool is_main_directory(const fs::path &dir)
 {
+    // config.json may not exist yet: the example is enough to recognize the directory (see create_user_config)
     std::error_code ec;
-    return fs::is_regular_file(dir / "config.json", ec) && fs::is_directory(dir / "res" / "themes", ec);
+    return (fs::is_regular_file(dir / "config.json", ec) || fs::is_regular_file(dir / "config.json.example", ec)) &&
+           fs::is_directory(dir / "res" / "themes", ec);
 }
 
 }  // namespace
+
+void create_user_config(const fs::path &dir)
+{
+    std::error_code ec;
+    const fs::path user_config = dir / "config.json";
+    if (fs::exists(user_config, ec) || !fs::is_regular_file(dir / "config.json.example", ec)) {
+        return;
+    }
+    fs::copy_file(dir / "config.json.example", user_config, ec);
+    if (ec) {
+        logger.error("Cannot create {} from config.json.example: {}", user_config.string(), ec.message());
+    } else {
+        logger.info("Created {} from config.json.example", user_config.string());
+    }
+}
 
 fs::path find_main_directory()
 {
@@ -238,6 +255,7 @@ void init(bool with_theme)
 {
     MAIN_DIRECTORY = find_main_directory();
     FONTS_DIR = (MAIN_DIRECTORY / "res" / "fonts").string() + "/";
+    create_user_config(MAIN_DIRECTORY);
 
     try {
         CONFIG_DATA = load_json(MAIN_DIRECTORY / "config.json");
