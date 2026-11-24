@@ -16,8 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// TrueType font rendering with FreeType, replacing the subset of Pillow (PIL.ImageFont, ImageDraw.text/textbbox)
-// used by the Python code.
+/**
+ * @file font.cpp
+ * @brief TrueType font rendering with FreeType, providing the subset of Pillow (PIL.ImageFont, ImageDraw.text/textbbox) needed by the display drivers.
+ */
 
 #include "library/lcd/font.h"
 
@@ -33,7 +35,7 @@
 
 namespace {
 
-// FreeType library instance shared by all fonts. FreeType calls that create/destroy faces are serialized.
+/** @brief FreeType library instance shared by all fonts. FreeType calls that create/destroy faces are serialized. */
 std::mutex freetype_mutex;
 
 FT_Library freetype_library()

@@ -16,8 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Linux serial port (termios), replacing the subset of pyserial used by the Python code.
-// No Python counterpart: this file replaces a Python dependency.
+/**
+ * @file serial_port.h
+ * @brief Linux serial port (termios), providing the subset of pyserial needed by the program.
+ */
 
 #pragma once
 
@@ -28,57 +30,63 @@
 #include <string>
 #include <vector>
 
-// Error opening/reading/writing the serial port (like serial.SerialException)
+/** @brief Error opening/reading/writing the serial port (like serial.SerialException) */
 class SerialException : public std::runtime_error
 {
 public:
     using std::runtime_error::runtime_error;
 };
 
-// Timeout writing to the serial port (like serial.SerialTimeoutException)
+/** @brief Timeout writing to the serial port (like serial.SerialTimeoutException) */
 class SerialTimeoutException : public SerialException
 {
 public:
     using SerialException::SerialException;
 };
 
+/** @brief Serial port (termios) used to communicate with the screens. */
 class SerialPort
 {
 public:
-    // Open the port in raw 8N1 mode. Throws SerialException on error.
-    // timeout: read/write timeout in seconds; rtscts: hardware flow control
+    /**
+     * @brief Open the port in raw 8N1 mode. Throws SerialException on error.
+     * timeout: read/write timeout in seconds; rtscts: hardware flow control
+     */
     SerialPort(const std::string &port, int baudrate, double timeout, bool rtscts);
     virtual ~SerialPort();
 
     SerialPort(const SerialPort &) = delete;
     SerialPort &operator=(const SerialPort &) = delete;
 
+    /** @brief Close the serial port. */
     virtual void close();
 
+    /** @brief True if the serial port is open. */
     virtual bool is_open() const { return fd >= 0; }
 
+    /** @brief Name of the serial port, for example /dev/ttyACM0. */
     const std::string &port() const { return port_name; }
 
-    // Write all data. Throws SerialTimeoutException / SerialException
+    /** @brief Write all data. Throws SerialTimeoutException / SerialException */
     virtual void write(const std::vector<uint8_t> &data);
 
-    // Read up to size bytes, returns less if the timeout expires
+    /** @brief Read up to size bytes, returns less if the timeout expires */
     virtual std::vector<uint8_t> read(size_t size);
 
-    // Read until the timeout expires
+    /** @brief Read until the timeout expires */
     virtual std::vector<uint8_t> readall();
 
-    // Wait until all data is written
+    /** @brief Wait until all data is written */
     virtual void flush();
 
-    // Discard data received and not read yet
+    /** @brief Discard data received and not read yet */
     virtual void reset_input_buffer();
 
-    // Number of bytes received and not read yet
+    /** @brief Number of bytes received and not read yet */
     virtual size_t in_waiting();
 
 protected:
-    // For test doubles that do not open a real port
+    /** @brief For test doubles that do not open a real port */
     SerialPort() = default;
 
 private:
@@ -89,15 +97,15 @@ private:
     int fd = -1;
 };
 
-// Information about a serial port, like serial.tools.list_ports_common.ListPortInfo
+/** @brief Information about a serial port, like serial.tools.list_ports_common.ListPortInfo */
 struct ListPortInfo
 {
-    std::string device;         // e.g. "/dev/ttyACM0"
-    std::string name;           // e.g. "ttyACM0"
-    std::string serial_number;  // USB serial number, empty if unknown
-    std::optional<uint16_t> vid;  // USB vendor ID, if USB device
-    std::optional<uint16_t> pid;  // USB product ID, if USB device
+    std::string device;  ///< e.g. "/dev/ttyACM0"
+    std::string name;  ///< e.g. "ttyACM0"
+    std::string serial_number;  ///< USB serial number, empty if unknown
+    std::optional<uint16_t> vid;  ///< USB vendor ID, if USB device
+    std::optional<uint16_t> pid;  ///< USB product ID, if USB device
 };
 
-// List the serial ports of the system (like serial.tools.list_ports.comports())
+/** @brief List the serial ports of the system (like serial.tools.list_ports.comports()) */
 std::vector<ListPortInfo> comports();

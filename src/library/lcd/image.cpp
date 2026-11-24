@@ -16,8 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// RGB image and 2D drawing primitives, replacing the subset of Pillow (PIL.Image / PIL.ImageDraw) used by the
-// Python code.
+/**
+ * @file image.cpp
+ * @brief RGB image and 2D drawing primitives, providing the subset of Pillow (PIL.Image / PIL.ImageDraw) needed by the display drivers.
+ */
 
 #include "library/lcd/image.h"
 
@@ -58,7 +60,7 @@ void jpeg_error_exit(j_common_ptr cinfo)
     std::longjmp(err->jump, 1);
 }
 
-// Pillow bicubic filter
+/** @brief Pillow bicubic filter */
 double bicubic_filter(double x)
 {
     constexpr double a = -0.5;
@@ -78,7 +80,7 @@ struct ResampleCoeffs
     std::vector<double> weights;
 };
 
-// Same coefficients as Pillow's precompute_coeffs(), for a separable convolution
+/** @brief Same coefficients as Pillow's precompute_coeffs(), for a separable convolution */
 std::vector<ResampleCoeffs> precompute_coeffs(int in_size, int out_size)
 {
     constexpr double filter_support = 2.0;

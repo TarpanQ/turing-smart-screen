@@ -18,8 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/display.py: creates the LCD driver selected by REVISION in config.yaml, and displays the
-// static images and texts of the theme.
+/**
+ * @file display.h
+ * @brief Creates the LCD driver selected by REVISION in config.yaml, and displays the static images and texts of the theme.
+ */
 
 #pragma once
 
@@ -28,26 +30,33 @@
 
 #include "library/lcd/lcd_comm.h"
 
+/** @brief Display of the system monitor: creates the LCD driver selected by REVISION and draws the theme. */
 class Display
 {
 public:
-    // Exits the program if the display revision is unknown
+    /** @brief Exits the program if the display revision is unknown */
     Display();
 
+    /** @brief Initialize the display and clear it. */
     void initialize_display();
+    /** @brief Turn the display on. */
     void turn_on();
+    /** @brief Turn the display off. */
     void turn_off();
+    /** @brief Draw the static images of the theme. */
     void display_static_images();
+    /** @brief Draw the static texts of the theme. */
     void display_static_text();
 
+    /** @brief LCD driver used by the display. */
     std::unique_ptr<LcdComm> lcd;
 };
 
-// Theme orientation, from the theme DISPLAY_ORIENTATION and config.yaml DISPLAY_REVERSE
+/** @brief Theme orientation, from the theme DISPLAY_ORIENTATION and config.yaml DISPLAY_REVERSE */
 Orientation get_theme_orientation();
 
-// Display (width, height) in portrait orientation, from the theme DISPLAY_SIZE
+/** @brief Display (width, height) in portrait orientation, from the theme DISPLAY_SIZE */
 std::pair<int, int> get_theme_size();
 
-// The display, created on first use (config::init() must have been called before)
+/** @brief The display, created on first use (config::init() must have been called before) */
 Display &display();

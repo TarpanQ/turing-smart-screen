@@ -16,15 +16,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// ICMP echo ("ping"), replacing the ping3 Python library used by the Python code.
-// No Python counterpart: this file replaces a Python dependency.
-// Uses an unprivileged ICMP socket (allowed by default on Ubuntu, see sysctl net.ipv4.ping_group_range), or a raw
-// socket if the program has the permission.
+/**
+ * @file ping.h
+ * @brief ICMP echo ("ping"), Uses an unprivileged ICMP socket (allowed by default on Ubuntu, see sysctl net.ipv4.ping_group_range), or a raw socket if the program has the permission.
+ */
 
 #pragma once
 
 #include <optional>
 #include <string>
 
-// Round-trip delay in milliseconds to the IPv4 host (name or address), or std::nullopt on timeout or error
+/** @brief Round-trip delay in milliseconds to the IPv4 host (name or address), or std::nullopt on timeout or error */
 std::optional<double> ping(const std::string &dest_addr, double timeout_s = 4.0);

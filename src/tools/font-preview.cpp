@@ -18,7 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of res/fonts/font-preview.py: generate a preview picture <font>_preview.png for each font of res/fonts
+/**
+ * @file font-preview.cpp
+ * @brief Generate a preview picture `font`_preview.png for each font of res/fonts
+ */
 
 #include <algorithm>
 #include <cmath>
@@ -67,6 +70,7 @@ std::vector<fs::path> sorted_entries(const fs::path &dir)
 
 }  // namespace
 
+/** @brief Entry point of the font-preview tool. */
 int main()
 {
     const fs::path fonts_dir = config::find_main_directory() / "res" / "fonts";

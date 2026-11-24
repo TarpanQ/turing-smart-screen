@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Unit tests of library/sensors (C++ port of library/sensors/*.py)
+/**
+ * @file test_sensors.cpp
+ * @brief Unit tests of the sensors of src/library/sensors
+ */
 
 #include <cmath>
 
@@ -27,6 +30,7 @@
 #include "library/sensors/sensors_stub_random.h"
 #include "library/sensors/sensors_stub_static.h"
 
+/** @brief Stub sensors with static values return fixed values. */
 TEST(SensorsStubStatic, Values)
 {
     auto s = sensors_stub_static::create();
@@ -38,6 +42,7 @@ TEST(SensorsStubStatic, Values)
     EXPECT_EQ(s.net->stats("eth0", 1).uploaded, 1061000000);
 }
 
+/** @brief Stub sensors with random values return values in their range. */
 TEST(SensorsStubRandom, Ranges)
 {
     auto s = sensors_stub_random::create();
@@ -51,6 +56,7 @@ TEST(SensorsStubRandom, Ranges)
     }
 }
 
+/** @brief Linux sensors return consistent values. */
 TEST(SensorsPython, LinuxValues)
 {
     auto s = sensors_python::create();
@@ -80,6 +86,7 @@ TEST(SensorsPython, LinuxValues)
     EXPECT_EQ(s.net->stats("does-not-exist", 1.0).uploaded, 0);
 }
 
+/** @brief CPU fan detection from the fan label. */
 TEST(SensorsPython, CpuFanDetection)
 {
     EXPECT_TRUE(sensors_python::is_cpu_fan("CPU Fan"));
@@ -87,6 +94,7 @@ TEST(SensorsPython, CpuFanDetection)
     EXPECT_FALSE(sensors_python::is_cpu_fan("fan2"));
 }
 
+/** @brief Examples of custom data sources. */
 TEST(SensorsCustom, Examples)
 {
     auto &sources = sensors_custom::custom_data_sources();

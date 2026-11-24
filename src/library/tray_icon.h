@@ -16,11 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// System tray icon with a menu, replacing the pystray Python library used by main.py.
-// No Python counterpart: this file replaces a Python dependency.
-//
-// Uses the freedesktop StatusNotifierItem D-Bus protocol (with a com.canonical.dbusmenu menu), supported by KDE,
-// Xfce, Cinnamon, MATE, Budgie... and by GNOME with the AppIndicator extension (installed by default on Ubuntu).
+/**
+ * @file tray_icon.h
+ * @brief System tray icon with a menu.
+ *
+ * Uses the freedesktop StatusNotifierItem D-Bus protocol (with a com.canonical.dbusmenu menu), supported by KDE, Xfce, Cinnamon, MATE, Budgie... and by GNOME with the AppIndicator extension (installed by default on Ubuntu).
+ */
 
 #pragma once
 
@@ -29,29 +30,33 @@
 #include <thread>
 #include <vector>
 
+/** @brief System tray icon with a menu, as a StatusNotifierItem. */
 class TrayIcon
 {
 public:
+    /** @brief Item of the menu of the tray icon. */
     struct MenuItem
     {
+        /** @brief Label of the item, empty for a separator. */
         std::string label;  // empty label: separator
+        /** @brief Function called when the item is activated. */
         std::function<void()> action;
     };
 
-    // icon_paths: PNG files of the icon (several sizes can be given)
+    /** @brief icon_paths: PNG files of the icon (several sizes can be given) */
     TrayIcon(std::string name, std::string title, std::vector<std::string> icon_paths, std::vector<MenuItem> menu);
     ~TrayIcon();
 
     TrayIcon(const TrayIcon &) = delete;
     TrayIcon &operator=(const TrayIcon &) = delete;
 
-    // Display the tray icon from a background thread. Returns false if there is no D-Bus session bus.
+    /** @brief Display the tray icon from a background thread. Returns false if there is no D-Bus session bus. */
     bool run_detached();
 
-    // Remove the tray icon
+    /** @brief Remove the tray icon */
     void stop();
 
-    // Called from the D-Bus thread
+    /** @brief Called from the D-Bus thread */
     struct Private;
 
 private:

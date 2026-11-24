@@ -16,11 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of tests/library/lcd/test_lcd_comm_rev_c.py: data sent to the screen compared with the Python driver
-//
-// The rev. C golden files of the Python tests are outdated (recorded with an older protocol: the Python tests fail).
-// The expected data here is the output of the current Python driver (480x800 screen, ROM version 87, image counter
-// 0), stored as FNV-1a 64-bit hashes of the recorded calls to avoid adding big files to the repository.
+/**
+ * @file test_lcd_comm_rev_c.cpp
+ * @brief Data sent to the screen compared with the output of the former Python driver
+ *
+ * The rev. C golden files of the former Python tests are outdated (recorded with an older protocol: the former Python tests failed). The expected data here is the output of the current former Python driver (480x800 screen, ROM version 87, image counter 0), stored as FNV-1a 64-bit hashes of the recorded calls to avoid adding big files to the repository.
+ */
 
 #include <functional>
 #include <map>
@@ -51,7 +52,7 @@ const std::map<std::string, Expected> EXPECTED = {
     {"display_pil_image_patch_reverse_landscape", {0xd91a55cfe09029a3ULL, 124038}},
 };
 
-// 2.1" screen (480x480), ROM version 87
+/** @brief 2.1" screen (480x480), ROM version 87 */
 const std::map<std::string, Expected> EXPECTED_2INCH = {
     {"display_pil_image_portrait", {0xd3759c40c43b1049ULL, 1853562}},
     {"display_pil_image_patch_portrait", {0xc72fb7ed885ee151ULL, 123038}},
@@ -63,7 +64,7 @@ const std::map<std::string, Expected> EXPECTED_2INCH = {
     {"display_pil_image_patch_reverse_landscape", {0x21f7de9b20543fa5ULL, 124038}},
 };
 
-// 8.8" screen (480x1920), ROM version 90 (BGRA pixels for partial updates)
+/** @brief 8.8" screen (480x1920), ROM version 90 (BGRA pixels for partial updates) */
 const std::map<std::string, Expected> EXPECTED_8INCH = {
     {"display_pil_image_portrait", {0x11ec6dc716e5fa8cULL, 7405062}},
     {"display_pil_image_patch_portrait", {0x4ce5298aa1cf562bULL, 164538}},
@@ -90,6 +91,7 @@ class TestLcdCommRevC : public ::testing::TestWithParam<std::string>
 {
 };
 
+/** @brief Data sent by the revision C driver is the same as the reference hash. */
 TEST_P(TestLcdCommRevC, MatchesPythonDriver)
 {
     const std::string calls = run_case<LcdCommRevC>(GetParam(), 480, 800);
@@ -98,12 +100,14 @@ TEST_P(TestLcdCommRevC, MatchesPythonDriver)
     EXPECT_EQ(fnv1a(calls), expected.hash) << "Data sent to the screen differs from the Python driver";
 }
 
+/** @brief Test cases of the revision C tests. */
 INSTANTIATE_TEST_SUITE_P(Python, TestLcdCommRevC, ::testing::ValuesIn(TEST_CASES));
 
 class TestLcdCommRevCSizes : public ::testing::TestWithParam<std::string>
 {
 };
 
+/** @brief Data sent for a 2.1 inch screen is the same as the reference hash. */
 TEST_P(TestLcdCommRevCSizes, Screen2Inch)
 {
     const std::string calls = run_case<LcdCommRevC>(GetParam(), 480, 480, {}, create(480, 480, 87));
@@ -112,6 +116,7 @@ TEST_P(TestLcdCommRevCSizes, Screen2Inch)
     EXPECT_EQ(fnv1a(calls), expected.hash) << "Data sent to the screen differs from the Python driver";
 }
 
+/** @brief Data sent for an 8.8 inch screen is the same as the reference hash. */
 TEST_P(TestLcdCommRevCSizes, Screen8Inch)
 {
     const std::string calls = run_case<LcdCommRevC>(GetParam(), 480, 1920, {}, create(480, 1920, 90));
@@ -120,10 +125,11 @@ TEST_P(TestLcdCommRevCSizes, Screen8Inch)
     EXPECT_EQ(fnv1a(calls), expected.hash) << "Data sent to the screen differs from the Python driver";
 }
 
+/** @brief Sizes of the revision C screens that are tested. */
 INSTANTIATE_TEST_SUITE_P(Python, TestLcdCommRevCSizes,
                          ::testing::ValuesIn(std::vector<std::string>(TEST_CASES.begin() + 1, TEST_CASES.end())));
 
-// The requests going through the update queue (as in the system monitor) send the same data, reads included
+/** @brief The requests going through the update queue (as in the system monitor) send the same data, reads included */
 TEST(TestLcdCommRevCQueue, QueuedRequestsMatchPythonDriver)
 {
     SerialMockScope mock;

@@ -20,7 +20,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/scheduler.py
+/**
+ * @file scheduler.cpp
+ */
 
 #include "library/scheduler.h"
 
@@ -103,78 +105,92 @@ void stop()
     stop_condition.notify_all();
 }
 
+/** @brief Periodic job updating the CPU usage on the display. */
 void CPUPercentage()
 {
     // Refresh the CPU Percentage
     schedule("CPU_Percentage", theme_interval("CPU", "PERCENTAGE"), stats::CPU::percentage);
 }
 
+/** @brief Periodic job updating the CPU frequency on the display. */
 void CPUFrequency()
 {
     // Refresh the CPU Frequency
     schedule("CPU_Frequency", theme_interval("CPU", "FREQUENCY"), stats::CPU::frequency);
 }
 
+/** @brief Periodic job updating the CPU load on the display. */
 void CPULoad()
 {
     // Refresh the CPU Load
     schedule("CPU_Load", theme_interval("CPU", "LOAD"), stats::CPU::load);
 }
 
+/** @brief Periodic job updating the CPU temperature on the display. */
 void CPUTemperature()
 {
     // Refresh the CPU Temperature
     schedule("CPU_Temperature", theme_interval("CPU", "TEMPERATURE"), stats::CPU::temperature);
 }
 
+/** @brief Periodic job updating the CPU fan speed on the display. */
 void CPUFanSpeed()
 {
     // Refresh the CPU Fan Speed
     schedule("CPU_FanSpeed", theme_interval("CPU", "FAN_SPEED"), stats::CPU::fan_speed);
 }
 
+/** @brief Periodic job updating the GPU statistics on the display. */
 void GpuStats()
 {
     // Refresh the GPU Stats
     schedule("GPU_Stats", theme_interval("GPU"), stats::Gpu::stats);
 }
 
+/** @brief Periodic job updating the memory statistics on the display. */
 void MemoryStats()
 {
     schedule("Memory_Stats", theme_interval("MEMORY"), stats::Memory::stats);
 }
 
+/** @brief Periodic job updating the disk statistics on the display. */
 void DiskStats()
 {
     schedule("Disk_Stats", theme_interval("DISK"), stats::Disk::stats);
 }
 
+/** @brief Periodic job updating the network statistics on the display. */
 void NetStats()
 {
     schedule("Net_Stats", theme_interval("NET"), stats::Net::stats);
 }
 
+/** @brief Periodic job updating the date and time on the display. */
 void DateStats()
 {
     schedule("Date_Stats", theme_interval("DATE"), stats::Date::stats);
 }
 
+/** @brief Periodic job updating the system uptime on the display. */
 void SystemUptimeStats()
 {
     schedule("SystemUptime_Stats", theme_interval("UPTIME"), stats::SystemUptime::stats);
 }
 
+/** @brief Periodic job updating the custom data sources on the display. */
 void CustomStats()
 {
     schedule("Custom_Stats", theme_interval("CUSTOM"), stats::Custom::stats);
 }
 
+/** @brief Periodic job updating the weather on the display. */
 void WeatherStats()
 {
     // Weather data is refreshed at most every 5 minutes
     schedule("Weather_Stats", std::max(300.0, theme_interval("WEATHER")), stats::Weather::stats);
 }
 
+/** @brief Periodic job updating the ping on the display. */
 void PingStats()
 {
     schedule("Ping_Stats", theme_interval("PING"), stats::Ping::stats);
@@ -211,6 +227,7 @@ void QueueHandler()
     }).detach();
 }
 
+/** @brief True if the display queue has no pending request. */
 bool is_queue_empty()
 {
     return config::update_queue.empty();

@@ -16,7 +16,7 @@ jobs:
 
     # Don't run this action on forked repositories to avoid conflicts in PR...
     if: github.repository == 'mathoudebine/turing-smart-screen-python'
-    
+
     runs-on: ubuntu-latest
 
     permissions:
@@ -26,15 +26,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
-    - name: Set up Python 3.x
-      uses: actions/setup-python@v7
-      with:
-        python-version: "3.14"
 
-    - name: Install dependencies
+    - name: Install build dependencies
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install -r requirements.txt
+        sudo apt-get update
+        sudo apt-get install -y build-essential pkg-config libyaml-cpp-dev libfreetype-dev libharfbuzz-dev \
+          libglib2.0-dev libpng-dev libjpeg-dev libusb-1.0-0-dev libcurl4-openssl-dev libicu-dev \
+          libgtkmm-4.0-dev libgtest-dev
+
+    - name: Build system monitor and tools
+      run: make all
 
     - name: Configure system monitor for screenshot
       run: |
@@ -45,20 +46,20 @@ jobs:
       run: |
         for dir in res/themes/*/
         do
-          if test -f "$dir/theme.yaml"; then        
+          if test -f "$dir/theme.yaml"; then
             # Keep only folder name
             theme=`basename "${dir%*/}"`
-          
+
             # Setup selected theme in config.yaml
             echo "Using theme $theme"
             sed -i '/THEME:/c\  THEME: "'"$theme"'"' config.yaml
 
             # For tests there is no real HW: use simulated LCD mode
             sed -i "/REVISION:/c\  REVISION: SIMU" config.yaml
-        
+
             # Run system-monitor in theme screenshot mode
-            python3 main.py -t 10 > output.log 2>&1
-          
+            build/bin/main -t 10 > output.log 2>&1
+
             # Copy screen capture on theme folder
             cp screencap.png "$dir/preview.png"
           fi
@@ -66,7 +67,7 @@ jobs:
 
     - name: Generate theme list Markdown page
       run: |
-        python3 tools/theme-preview-generator.py
+        build/bin/theme-preview-generator
 
     - name: Commit theme previews
       uses: stefanzweifel/git-auto-commit-action@v7

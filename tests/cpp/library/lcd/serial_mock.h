@@ -16,8 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of tests/library/lcd/serial_mock.py and tests/library/lcd/sample_image.py:
-// serial port double recording the data written/read by the drivers, compared with golden files.
+/**
+ * @file serial_mock.h
+ * @brief Serial port double recording the data written/read by the drivers, compared with golden files.
+ */
 
 #pragma once
 
@@ -32,10 +34,10 @@
 #include "library/lcd/lcd_comm.h"
 #include "library/lcd/lcd_comm_rev_c.h"
 
-// Golden files recorded by the Python tests
+/** @brief Golden files recorded by the former Python tests */
 constexpr const char *GOLDEN_DIR = "tests/library/lcd/golden/";
 
-// Serial port that records the calls as text lines: "write <hex data>" / "read <size>"
+/** @brief Serial port that records the calls as text lines: "write <hex data>" / "read <size>" */
 class MockSerial : public SerialPort
 {
 public:
@@ -50,41 +52,53 @@ public:
     void reset_input_buffer() override {}
     size_t in_waiting() override { return 0; }
 
+    /** @brief Calls recorded by the serial port double, as text. */
     std::string calls;
 };
 
-// While this object exists, the drivers use a MockSerial instead of a real serial port
+/** @brief While this object exists, the drivers use a MockSerial instead of a real serial port */
 class SerialMockScope
 {
 public:
     SerialMockScope();
     ~SerialMockScope();
 
-    // Serial port of the last driver created
+    /** @brief Serial port of the last driver created */
     MockSerial *last = nullptr;
 };
 
-// Generates a sample image that has red, green, blue and black in each corner and the other pixels interpolated
-// linearly
+/**
+ * @brief Generates a sample image that has red, green, blue and black in each corner and the other pixels interpolated
+ * linearly
+ */
 Image generate_sample_image(int width, int height);
 
-// Content of a golden file, without empty lines
+/** @brief Content of a golden file, without empty lines */
 std::string read_golden(const std::string &name);
 
-// FNV-1a 64-bit hash
+/** @brief FNV-1a 64-bit hash */
 uint64_t fnv1a(const std::string &text);
 
-// Area of the "patch" test cases
+/** @brief Area of the "patch" test cases */
 struct Patch
 {
-    int x = 10, y = 20, width = 100, height = 200;
-    // Crop the image to the patch size before displaying it (otherwise the full image is given with the patch size)
+    /** @brief X coordinate of the patch, in pixels. */
+    int x = 10;
+    /** @brief Y coordinate of the patch, in pixels. */
+    int y = 20;
+    /** @brief Width of the patch, in pixels. */
+    int width = 100;
+    /** @brief Height of the patch, in pixels. */
+    int height = 200;
+    /** @brief Crop the image to the patch size before displaying it (otherwise the full image is given with the patch size) */
     bool crop = false;
 };
 
-// Run a test case of the Python driver tests, returns the recorded serial calls.
-// Cases: "set_brightness", "display_pil_image_<orientation>", "display_pil_image_patch_<orientation>"
-// create: creates the driver (default constructor if not provided)
+/**
+ * @brief Run a test case of the former Python driver tests, returns the recorded serial calls.
+ * Cases: "set_brightness", "display_pil_image_<orientation>", "display_pil_image_patch_<orientation>"
+ * create: creates the driver (default constructor if not provided)
+ */
 template<typename Lcd>
 std::string run_case(const std::string &name, int portrait_width, int portrait_height, const Patch &p = {},
                      const std::function<std::unique_ptr<Lcd>()> &create = nullptr)
@@ -118,7 +132,7 @@ std::string run_case(const std::string &name, int portrait_width, int portrait_h
     return mock.last->calls;
 }
 
-// All test cases, in the same order as the Python tests
+/** @brief All test cases, in the same order as the former Python tests */
 inline const std::vector<std::string> TEST_CASES = {
     "set_brightness",
     "display_pil_image_portrait", "display_pil_image_landscape",

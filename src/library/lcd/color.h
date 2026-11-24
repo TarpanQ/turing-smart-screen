@@ -18,20 +18,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/color.py
-//
-// A color can be given as an RGB triplet, or as a string in any of these formats:
-// - "r, g, b" (e.g. "255, 0, 0"), as is found in the themes' yaml settings
-// - the formats supported by PIL (https://pillow.readthedocs.io/en/stable/reference/ImageColor.html):
-//   "#rgb", "#rgba", "#rrggbb", "#rrggbbaa", "rgb(r, g, b)", "rgb(r%, g%, b%)", "rgba(...)",
-//   "hsl(h, s%, l%)", "hsv(h, s%, v%)" / "hsb(...)", and the CSS color names (e.g. "red")
-//
-// For example, here are multiple ways to write the pure red color:
-// - {255, 0, 0}
-// - "255, 0, 0"
-// - "#ff0000"
-// - "red"
-// - "hsl(0, 100%, 50%)"
+/**
+ * @file color.h
+ * @brief A color can be given as an RGB triplet, or as a string in any of these formats: - "r, g, b" (e.g. "255, 0, 0"), as is found in the themes' yaml settings - the formats supported by PIL (https://pillow.readthedocs.io/en/stable/reference/ImageColor.html): "#rgb", "#rgba", "#rrggbb", "#rrggbbaa", "rgb(r, g, b)", "rgb(r%, g%, b%)", "rgba(...)", "hsl(h, s%, l%)", "hsv(h, s%, v%)" / "hsb(...)", and the CSS color names (e.g. "red")
+ *
+ * For example, here are multiple ways to write the pure red color: - {255, 0, 0} - "255, 0, 0" - "#ff0000" - "red" - "hsl(0, 100%, 50%)"
+ */
 
 #pragma once
 
@@ -40,17 +32,22 @@
 
 namespace YAML { class Node; }
 
+/** @brief RGB color, each component from 0 to 255. */
 struct RGBColor
 {
+    /** @brief Red component. */
     uint8_t r = 0;
+    /** @brief Green component. */
     uint8_t g = 0;
+    /** @brief Blue component. */
     uint8_t b = 0;
 
+    /** @brief Compare two colors component by component. */
     bool operator==(const RGBColor &) const = default;
 };
 
-// Throws std::invalid_argument if the color cannot be parsed
+/** @brief Throws std::invalid_argument if the color cannot be parsed */
 RGBColor parse_color(const std::string &color);
 
-// Color from a theme/config YAML value: a "r, g, b" string (or any format above), or a [r, g, b] sequence
+/** @brief Color from a theme/config YAML value: a "r, g, b" string (or any format above), or a [r, g, b] sequence */
 RGBColor parse_color(const YAML::Node &color);

@@ -18,12 +18,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of tools/list-serial-ports.py: list the USB serial ports with their serial number, vendor and product ID
+/**
+ * @file list-serial-ports.cpp
+ * @brief List the USB serial ports with their serial number, vendor and product ID
+ */
 
 #include <cstdio>
 
 #include "library/lcd/serial_port.h"
 
+/** @brief Entry point of the list-serial-ports tool. */
 int main()
 {
     for (const auto &com_port: comports()) {

@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of tests/library/lcd/serial_mock.py and tests/library/lcd/sample_image.py
+/**
+ * @file serial_mock.cpp
+ * @brief Implementation of the serial port double (see serial_mock.h)
+ */
 
 #include "serial_mock.h"
 

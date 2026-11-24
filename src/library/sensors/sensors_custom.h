@@ -18,15 +18,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/sensors/sensors_custom.py
-// This file allows to add custom data source as sensors and display them in System Monitor themes.
-// There is no limitation on how much custom data source classes can be added to this file.
-// See CustomDataExample theme for the theme implementation part.
-//
-// To add a custom data source:
-// 1. declare a class inheriting CustomDataSource below and implement its 3 methods in sensors_custom.cpp,
-// 2. register it in sensors_custom.cpp (custom_data_sources()) with the name used in the theme, under STATS/CUSTOM,
-// 3. rebuild the program with make.
+/**
+ * @file sensors_custom.h
+ * @brief This file allows to add custom data source as sensors and display them in System Monitor themes. There is no limitation on how much custom data source classes can be added to this file. See CustomDataExample theme for the theme implementation part.
+ *
+ * To add a custom data source: 1. declare a class inheriting CustomDataSource below and implement its 3 methods in sensors_custom.cpp, 2. register it in sensors_custom.cpp (custom_data_sources()) with the name used in the theme, under STATS/CUSTOM, 3. rebuild the program with make.
+ */
 
 #pragma once
 
@@ -39,7 +36,7 @@
 
 namespace sensors_custom {
 
-// Custom data classes must be implemented in this file, inherit the CustomDataSource and implement its 3 methods
+/** @brief Custom data classes must be implemented in this file, inherit the CustomDataSource and implement its 3 methods */
 class CustomDataSource
 {
 public:
@@ -47,25 +44,31 @@ public:
 
     // Numeric value will be used for graph and radial progress bars
     // If there is no numeric value, return std::nullopt
+    /** @brief Value of the data source as a number, nullopt if not available. */
     virtual std::optional<double> as_numeric() = 0;
 
     // Text value will be used for text display and radial progress bar inner text
     // Numeric value can be formatted here to be displayed as expected
     // It is also possible to return a text unrelated to the numeric value
     // If this function returns std::nullopt, the numeric value will be used as string without formatting
+    /** @brief Value of the data source as a string, nullopt if not available. */
     virtual std::optional<std::string> as_string() = 0;
 
     // List of last numeric values will be used for plot graph
     // If you do not want to draw a line graph or if your custom data has no numeric values, return std::nullopt
+    /** @brief Last values of the data source, used for line graphs. */
     virtual std::optional<std::vector<double>> last_values() = 0;
 };
 
-// Example for a custom data class that has numeric and text values
+/** @brief Example for a custom data class that has numeric and text values */
 class ExampleCustomNumericData : public CustomDataSource
 {
 public:
+    /** @brief Value of the data source as a number. */
     std::optional<double> as_numeric() override;
+    /** @brief Value of the data source as a string. */
     std::optional<std::string> as_string() override;
+    /** @brief Last values of the data source. */
     std::optional<std::vector<double>> last_values() override;
 
 private:
@@ -75,16 +78,19 @@ private:
     std::vector<double> last_val = std::vector<double>(10, std::numeric_limits<double>::quiet_NaN());
 };
 
-// Example for a custom data class that only has text values
+/** @brief Example for a custom data class that only has text values */
 class ExampleCustomTextOnlyData : public CustomDataSource
 {
 public:
+    /** @brief Value of the data source as a number. */
     std::optional<double> as_numeric() override;
+    /** @brief Value of the data source as a string. */
     std::optional<std::string> as_string() override;
+    /** @brief Last values of the data source. */
     std::optional<std::vector<double>> last_values() override;
 };
 
-// All custom data sources, by the name used in the themes. Created once, so that they can keep data between calls.
+/** @brief All custom data sources, by the name used in the themes. Created once, so that they can keep data between calls. */
 std::map<std::string, std::unique_ptr<CustomDataSource>> &custom_data_sources();
 
 }  // namespace sensors_custom

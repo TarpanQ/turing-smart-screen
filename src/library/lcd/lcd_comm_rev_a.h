@@ -18,8 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/lcd_comm_rev_a.py
-// This class is for Turing Smart Screen (rev. A) 3.5" and UsbMonitor screens (all sizes)
+/**
+ * @file lcd_comm_rev_a.h
+ * @brief This class is for Turing Smart Screen (rev. A) 3.5" and UsbMonitor screens (all sizes)
+ */
 
 #pragma once
 
@@ -27,6 +29,7 @@
 
 namespace rev_a {
 
+/** @brief Commands of the revision A protocol. */
 enum Command : uint8_t
 {
     RESET = 101,  // Resets the display
@@ -46,6 +49,7 @@ enum Command : uint8_t
     DISPLAY_PIXELS = 195,  // Displays a list of pixels than can be non-contiguous in one command, useful for line charts
 };
 
+/** @brief Sub-revisions of the revision A screens, they differ by their size. */
 enum class SubRevision
 {
     TURING_3_5,  // Official Turing 3.5 do not answer to HELLO command
@@ -56,26 +60,38 @@ enum class SubRevision
 
 }  // namespace rev_a
 
+/** @brief Driver for the Turing revision A screens (3.5 inch, UsbMonitor). */
 class LcdCommRevA : public LcdComm
 {
 public:
+    /** @brief Create the driver for the given COM port and screen size. */
     LcdCommRevA(const std::string &com_port = "AUTO", int display_width = 320, int display_height = 480,
                 UpdateQueue *update_queue = nullptr);
     ~LcdCommRevA() override;
 
     std::optional<std::string> auto_detect_com_port() override;
 
+    /** @brief Send a command with its four parameters to the screen. */
     void SendCommand(rev_a::Command cmd, int x, int y, int ex, int ey, bool bypass_queue = false);
 
+    /** @brief Initialize the screen. */
     void InitializeComm() override;
+    /** @brief Reset the screen. */
     void Reset() override;
+    /** @brief Clear the screen. */
     void Clear() override;
+    /** @brief Turn the screen off. */
     void ScreenOff() override;
+    /** @brief Turn the screen on. */
     void ScreenOn() override;
+    /** @brief Set the brightness, from 0 (off) to 100 (maximum). */
     void SetBrightness(int level = 25) override;
+    /** @brief Set the orientation of the screen. */
     void SetOrientation(Orientation orientation = Orientation::PORTRAIT) override;
+    /** @brief Display an image at (x, y), cropped to image_width x image_height if given. */
     void DisplayPILImage(const Image &image, int x = 0, int y = 0, int image_width = 0, int image_height = 0) override;
 
+    /** @brief Sub-revision of the screen, set by the revision A detection. */
     rev_a::SubRevision sub_revision = rev_a::SubRevision::TURING_3_5;
 
 private:

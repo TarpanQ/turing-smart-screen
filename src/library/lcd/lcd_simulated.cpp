@@ -18,8 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/lcd_simulated.py: simulated display, writing to a file (screencap.png) instead of a serial
-// port.
+/**
+ * @file lcd_simulated.cpp
+ * @brief Simulated display, writing to a file (screencap.png) instead of a serial port.
+ */
 
 #include "library/lcd/lcd_simulated.h"
 

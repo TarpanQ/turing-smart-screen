@@ -18,7 +18,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/lcd_comm_turing_usb.py
+/**
+ * @file lcd_comm_turing_usb.cpp
+ */
 
 #include "library/lcd/lcd_comm_turing_usb.h"
 
@@ -343,12 +345,14 @@ void UsbDevice::read_flush(int max_attempts)
 // ---------------------------------------------------------------------------------------------------------------------
 // Commands
 
+/** @brief Send the sync command and return the answer, nullopt on error. */
 std::optional<Bytes> send_sync_command(UsbDevice &dev)
 {
     logger.debug("Sending Sync Command (ID 10)...");
     return dev.write_to_device(encrypt_command_packet(build_command_packet_header(10)));
 }
 
+/** @brief Set the brightness of the screen over USB. */
 std::optional<Bytes> send_brightness_command(UsbDevice &dev, int brightness)
 {
     logger.debug("Sending Brightness Command (ID 14)... Brightness = {}", brightness);
@@ -357,6 +361,7 @@ std::optional<Bytes> send_brightness_command(UsbDevice &dev, int brightness)
     return dev.write_to_device(encrypt_command_packet(cmd_packet));
 }
 
+/** @brief Send a PNG image to the screen. */
 std::optional<Bytes> send_image(UsbDevice &dev, const Bytes &png_data)
 {
     Bytes cmd_packet = build_command_packet_header(CMD_UPLOAD_PNG);
@@ -364,6 +369,7 @@ std::optional<Bytes> send_image(UsbDevice &dev, const Bytes &png_data)
     return dev.write_to_device(concat(encrypt_command_packet(cmd_packet), png_data));
 }
 
+/** @brief Send a JPEG image to the screen. */
 std::optional<Bytes> send_jpeg(UsbDevice &dev, const Bytes &jpeg_data)
 {
     Bytes cmd_packet = build_command_packet_header(CMD_UPLOAD_JPEG);
@@ -371,6 +377,7 @@ std::optional<Bytes> send_jpeg(UsbDevice &dev, const Bytes &jpeg_data)
     return dev.write_to_device(concat(encrypt_command_packet(cmd_packet), jpeg_data));
 }
 
+/** @brief Clear the screen over USB. */
 std::optional<Bytes> clear_image(UsbDevice &dev)
 {
     // Transparent 480x1920 PNG image

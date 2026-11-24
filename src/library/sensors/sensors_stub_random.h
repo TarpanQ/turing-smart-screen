@@ -18,8 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/sensors/sensors_stub_random.py
-// This file will use randomly generated data instead of real hardware sensors
+/**
+ * @file sensors_stub_random.h
+ * @brief This file will use randomly generated data instead of real hardware sensors
+ */
 
 #pragma once
 
@@ -27,46 +29,69 @@
 
 namespace sensors_stub_random {
 
+/** @brief CPU sensors returning random values. */
 class Cpu : public sensors::Cpu
 {
 public:
+    /** @brief Random CPU usage, in percent. */
     double percentage(std::optional<double> interval) override;
+    /** @brief Random CPU frequency, in MHz. */
     double frequency() override;
+    /** @brief Random system load averages. */
     std::array<double, 3> load() override;
+    /** @brief Random CPU temperature, in degrees Celsius. */
     double temperature() override;
+    /** @brief Random CPU fan speed, in percent. */
     double fan_percent(const std::optional<std::string> &fan_name = std::nullopt) override;
 };
 
+/** @brief GPU sensors returning random values. */
 class Gpu : public sensors::Gpu
 {
 public:
+    /** @brief Random GPU statistics. */
     Stats stats() override;
+    /** @brief Random frames per second. */
     int fps() override;
+    /** @brief Random GPU fan speed, in percent. */
     double fan_percent() override;
+    /** @brief Random GPU frequency, in MHz. */
     double frequency() override;
+    /** @brief The random GPU is always available. */
     bool is_available() override;
 };
 
+/** @brief Memory sensors returning random values. */
 class Memory : public sensors::Memory
 {
 public:
+    /** @brief Random swap usage, in percent. */
     double swap_percent() override;
+    /** @brief Random RAM usage, in percent. */
     double virtual_percent() override;
+    /** @brief Random RAM used, in bytes. */
     int64_t virtual_used() override;
+    /** @brief Random RAM free, in bytes. */
     int64_t virtual_free() override;
 };
 
+/** @brief Disk sensors returning random values. */
 class Disk : public sensors::Disk
 {
 public:
+    /** @brief Random disk usage, in percent. */
     double disk_usage_percent() override;
+    /** @brief Random disk used, in bytes. */
     int64_t disk_used() override;
+    /** @brief Random disk free, in bytes. */
     int64_t disk_free() override;
 };
 
+/** @brief Network sensors returning random values. */
 class Net : public sensors::Net
 {
 public:
+    /** @brief Random network statistics of the interface. */
     Stats stats(const std::string &if_name, std::optional<double> interval) override;
 };
 

@@ -18,7 +18,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/display.py
+/**
+ * @file display.cpp
+ */
 
 #include "library/display.h"
 

@@ -18,7 +18,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/lcd_comm_weact_b.py
+/**
+ * @file lcd_comm_weact_b.cpp
+ */
 
 #include "library/lcd/lcd_comm_weact_b.h"
 

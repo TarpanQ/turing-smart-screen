@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Tests of library/lcd/lcd_comm_turing_usb protocol functions (the USB device itself cannot be tested without screen)
+/**
+ * @file test_lcd_comm_turing_usb.cpp
+ * @brief Tests of library/lcd/lcd_comm_turing_usb protocol functions (the USB device itself cannot be tested without screen)
+ */
 
 #include <string>
 
@@ -38,6 +41,7 @@ std::string to_hex(const Bytes &data)
 }
 }  // namespace
 
+/** @brief DES encryption gives the result of the FIPS test vector. */
 TEST(TuringUSB, DesTestVector)
 {
     // FIPS 81 / NBS test vector (ECB = CBC on one block with a zero IV): key 133457799BBCDFF1,
@@ -50,6 +54,7 @@ TEST(TuringUSB, DesTestVector)
     EXPECT_EQ(to_hex(turing_usb::encrypt_with_des(key, plaintext)), "85e813540f0ab405");
 }
 
+/** @brief Command packets are encrypted like the reference implementation. */
 TEST(TuringUSB, EncryptCommandPacket)
 {
     // Same output as the Python encrypt_command_packet() (pycryptodome DES) for this data
@@ -64,6 +69,7 @@ TEST(TuringUSB, EncryptCommandPacket)
     EXPECT_EQ(fnv1a(to_hex(packet)), 0x91bbe7435ec87d53ULL);
 }
 
+/** @brief Format of the command packet header. */
 TEST(TuringUSB, CommandPacketHeader)
 {
     const Bytes packet = turing_usb::build_command_packet_header(14);
@@ -75,6 +81,7 @@ TEST(TuringUSB, CommandPacketHeader)
     EXPECT_LT(timestamp, 24u * 3600 * 1000);  // milliseconds since midnight
 }
 
+/** @brief JPEG frames fit under the USB size limit. */
 TEST(TuringUSB, JpegUnderLimit)
 {
     const Image image = generate_sample_image(480, 800);

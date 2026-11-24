@@ -18,8 +18,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// C++ port of library/lcd/lcd_simulated.py: simulated display, writing to a file (screencap.png) instead of a serial
-// port. A web server displays the simulated screen with auto-refresh at http://localhost:5678
+/**
+ * @file lcd_simulated.h
+ * @brief Simulated display, writing to a file (screencap.png) instead of a serial port. A web server displays the simulated screen with auto-refresh at http://localhost:5678
+ */
 
 #pragma once
 
@@ -29,17 +31,20 @@
 
 #include "library/lcd/lcd_comm.h"
 
+/** @brief File where the simulated screen is saved. */
 constexpr const char *SCREENSHOT_FILE = "screencap.png";
+/** @brief Port of the web server showing the simulated screen. */
 constexpr int WEBSERVER_PORT = 5678;
 
-// This webserver offer a blank page displaying simulated screen with auto-refresh
+/** @brief This webserver offer a blank page displaying simulated screen with auto-refresh */
 class SimulatedLcdWebServer
 {
 public:
-    // Throws std::runtime_error if the server cannot listen on the port
+    /** @brief Throws std::runtime_error if the server cannot listen on the port */
     SimulatedLcdWebServer(const std::string &host, int port);
     ~SimulatedLcdWebServer();
 
+    /** @brief Stop the web server. */
     void shutdown();
 
 private:
@@ -51,31 +56,42 @@ private:
     std::thread thread;
 };
 
-// Simulated display: write on a file instead of serial port
+/** @brief Simulated display: write on a file instead of serial port */
 class LcdSimulated : public LcdComm
 {
 public:
+    /** @brief Create a simulated display, the screen is saved to screencap.png. */
     LcdSimulated(const std::string &com_port = "AUTO", int display_width = 320, int display_height = 480,
                  UpdateQueue *update_queue = nullptr);
     ~LcdSimulated() override;
 
     std::optional<std::string> auto_detect_com_port() override;
+    /** @brief Close the simulated display, nothing to close. */
     void closeSerial() override;
+    /** @brief Initialize the simulated display. */
     void InitializeComm() override;
+    /** @brief Reset the simulated display. */
     void Reset() override;
+    /** @brief Clear the simulated display. */
     void Clear() override;
+    /** @brief Turn the simulated display off. */
     void ScreenOff() override;
+    /** @brief Turn the simulated display on. */
     void ScreenOn() override;
+    /** @brief Set the brightness of the simulated display, from 0 to 100. */
     void SetBrightness(int level = 25) override;
+    /** @brief Set the color of the backplate LEDs, which the simulated display ignores. */
     void SetBackplateLedColor(RGBColor led_color = {255, 255, 255}) override;
+    /** @brief Set the orientation of the simulated display. */
     void SetOrientation(Orientation orientation = Orientation::PORTRAIT) override;
+    /** @brief Display an image at (x, y), cropped to image_width x image_height if given. */
     void DisplayPILImage(const Image &image, int x = 0, int y = 0, int image_width = 0, int image_height = 0) override;
 
-    // Current content of the simulated screen
+    /** @brief Current content of the simulated screen */
     Image screen_image;
 
 private:
-    // Save the screen image to SCREENSHOT_FILE (through a temporary file, so that readers never get a partial file)
+    /** @brief Save the screen image to SCREENSHOT_FILE (through a temporary file, so that readers never get a partial file) */
     void save_screenshot();
 
     std::unique_ptr<SimulatedLcdWebServer> webServer;
