@@ -1,1 +1,1 @@
-re-runµ the valildations as Github doesn't allow it
+re-run the validations as GitHub doesn't allow it
