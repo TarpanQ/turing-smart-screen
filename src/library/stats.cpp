@@ -40,6 +40,7 @@
 #include <random>
 
 #include <curl/curl.h>
+
 #include <unicode/datefmt.h>
 #include <unicode/smpdtfmt.h>
 #include <unicode/uchar.h>
@@ -53,6 +54,7 @@
 #include "library/sensors/sensors_python.h"
 #include "library/sensors/sensors_stub_random.h"
 #include "library/sensors/sensors_stub_static.h"
+#include "library/weather.h"
 
 namespace stats {
 
@@ -148,26 +150,6 @@ std::string align_right(const std::string &text, int min_size)
         }
     }
     return length < min_size ? std::string(min_size - length, ' ') + text : text;
-}
-
-size_t curl_write(char *ptr, size_t size, size_t nmemb, void *userdata)
-{
-    static_cast<std::string *>(userdata)->append(ptr, size * nmemb);
-    return size * nmemb;
-}
-
-// Python str.capitalize(): first character upper case, the rest lower case
-std::string capitalize(const std::string &text)
-{
-    icu::UnicodeString s = icu::UnicodeString::fromUTF8(text);
-    s.toLower();
-    if (s.length() > 0) {
-        const UChar32 first = s.char32At(0);
-        s.replace(0, U16_LENGTH(first), icu::UnicodeString(u_toupper(first)));
-    }
-    std::string result;
-    s.toUTF8String(result);
-    return result;
 }
 
 // Locale used for dates, like babel.dates.LC_TIME: from LC_TIME / LANGUAGE / LC_ALL / LC_CTYPE / LANG
@@ -1089,9 +1071,6 @@ void Custom::stats()
 
 void Weather::stats()
 {
-    static const std::map<std::string, std::string> WEATHER_UNITS = {
-        {"metric", "°C"}, {"imperial", "°F"}, {"standard", "°K"}};
-
     // The weather is requested once, and only if at least one display shows it
     const bool activate = std::any_of(displays().begin(), displays().end(), [](const std::unique_ptr<Display> &display) {
         const YAML::Node weather_theme_data = display->theme["STATS"]["WEATHER"];
@@ -1105,83 +1084,29 @@ void Weather::stats()
         return;
     }
 
-    std::optional<std::string> temp, feel, desc, time, humidity;
+    weather::Conditions conditions;
     if (HW_SENSORS == "STATIC" || HW_SENSORS == "STUB") {
-        temp = "17.5°C";
-        feel = "(17.2°C)";
-        desc = "Cloudy";
-        time = "@15:33";
-        humidity = "45%";
+        conditions.temp = "17.5°C";
+        conditions.feel = "(17.2°C)";
+        conditions.desc = "Cloudy";
+        conditions.time = "@15:33";
+        conditions.humidity = "45%";
     } else {
-        // API Parameters
-        const config::Json &cfg = config::CONFIG_DATA;
-        const std::string lat = config::get(config::section(cfg, "config"), "WEATHER_LATITUDE", "");
-        const std::string lon = config::get(config::section(cfg, "config"), "WEATHER_LONGITUDE", "");
-        const std::string api_key = config::get(config::section(cfg, "config"), "WEATHER_API_KEY", "");
-        const std::string units = config::get(config::section(cfg, "config"), "WEATHER_UNITS", "metric");
-        const std::string lang = config::get(config::section(cfg, "config"), "WEATHER_LANGUAGE", "en");
-        const auto unit_it = WEATHER_UNITS.find(units);
-        const std::string deg = unit_it != WEATHER_UNITS.end() ? unit_it->second : "°?";
-        if (!api_key.empty()) {
-            const std::string url = std::format("https://api.openweathermap.org/data/3.0/onecall?lat={}&lon={}"
-                                                "&exclude=minutely,hourly,daily,alerts&appid={}&units={}&lang={}",
-                                                lat, lon, api_key, units, lang);
-            std::string body;
-            long status_code = 0;
-            CURL *curl = curl_easy_init();
-            CURLcode res = CURLE_FAILED_INIT;
-            if (curl) {
-                curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write);
-                curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
-                curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
-                curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-                res = curl_easy_perform(curl);
-                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status_code);
-                curl_easy_cleanup(curl);
-            }
-            try {
-                if (res != CURLE_OK) {
-                    throw std::runtime_error(curl_easy_strerror(res));
-                }
-                // JSON is parsed with the YAML parser (JSON is a subset of YAML)
-                const YAML::Node data = YAML::Load(body);
-                if (status_code == 200) {
-                    const YAML::Node current = data["current"];
-                    temp = std::format("{:.1f}{}", current["temp"].as<double>(), deg);
-                    feel = std::format("({:.1f}{})", current["feels_like"].as<double>(), deg);
-                    desc = capitalize(current["weather"][0]["description"].as<std::string>());
-                    humidity = std::format("{:.0f}%", current["humidity"].as<double>());
-                    const std::time_t now = std::time(nullptr);
-                    std::tm tm{};
-                    localtime_r(&now, &tm);
-                    time = std::format("@{:02}:{:02}", tm.tm_hour, tm.tm_min);
-                } else {
-                    logger.error("Error {} fetching OpenWeatherMap API:", status_code);
-                    desc = config::get(data, "message", "");
-                }
-            } catch (const std::exception &e) {
-                logger.error("Error fetching OpenWeatherMap API: {}", e.what());
-                desc = "Error fetching OpenWeatherMap API";
-            }
-        } else {
-            logger.warning("No OpenWeatherMap API key provided in config.json");
-            desc = "No OpenWeatherMap API key";
-        }
+        conditions = weather::Weather::create(weather::settings_from_config())->fetch();
     }
 
     on_each_display([&] {
         const YAML::Node weather_theme_data = stats_node("WEATHER");
         // Display Temperature
-        display_themed_value(weather_theme_data["TEMPERATURE"]["TEXT"], temp);
+        display_themed_value(weather_theme_data["TEMPERATURE"]["TEXT"], conditions.temp);
         // Display Temperature Felt
-        display_themed_value(weather_theme_data["TEMPERATURE_FELT"]["TEXT"], feel);
+        display_themed_value(weather_theme_data["TEMPERATURE_FELT"]["TEXT"], conditions.feel);
         // Display Update Time
-        display_themed_value(weather_theme_data["UPDATE_TIME"]["TEXT"], time);
+        display_themed_value(weather_theme_data["UPDATE_TIME"]["TEXT"], conditions.time);
         // Display Humidity
-        display_themed_value(weather_theme_data["HUMIDITY"]["TEXT"], humidity);
+        display_themed_value(weather_theme_data["HUMIDITY"]["TEXT"], conditions.humidity);
         // Display Weather Description (or error message)
-        display_themed_value(weather_theme_data["WEATHER_DESCRIPTION"]["TEXT"], desc);
+        display_themed_value(weather_theme_data["WEATHER_DESCRIPTION"]["TEXT"], conditions.desc);
     });
 }
 
