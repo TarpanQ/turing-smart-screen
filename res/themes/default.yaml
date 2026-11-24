@@ -6,248 +6,1445 @@ STATS:
     PERCENTAGE:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
     FREQUENCY:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
     LOAD:
       ONE:
         TEXT:
           SHOW: False
+          SHOW_UNIT: True
+          X: 0
+          Y: 0
+          WIDTH: 0
+          HEIGHT: 0
+          FONT: roboto-mono/RobotoMono-Regular.ttf
+          FONT_SIZE: 10
+          FONT_COLOR: 0, 0, 0
+          BACKGROUND_COLOR: 255, 255, 255
+          ALIGN: left
+          ANCHOR: lt
       FIVE:
         TEXT:
           SHOW: False
+          SHOW_UNIT: True
+          X: 0
+          Y: 0
+          WIDTH: 0
+          HEIGHT: 0
+          FONT: roboto-mono/RobotoMono-Regular.ttf
+          FONT_SIZE: 10
+          FONT_COLOR: 0, 0, 0
+          BACKGROUND_COLOR: 255, 255, 255
+          ALIGN: left
+          ANCHOR: lt
       FIFTEEN:
         TEXT:
           SHOW: False
+          SHOW_UNIT: True
+          X: 0
+          Y: 0
+          WIDTH: 0
+          HEIGHT: 0
+          FONT: roboto-mono/RobotoMono-Regular.ttf
+          FONT_SIZE: 10
+          FONT_COLOR: 0, 0, 0
+          BACKGROUND_COLOR: 255, 255, 255
+          ALIGN: left
+          ANCHOR: lt
     TEMPERATURE:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
     FAN_SPEED:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
     MODEL:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
   GPU:
     INTERVAL: 0
     PERCENTAGE:
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
     MEMORY_PERCENT:
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
     MEMORY_USED:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     MEMORY_TOTAL:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     MEMORY: # Deprecated, do not use
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     TEMPERATURE:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
     FPS:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
     FAN_SPEED:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
     FREQUENCY:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
     MODEL:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
   MEMORY:
     INTERVAL: 0
     SWAP:
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
     VIRTUAL:
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
       USED:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       FREE:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       TOTAL:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       PERCENT_TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     MODEL:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
   DISK:
     INTERVAL: 0
     USED:
       GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        BAR_COLOR: 0, 0, 0
+        BAR_OUTLINE: False
+        BACKGROUND_COLOR: 255, 255, 255
+        REVERSE_DIRECTION: False
       RADIAL:
         SHOW: False
+        SHOW_TEXT: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        RADIUS: 1
+        WIDTH: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        ANGLE_START: 0
+        ANGLE_END: 360
+        ANGLE_SEP: 0
+        ANGLE_STEPS: 1
+        CLOCKWISE: False
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BAR_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 0, 0, 0
+        BAR_BACKGROUND_COLOR: 0, 0, 0
+        DRAW_BAR_BACKGROUND: False
       LINE_GRAPH:
         SHOW: False
+        X: 0
+        Y: 0
+        WIDTH: 1
+        HEIGHT: 1
+        MIN_VALUE: 0
+        MAX_VALUE: 100
+        AUTOSCALE: False
+        LINE_COLOR: 0, 0, 0
+        LINE_WIDTH: 2
+        HISTORY_SIZE: 10
+        AXIS: False
+        AXIS_FONT: roboto/Roboto-Black.ttf
+        AXIS_FONT_SIZE: 10
+        BACKGROUND_COLOR: 0, 0, 0
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
       PERCENT_TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     TOTAL:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     FREE:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
   NET:
     INTERVAL: 0
     WLO:
       UPLOAD:
         TEXT:
           SHOW: False
+          SHOW_UNIT: True
+          X: 0
+          Y: 0
+          WIDTH: 0
+          HEIGHT: 0
+          FONT: roboto-mono/RobotoMono-Regular.ttf
+          FONT_SIZE: 10
+          FONT_COLOR: 0, 0, 0
+          BACKGROUND_COLOR: 255, 255, 255
+          ALIGN: left
+          ANCHOR: lt
         LINE_GRAPH:
           SHOW: False
+          X: 0
+          Y: 0
+          WIDTH: 1
+          HEIGHT: 1
+          MIN_VALUE: 0
+          MAX_VALUE: 100
+          AUTOSCALE: False
+          LINE_COLOR: 0, 0, 0
+          LINE_WIDTH: 2
+          HISTORY_SIZE: 10
+          AXIS: False
+          AXIS_FONT: roboto/Roboto-Black.ttf
+          AXIS_FONT_SIZE: 10
+          BACKGROUND_COLOR: 0, 0, 0
       UPLOADED:
         TEXT:
           SHOW: False
+          SHOW_UNIT: True
+          X: 0
+          Y: 0
+          WIDTH: 0
+          HEIGHT: 0
+          FONT: roboto-mono/RobotoMono-Regular.ttf
+          FONT_SIZE: 10
+          FONT_COLOR: 0, 0, 0
+          BACKGROUND_COLOR: 255, 255, 255
+          ALIGN: left
+          ANCHOR: lt
       DOWNLOAD:
         TEXT:
           SHOW: False
+          SHOW_UNIT: True
+          X: 0
+          Y: 0
+          WIDTH: 0
+          HEIGHT: 0
+          FONT: roboto-mono/RobotoMono-Regular.ttf
+          FONT_SIZE: 10
+          FONT_COLOR: 0, 0, 0
+          BACKGROUND_COLOR: 255, 255, 255
+          ALIGN: left
+          ANCHOR: lt
         LINE_GRAPH:
           SHOW: False
+          X: 0
+          Y: 0
+          WIDTH: 1
+          HEIGHT: 1
+          MIN_VALUE: 0
+          MAX_VALUE: 100
+          AUTOSCALE: False
+          LINE_COLOR: 0, 0, 0
+          LINE_WIDTH: 2
+          HISTORY_SIZE: 10
+          AXIS: False
+          AXIS_FONT: roboto/Roboto-Black.ttf
+          AXIS_FONT_SIZE: 10
+          BACKGROUND_COLOR: 0, 0, 0
       DOWNLOADED:
         TEXT:
           SHOW: False
+          SHOW_UNIT: True
+          X: 0
+          Y: 0
+          WIDTH: 0
+          HEIGHT: 0
+          FONT: roboto-mono/RobotoMono-Regular.ttf
+          FONT_SIZE: 10
+          FONT_COLOR: 0, 0, 0
+          BACKGROUND_COLOR: 255, 255, 255
+          ALIGN: left
+          ANCHOR: lt
     ETH:
       UPLOAD:
         TEXT:
           SHOW: False
+          SHOW_UNIT: True
+          X: 0
+          Y: 0
+          WIDTH: 0
+          HEIGHT: 0
+          FONT: roboto-mono/RobotoMono-Regular.ttf
+          FONT_SIZE: 10
+          FONT_COLOR: 0, 0, 0
+          BACKGROUND_COLOR: 255, 255, 255
+          ALIGN: left
+          ANCHOR: lt
         LINE_GRAPH:
           SHOW: False
+          X: 0
+          Y: 0
+          WIDTH: 1
+          HEIGHT: 1
+          MIN_VALUE: 0
+          MAX_VALUE: 100
+          AUTOSCALE: False
+          LINE_COLOR: 0, 0, 0
+          LINE_WIDTH: 2
+          HISTORY_SIZE: 10
+          AXIS: False
+          AXIS_FONT: roboto/Roboto-Black.ttf
+          AXIS_FONT_SIZE: 10
+          BACKGROUND_COLOR: 0, 0, 0
       UPLOADED:
         TEXT:
           SHOW: False
+          SHOW_UNIT: True
+          X: 0
+          Y: 0
+          WIDTH: 0
+          HEIGHT: 0
+          FONT: roboto-mono/RobotoMono-Regular.ttf
+          FONT_SIZE: 10
+          FONT_COLOR: 0, 0, 0
+          BACKGROUND_COLOR: 255, 255, 255
+          ALIGN: left
+          ANCHOR: lt
       DOWNLOAD:
         TEXT:
           SHOW: False
+          SHOW_UNIT: True
+          X: 0
+          Y: 0
+          WIDTH: 0
+          HEIGHT: 0
+          FONT: roboto-mono/RobotoMono-Regular.ttf
+          FONT_SIZE: 10
+          FONT_COLOR: 0, 0, 0
+          BACKGROUND_COLOR: 255, 255, 255
+          ALIGN: left
+          ANCHOR: lt
         LINE_GRAPH:
           SHOW: False
+          X: 0
+          Y: 0
+          WIDTH: 1
+          HEIGHT: 1
+          MIN_VALUE: 0
+          MAX_VALUE: 100
+          AUTOSCALE: False
+          LINE_COLOR: 0, 0, 0
+          LINE_WIDTH: 2
+          HISTORY_SIZE: 10
+          AXIS: False
+          AXIS_FONT: roboto/Roboto-Black.ttf
+          AXIS_FONT_SIZE: 10
+          BACKGROUND_COLOR: 0, 0, 0
       DOWNLOADED:
         TEXT:
           SHOW: False
+          SHOW_UNIT: True
+          X: 0
+          Y: 0
+          WIDTH: 0
+          HEIGHT: 0
+          FONT: roboto-mono/RobotoMono-Regular.ttf
+          FONT_SIZE: 10
+          FONT_COLOR: 0, 0, 0
+          BACKGROUND_COLOR: 255, 255, 255
+          ALIGN: left
+          ANCHOR: lt
   DATE:
     INTERVAL: 0
     DAY:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     HOUR:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
   UPTIME:
     INTERVAL: 0
     SECONDS:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     FORMATTED:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
   WEATHER:
     INTERVAL: 0
     TEMPERATURE:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     TEMPERATURE_FELT:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     UPDATE_TIME:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     HUMIDITY:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
     WEATHER_DESCRIPTION:
       TEXT:
         SHOW: False
+        SHOW_UNIT: True
+        X: 0
+        Y: 0
+        WIDTH: 0
+        HEIGHT: 0
+        FONT: roboto-mono/RobotoMono-Regular.ttf
+        FONT_SIZE: 10
+        FONT_COLOR: 0, 0, 0
+        BACKGROUND_COLOR: 255, 255, 255
+        ALIGN: left
+        ANCHOR: lt
   PING:
     INTERVAL: 0
     GRAPH:
       SHOW: False
+      X: 0
+      Y: 0
+      WIDTH: 0
+      HEIGHT: 0
+      MIN_VALUE: 0
+      MAX_VALUE: 100
+      BAR_COLOR: 0, 0, 0
+      BAR_OUTLINE: False
+      BACKGROUND_COLOR: 255, 255, 255
+      REVERSE_DIRECTION: False
     RADIAL:
       SHOW: False
+      SHOW_TEXT: False
+      SHOW_UNIT: True
+      X: 0
+      Y: 0
+      RADIUS: 1
+      WIDTH: 1
+      MIN_VALUE: 0
+      MAX_VALUE: 100
+      ANGLE_START: 0
+      ANGLE_END: 360
+      ANGLE_SEP: 0
+      ANGLE_STEPS: 1
+      CLOCKWISE: False
+      FONT: roboto-mono/RobotoMono-Regular.ttf
+      FONT_SIZE: 10
+      FONT_COLOR: 0, 0, 0
+      BAR_COLOR: 0, 0, 0
+      BACKGROUND_COLOR: 0, 0, 0
+      BAR_BACKGROUND_COLOR: 0, 0, 0
+      DRAW_BAR_BACKGROUND: False
     LINE_GRAPH:
       SHOW: False
+      X: 0
+      Y: 0
+      WIDTH: 1
+      HEIGHT: 1
+      MIN_VALUE: 0
+      MAX_VALUE: 100
+      AUTOSCALE: False
+      LINE_COLOR: 0, 0, 0
+      LINE_WIDTH: 2
+      HISTORY_SIZE: 10
+      AXIS: False
+      AXIS_FONT: roboto/Roboto-Black.ttf
+      AXIS_FONT_SIZE: 10
+      BACKGROUND_COLOR: 0, 0, 0
     TEXT:
       SHOW: False
+      SHOW_UNIT: True
+      X: 0
+      Y: 0
+      WIDTH: 0
+      HEIGHT: 0
+      FONT: roboto-mono/RobotoMono-Regular.ttf
+      FONT_SIZE: 10
+      FONT_COLOR: 0, 0, 0
+      BACKGROUND_COLOR: 255, 255, 255
+      ALIGN: left
+      ANCHOR: lt
   CUSTOM:
     INTERVAL: 0
