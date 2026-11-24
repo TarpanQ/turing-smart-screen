@@ -696,13 +696,15 @@ config::Json coordinate_value(const std::string &text)
 }  // namespace
 
 void TuringConfigWindow::save_additional_config(const std::string &ping, const std::string &api_key,
-                                                const std::string &lat, const std::string &lon,
-                                                const std::string &unit, const std::string &lang)
+                                                const std::string &app_id, const std::string &lat,
+                                                const std::string &lon, const std::string &unit,
+                                                const std::string &lang)
 {
     try {
         config::update_json_file(main_directory() / "config.json", {
             {"config", "PING", (ping)},
             {"config", "WEATHER_API_KEY", (api_key)},
+            {"config", "WEATHER_APP_ID", (app_id)},
             {"config", "WEATHER_LATITUDE", coordinate_value(lat)},
             {"config", "WEATHER_LONGITUDE", coordinate_value(lon)},
             {"config", "WEATHER_UNITS", (unit)},
@@ -1122,7 +1124,7 @@ MoreConfigWindow::MoreConfigWindow(TuringConfigWindow &main_window_)
     : main_window(main_window_), unit_cb(map_values(weather_unit_map)), lang_cb(map_values(weather_lang_map))
 {
     set_title("Configure weather & ping");
-    set_default_size(750, 680);
+    set_default_size(750, 780);
     set_hide_on_close(true);
     set_child(layout);
 
@@ -1132,62 +1134,67 @@ MoreConfigWindow::MoreConfigWindow(TuringConfigWindow &main_window_)
     place(layout, *bold_label("Weather forecast (OpenWeatherMap API)"), 10, 70);
 
     auto *weather_info_label = Gtk::make_managed<Gtk::Label>(
-        "To display weather forecast on themes that support it, you need an OpenWeatherMap \"One Call API 3.0\" key.\n"
-        "You will get 1,000 API calls per day for free. This program is configured to stay under this threshold "
+        "To display weather forecast on themes that support it, you need an OpenWeatherMap key: either a \"One Call "
+        "API 3.0\" key (WEATHER_API_KEY)\n"
+        "or a free \"Current weather API 2.5\" key, called App ID (WEATHER_APP_ID).\n"
+        "The One Call API 3.0 gives 1,000 API calls per day for free. This program stays under this threshold "
         "(~300 calls/day).");
     weather_info_label->set_xalign(0);
     place(layout, *weather_info_label, 10, 100);
     place(layout, *link_label("Click here to subscribe to OpenWeatherMap One Call API 3.0.",
-                              "https://openweathermap.org/api"), 10, 140);
+                              "https://openweathermap.org/api"), 10, 180);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("OpenWeatherMap API key"), 10, 170);
-    place(layout, api_entry, 190, 165, 250);
+    place(layout, *Gtk::make_managed<Gtk::Label>("OpenWeatherMap App ID (API 2.5)"), 10, 220);
+    place(layout, app_entry, 190, 215, 250);
+
+    place(layout, *Gtk::make_managed<Gtk::Label>("OpenWeatherMap API key (API 3.0)"), 10, 260);
+    place(layout, api_entry, 190, 255, 250);
 
     place(layout, *link_label("You can use online services to get your latitude/longitude e.g. latlong.net (click here)",
-                              "https://www.latlong.net/"), 10, 210);
+                              "https://www.latlong.net/"), 10, 300);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Latitude"), 10, 250);
+    place(layout, *Gtk::make_managed<Gtk::Label>("Latitude"), 10, 340);
     setup_coordinate_entry(lat_entry, lat_last_valid);
-    place(layout, lat_entry, 80, 245, 100);
+    place(layout, lat_entry, 80, 335, 100);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Longitude"), 270, 250);
+    place(layout, *Gtk::make_managed<Gtk::Label>("Longitude"), 270, 340);
     setup_coordinate_entry(long_entry, long_last_valid);
-    place(layout, long_entry, 340, 245, 100);
+    place(layout, long_entry, 340, 335, 100);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Units"), 10, 290);
-    place(layout, unit_cb, 190, 285, 250);
+    place(layout, *Gtk::make_managed<Gtk::Label>("Units"), 10, 380);
+    place(layout, unit_cb, 190, 375, 250);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Language"), 10, 330);
-    place(layout, lang_cb, 190, 325, 250);
+    place(layout, *Gtk::make_managed<Gtk::Label>("Language"), 10, 420);
+    place(layout, lang_cb, 190, 415, 250);
 
-    place(layout, *bold_label("Location search"), 80, 370);
+    place(layout, *bold_label("Location search"), 80, 460);
 
     auto *citysearch2_label = Gtk::make_managed<Gtk::Label>(
         "Enter location to automatically get coordinates (latitude/longitude).\n"
         "For example \"Berlin\" \"London, GB\", \"London, Quebec\".\n"
-        "Remember to set valid API key and pick language first!");
+        "Remember to set a valid API key or App ID and pick language first!");
     citysearch2_label->set_xalign(0);
-    place(layout, *citysearch2_label, 10, 396);
+    place(layout, *citysearch2_label, 10, 486);
 
-    place(layout, *Gtk::make_managed<Gtk::Label>("Enter location"), 10, 474);
-    place(layout, citysearch_entry, 140, 470, 300);
+    place(layout, *Gtk::make_managed<Gtk::Label>("Enter location"), 10, 564);
+    place(layout, citysearch_entry, 140, 560, 300);
     auto *citysearch_btn = Gtk::make_managed<Gtk::Button>("Search");
     citysearch_btn->signal_clicked().connect(sigc::mem_fun(*this, &MoreConfigWindow::on_search_click));
-    place(layout, *citysearch_btn, 450, 468, 130, 40);
+    place(layout, *citysearch_btn, 450, 558, 130, 40);
 
     auto *citysearch4_label = Gtk::make_managed<Gtk::Label>("Select location\n(use after Search)");
     citysearch4_label->set_xalign(0);
-    place(layout, *citysearch4_label, 10, 540);
-    place(layout, citysearch_cb, 140, 544, 360);
+    place(layout, *citysearch4_label, 10, 630);
+    place(layout, citysearch_cb, 140, 634, 360);
     auto *citysearch_btn2 = Gtk::make_managed<Gtk::Button>("Fill in lat/long");
     citysearch_btn2->signal_clicked().connect(sigc::mem_fun(*this, &MoreConfigWindow::on_filllatlong_click));
-    place(layout, *citysearch_btn2, 520, 540, 130, 40);
+    place(layout, *citysearch_btn2, 520, 630, 130, 40);
 
-    place(layout, citysearch_warn_label, 20, 600);
+    place(layout, citysearch_warn_label, 20, 690);
 
     auto *save_btn = Gtk::make_managed<Gtk::Button>("Save settings");
     save_btn->signal_clicked().connect(sigc::mem_fun(*this, &MoreConfigWindow::on_save_click));
-    place(layout, *save_btn, 590, 620, 130, 50);
+    place(layout, *save_btn, 590, 710, 130, 50);
 }
 
 void MoreConfigWindow::setup_coordinate_entry(Gtk::Entry &entry, std::string &last_valid)
@@ -1224,6 +1231,7 @@ void MoreConfigWindow::load_config_values(const config::Json &cfg)
     const config::Json conf = config::section(cfg, "config");
     ping_entry.set_text(config::get(conf, "PING", "8.8.8.8"));
     api_entry.set_text(config::get(conf, "WEATHER_API_KEY", ""));
+    app_entry.set_text(config::get(conf, "WEATHER_APP_ID", ""));
     lat_entry.set_text(config::get(conf, "WEATHER_LATITUDE", "45.75"));
     long_entry.set_text(config::get(conf, "WEATHER_LONGITUDE", "45.75"));
     if (const auto unit = map_value(weather_unit_map, config::get(conf, "WEATHER_UNITS", "metric"))) {
@@ -1244,12 +1252,13 @@ void MoreConfigWindow::citysearch_show_warning(const std::string &warning)
 void MoreConfigWindow::on_search_click()
 {
     const std::string OPENWEATHER_GEOAPI_URL = "http://api.openweathermap.org/geo/1.0/direct";
-    const std::string api_key = api_entry.get_text();
+    // The geocoding request accepts either key: the One Call API 3.0 key, or the Current weather API 2.5 App ID
+    const std::string api_key = api_entry.get_text().empty() ? app_entry.get_text() : api_entry.get_text();
     const std::string lang = map_key(weather_lang_map, lang_cb.get_text()).value_or("en");
     const std::string city = citysearch_entry.get_text();
 
     if (api_key.empty() || city.empty()) {
-        citysearch_show_warning("API key and city name cannot be empty.");
+        citysearch_show_warning("API key or App ID and city name cannot be empty.");
         return;
     }
 
@@ -1359,8 +1368,8 @@ void MoreConfigWindow::on_save_click()
 
 void MoreConfigWindow::save_config_values()
 {
-    main_window.save_additional_config(ping_entry.get_text(), api_entry.get_text(), lat_entry.get_text(),
-                                       long_entry.get_text(),
+    main_window.save_additional_config(ping_entry.get_text(), api_entry.get_text(), app_entry.get_text(),
+                                       lat_entry.get_text(), long_entry.get_text(),
                                        map_key(weather_unit_map, unit_cb.get_text()).value_or("metric"),
                                        map_key(weather_lang_map, lang_cb.get_text()).value_or("en"));
 }

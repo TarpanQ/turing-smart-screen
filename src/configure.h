@@ -112,7 +112,7 @@ private:
 
     TuringConfigWindow &main_window;
     Gtk::Fixed layout;
-    Gtk::Entry ping_entry, api_entry, lat_entry, long_entry, citysearch_entry;
+    Gtk::Entry ping_entry, api_entry, app_entry, lat_entry, long_entry, citysearch_entry;
     std::string lat_last_valid, long_last_valid;
     StringDropDown unit_cb, lang_cb, citysearch_cb;
     Gtk::Label citysearch_warn_label;
@@ -126,8 +126,9 @@ public:
     TuringConfigWindow();
 
     /** @brief Save the additional settings (ping, weather) in config.json. */
-    void save_additional_config(const std::string &ping, const std::string &api_key, const std::string &lat,
-                                const std::string &lon, const std::string &unit, const std::string &lang);
+    void save_additional_config(const std::string &ping, const std::string &api_key, const std::string &app_id,
+                                const std::string &lat, const std::string &lon, const std::string &unit,
+                                const std::string &lang);
 
 private:
     void load_theme_preview();
