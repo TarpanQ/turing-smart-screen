@@ -1,0 +1,67 @@
+# Temporary workflow, not to be merged: reproduces the intermittent crash of the Windows unit tests
+# ("Segmentation fault" in Image.SaveAndOpenPng, see TarpanQ/turing-smart-screen#19) and prints its backtraces.
+name: Windows crash diagnostic (temporary)
+
+on:
+  push:
+    branches:
+      - claude/windows-crash-diagnostic
+
+jobs:
+  diagnose:
+    name: Unit tests under gdb (runner ${{ matrix.runner }})
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [1, 2, 3, 4]
+
+    env:
+      MSYSTEM: UCRT64
+      CHERE_INVOKING: 1
+
+    defaults:
+      run:
+        shell: C:\msys64\usr\bin\bash.exe --login -eo pipefail {0}
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Install build dependencies and gdb
+      run: |
+        packages="gcc pkgconf yaml-cpp nlohmann-json freetype harfbuzz glib2 libpng libjpeg-turbo libusb curl icu gtkmm-4.0 gtest gdb"
+        pacman -Sy --noconfirm --needed make $(printf 'mingw-w64-ucrt-x86_64-%s ' $packages)
+
+    - name: Build the unit tests with debug symbols (optimized, as in the CI)
+      run: make -j4 CXXFLAGS=-g build/bin/unit-tests.exe
+
+    - name: Run the unit tests 25 times under gdb
+      run: |
+        mkdir -p logs
+        crashes=0
+        for i in $(seq 1 25); do
+          gdb -q -batch -ex "set pagination off" -ex "set print thread-events off" -ex run -ex "info threads" \
+            -ex "thread apply all bt" --args build/bin/unit-tests.exe > "logs/run-$i.log" 2>&1 || true
+          if grep -q "exited normally" "logs/run-$i.log"; then
+            echo "run $i: ok"
+          else
+            crashes=$((crashes + 1))
+            echo "######## run $i: CRASH ########"
+            # Last tests started, then the signal and the backtraces of all the threads
+            grep -E '^\[ RUN|received signal|exited with code' "logs/run-$i.log" | tail -5
+            sed -n '/received signal/,$p' "logs/run-$i.log" | head -150
+          fi
+        done
+        echo "$crashes crash(es) in 25 runs"
+        echo "$crashes" > logs/crashes.txt
+
+    - name: Archive the logs
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: gdb-logs-runner-${{ matrix.runner }}
+        path: logs/
+
+    - name: Fail if a crash was reproduced
+      run: test "$(cat logs/crashes.txt)" = 0
