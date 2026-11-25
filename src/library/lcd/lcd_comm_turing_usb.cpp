@@ -229,6 +229,31 @@ Bytes encrypt_command_packet(const Bytes &data)
 // ---------------------------------------------------------------------------------------------------------------------
 // UsbDevice
 
+namespace {
+
+// True if a supported screen is connected, even if it cannot be opened
+bool device_present(libusb_context *ctx)
+{
+    libusb_device **devices = nullptr;
+    const ssize_t count = libusb_get_device_list(ctx, &devices);
+    bool present = false;
+    for (ssize_t i = 0; i < count && !present; i++) {
+        libusb_device_descriptor descriptor{};
+        if (libusb_get_device_descriptor(devices[i], &descriptor) != 0 || descriptor.idVendor != VENDOR_ID) {
+            continue;
+        }
+        for (const auto &[pid, size]: product_ids()) {
+            present = present || descriptor.idProduct == pid;
+        }
+    }
+    if (count >= 0) {
+        libusb_free_device_list(devices, 1);
+    }
+    return present;
+}
+
+}  // namespace
+
 UsbDevice::UsbDevice()
 {
     libusb_context *ctx = nullptr;
@@ -246,20 +271,33 @@ UsbDevice::UsbDevice()
         }
     }
     if (!dev) {
+        const bool present = device_present(ctx);
         libusb_exit(ctx);
         context = nullptr;
+        if (present) {
+#ifdef _WIN32
+            throw std::runtime_error("USB device found but it cannot be opened: install the WinUSB driver for it with "
+                                     "Zadig (https://zadig.akeo.ie)");
+#else
+            throw std::runtime_error("USB device found but it cannot be opened: check the permissions of the USB "
+                                     "device (udev rule)");
+#endif
+        }
         throw std::runtime_error("USB device not found");
     }
     handle = dev;
 
-    // Detach the kernel driver if needed, and select the configuration
+    // Detach the kernel driver if needed, and select the configuration (not on Windows: the WinUSB driver keeps the
+    // configuration of the device, and there is no kernel driver to detach)
     libusb_set_auto_detach_kernel_driver(dev, 1);
     libusb_config_descriptor *config = nullptr;
     if (libusb_get_config_descriptor(libusb_get_device(dev), 0, &config) == 0) {
+#ifndef _WIN32
         const int ret = libusb_set_configuration(dev, config->bConfigurationValue);
         if (ret != 0) {
             logger.warning("set_configuration() failed: {}", libusb_strerror(ret));
         }
+#endif
         // Endpoints of interface 0
         for (int i = 0; i < config->bNumInterfaces; i++) {
             const libusb_interface &intf = config->interface[i];
