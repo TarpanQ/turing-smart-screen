@@ -28,6 +28,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -351,10 +352,13 @@ void LcdSimulated::DisplayPILImage(const Image &input, int x, int y, int image_w
 
 void LcdSimulated::save_screenshot()
 {
-    // Written to a temporary file first, so that the screenshot is never read while it is being written
+    // Written to a temporary file first, so that the screenshot is never read while it is being written.
+    // std::filesystem::rename replaces the existing file on Windows too (std::rename does not).
     const std::string tmp_file = screenshot_file_name + ".tmp";
     screen_image.save(tmp_file);
-    if (std::rename(tmp_file.c_str(), screenshot_file_name.c_str()) != 0) {
-        logger.error("Cannot write {}: {}", screenshot_file_name, std::strerror(errno));
+    std::error_code ec;
+    std::filesystem::rename(tmp_file, screenshot_file_name, ec);
+    if (ec) {
+        logger.error("Cannot write {}: {}", screenshot_file_name, ec.message());
     }
 }
