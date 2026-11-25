@@ -101,6 +101,8 @@ ifeq ($(PLATFORM),windows)
   CSC        ?= /c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe
   LHM_BRIDGE := $(BIN_DIR)/lhm-bridge.exe
 endif
+# csc.exe takes Windows paths: with '/', it only keeps the name of the source file
+winpath = $(subst /,\,$(1))
 
 # Tools: one program per source file in src/tools/
 TOOL_SRCS := $(wildcard $(SRC_DIR)/tools/*.cpp)
@@ -150,8 +152,8 @@ $(BIN_DIR)/%$(EXE): $(OBJ_DIR)/tools/%.o $(LIB_A)
 
 $(BIN_DIR)/lhm-bridge.exe: $(SRC_DIR)/lhm-bridge/lhm-bridge.cs $(LHM_DIR)/LibreHardwareMonitorLib.dll
 	@mkdir -p $(@D)
-	"$(CSC)" -nologo -optimize+ -target:exe -platform:anycpu -lib:$(LHM_DIR) -reference:LibreHardwareMonitorLib.dll \
-		-out:$@ $<
+	"$(CSC)" -nologo -optimize+ -target:exe -platform:anycpu "-lib:$(call winpath,$(LHM_DIR))" \
+		-reference:LibreHardwareMonitorLib.dll "-out:$(call winpath,$@)" "$(call winpath,$<)"
 
 # GUI programs need the gtkmm include paths
 $(CONFIGURE_OBJS) $(THEME_EDITOR_OBJS): ALL_CXXFLAGS += $(GUI_CFLAGS)
