@@ -60,6 +60,95 @@ void jpeg_error_exit(j_common_ptr cinfo)
     std::longjmp(err->jump, 1);
 }
 
+// libjpeg reports its errors with longjmp, to the setjmp of read_jpeg() and write_jpeg(). These two functions never
+// throw a C++ exception: on Windows x64, unwinding an exception from a function that calls setjmp can crash (SEH
+// unwinder). They create no object with a destructor either, since longjmp would skip it. Their callers throw the
+// errors. GCC never inlines a function calling setjmp into its caller.
+
+/** @brief Pixels decoded by read_jpeg(): RGB, 3 bytes per pixel, allocated with std::malloc (freed by the caller). */
+struct JpegPixels
+{
+    unsigned char *data = nullptr;
+    int width = 0;
+    int height = 0;
+};
+
+/** @brief Decode a JPEG file into out. Returns false on error, with the message in err.message. */
+bool read_jpeg(FILE *file, JpegPixels &out, JpegErrorManager &err)
+{
+    jpeg_decompress_struct cinfo{};
+    cinfo.err = jpeg_std_error(&err.pub);
+    err.pub.error_exit = jpeg_error_exit;
+    if (setjmp(err.jump)) {
+        jpeg_destroy_decompress(&cinfo);
+        return false;
+    }
+
+    jpeg_create_decompress(&cinfo);
+    jpeg_stdio_src(&cinfo, file);
+    jpeg_read_header(&cinfo, TRUE);
+    cinfo.out_color_space = JCS_RGB;
+    jpeg_start_decompress(&cinfo);
+
+    out.width = static_cast<int>(cinfo.output_width);
+    out.height = static_cast<int>(cinfo.output_height);
+    out.data = static_cast<unsigned char *>(std::malloc(static_cast<size_t>(out.width) * out.height * 3));
+    if (!out.data) {
+        jpeg_destroy_decompress(&cinfo);
+        std::snprintf(err.message, sizeof(err.message), "out of memory");
+        return false;
+    }
+    while (cinfo.output_scanline < cinfo.output_height) {
+        JSAMPROW row = out.data + static_cast<size_t>(cinfo.output_scanline) * out.width * 3;
+        jpeg_read_scanlines(&cinfo, &row, 1);
+    }
+    jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
+    return true;
+}
+
+/**
+ * @brief Encode RGB pixels as JPEG into buffer (allocated by libjpeg with std::malloc, freed by the caller, also on
+ * error). Returns false on error, with the message in err.message.
+ */
+bool write_jpeg(const uint8_t *pixels, int width, int height, int quality, int subsampling, unsigned char *&buffer,
+                unsigned long &size, JpegErrorManager &err)
+{
+    jpeg_compress_struct cinfo{};
+    cinfo.err = jpeg_std_error(&err.pub);
+    err.pub.error_exit = jpeg_error_exit;
+    if (setjmp(err.jump)) {
+        jpeg_destroy_compress(&cinfo);
+        return false;
+    }
+
+    jpeg_create_compress(&cinfo);
+    jpeg_mem_dest(&cinfo, &buffer, &size);
+    cinfo.image_width = static_cast<JDIMENSION>(width);
+    cinfo.image_height = static_cast<JDIMENSION>(height);
+    cinfo.input_components = 3;
+    cinfo.in_color_space = JCS_RGB;
+    jpeg_set_defaults(&cinfo);
+    jpeg_set_quality(&cinfo, std::clamp(quality, 1, 100), TRUE);
+    // Luma sampling factors: 4:4:4 = 1x1, 4:2:2 = 2x1, 4:2:0 = 2x2
+    cinfo.comp_info[0].h_samp_factor = subsampling == 0 ? 1 : 2;
+    cinfo.comp_info[0].v_samp_factor = subsampling == 2 ? 2 : 1;
+    jpeg_start_compress(&cinfo, TRUE);
+    while (cinfo.next_scanline < cinfo.image_height) {
+        auto row = const_cast<JSAMPROW>(pixels + static_cast<size_t>(cinfo.next_scanline) * width * 3);
+        jpeg_write_scanlines(&cinfo, &row, 1);
+    }
+    jpeg_finish_compress(&cinfo);
+    jpeg_destroy_compress(&cinfo);
+    return true;
+}
+
+/** @brief Frees memory allocated with std::malloc (by libjpeg or read_jpeg). */
+struct FreeDeleter
+{
+    void operator()(unsigned char *p) const { std::free(p); }
+};
+
 /** @brief Pillow bicubic filter */
 double bicubic_filter(double x)
 {
@@ -178,34 +267,17 @@ Image Image::open(const std::string &path)
         throw std::runtime_error("Cannot open image " + path + ": " + std::strerror(errno));
     }
 
-    jpeg_decompress_struct cinfo{};
     JpegErrorManager err{};
-    cinfo.err = jpeg_std_error(&err.pub);
-    err.pub.error_exit = jpeg_error_exit;
-    if (setjmp(err.jump)) {
-        jpeg_destroy_decompress(&cinfo);
+    JpegPixels jpeg;
+    const bool decoded = read_jpeg(file.get(), jpeg, err);
+    const std::unique_ptr<unsigned char, FreeDeleter> data(jpeg.data);
+    if (!decoded) {
         throw std::runtime_error("Cannot read image " + path + ": " + err.message);
     }
 
-    jpeg_create_decompress(&cinfo);
-    jpeg_stdio_src(&cinfo, file.get());
-    jpeg_read_header(&cinfo, TRUE);
-    cinfo.out_color_space = JCS_RGB;
-    jpeg_start_decompress(&cinfo);
-
-    const int width = static_cast<int>(cinfo.output_width);
-    const int height = static_cast<int>(cinfo.output_height);
-    std::vector<uint8_t> pixels(static_cast<size_t>(width) * height * 3);
-    while (cinfo.output_scanline < cinfo.output_height) {
-        JSAMPROW row = pixels.data() + static_cast<size_t>(cinfo.output_scanline) * width * 3;
-        jpeg_read_scanlines(&cinfo, &row, 1);
-    }
-    jpeg_finish_decompress(&cinfo);
-    jpeg_destroy_decompress(&cinfo);
-
-    result.width_ = width;
-    result.height_ = height;
-    result.pixels = std::move(pixels);
+    result.width_ = jpeg.width;
+    result.height_ = jpeg.height;
+    result.pixels.assign(data.get(), data.get() + static_cast<size_t>(jpeg.width) * jpeg.height * 3);
     return result;
 }
 
@@ -398,40 +470,15 @@ std::vector<uint8_t> Image::encode_png() const
 
 std::vector<uint8_t> Image::encode_jpeg(int quality, int subsampling) const
 {
-    jpeg_compress_struct cinfo{};
     JpegErrorManager err{};
-    cinfo.err = jpeg_std_error(&err.pub);
-    err.pub.error_exit = jpeg_error_exit;
     unsigned char *buffer = nullptr;
     unsigned long size = 0;
-    if (setjmp(err.jump)) {
-        jpeg_destroy_compress(&cinfo);
-        std::free(buffer);
+    const bool encoded = write_jpeg(pixels.data(), width_, height_, quality, subsampling, buffer, size, err);
+    const std::unique_ptr<unsigned char, FreeDeleter> data(buffer);
+    if (!encoded) {
         throw std::runtime_error(std::string("Cannot encode JPEG image: ") + err.message);
     }
-
-    jpeg_create_compress(&cinfo);
-    jpeg_mem_dest(&cinfo, &buffer, &size);
-    cinfo.image_width = static_cast<JDIMENSION>(width_);
-    cinfo.image_height = static_cast<JDIMENSION>(height_);
-    cinfo.input_components = 3;
-    cinfo.in_color_space = JCS_RGB;
-    jpeg_set_defaults(&cinfo);
-    jpeg_set_quality(&cinfo, std::clamp(quality, 1, 100), TRUE);
-    // Luma sampling factors: 4:4:4 = 1x1, 4:2:2 = 2x1, 4:2:0 = 2x2
-    cinfo.comp_info[0].h_samp_factor = subsampling == 0 ? 1 : 2;
-    cinfo.comp_info[0].v_samp_factor = subsampling == 2 ? 2 : 1;
-    jpeg_start_compress(&cinfo, TRUE);
-    while (cinfo.next_scanline < cinfo.image_height) {
-        auto row = const_cast<JSAMPROW>(pixels.data() + static_cast<size_t>(cinfo.next_scanline) * width_ * 3);
-        jpeg_write_scanlines(&cinfo, &row, 1);
-    }
-    jpeg_finish_compress(&cinfo);
-    jpeg_destroy_compress(&cinfo);
-
-    std::vector<uint8_t> result(buffer, buffer + size);
-    std::free(buffer);
-    return result;
+    return std::vector<uint8_t>(data.get(), data.get() + size);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
