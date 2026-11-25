@@ -53,6 +53,7 @@
 #include "library/sensors/sensors_custom.h"
 #include "library/platform.h"
 #include "library/sensors/sensors_python.h"
+#include "library/sensors/sensors_windows.h"
 #include "library/sensors/sensors_stub_random.h"
 #include "library/sensors/sensors_stub_static.h"
 #include "library/weather.h"
@@ -261,18 +262,18 @@ void init()
     CPU_FAN = config::get(config::section(cfg, "config"), "CPU_FAN", "AUTO");
     PING_DEST = config::get(config::section(cfg, "config"), "PING", "127.0.0.1");
 
-#ifdef _WIN32
-    // The hardware sensors of Windows are not supported yet: sensors_python reads Linux /proc and /sys
+    // sensors_python reads the Linux /proc and /sys files: on Windows, AUTO uses the Windows API instead
     if (HW_SENSORS == "AUTO") {
-        logger.warning("Hardware sensors are not supported on Windows yet: using stub sensors");
-        HW_SENSORS = "STUB";
-    } else if (HW_SENSORS == "PYTHON") {
-        logger.error("HW_SENSORS: PYTHON is only available on Linux");
-        std::_Exit(1);
-    }
+#ifdef _WIN32
+        sensors = sensors_windows::create();
+#else
+        sensors = sensors_python::create();
 #endif
-
-    if (HW_SENSORS == "PYTHON" || HW_SENSORS == "AUTO") {
+    } else if (HW_SENSORS == "PYTHON") {
+#ifdef _WIN32
+        logger.error("HW_SENSORS: PYTHON is only available on Linux, use AUTO");
+        std::_Exit(1);
+#endif
         sensors = sensors_python::create();
     } else if (HW_SENSORS == "LHM") {
         logger.error("LibreHardwareMonitor integration is only available on Windows");

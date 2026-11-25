@@ -65,11 +65,11 @@ TEST_CFLAGS := $(patsubst -I%,-isystem %,$(shell $(PKG_CONFIG) --cflags $(TEST_P
 TEST_LIBS   := $(shell $(PKG_CONFIG) --libs $(TEST_PKGS) 2>/dev/null)
 
 # Platform-specific settings. Windows: Windows 10 API or later, without the GDI macros of <windows.h> (ERROR...) and
-# the min/max macros, with M_PI; system libraries for sockets, network interfaces and serial ports listing
+# the min/max macros, with M_PI; system libraries for sockets, network interfaces, serial ports listing and sensors
 ifeq ($(PLATFORM),windows)
   EXE           := .exe
   PLATFORM_DEFS := -D_WIN32_WINNT=0x0A00 -DWIN32_LEAN_AND_MEAN -DNOMINMAX -DNOGDI -D_USE_MATH_DEFINES
-  PLATFORM_LIBS := -lws2_32 -liphlpapi -lsetupapi -lcfgmgr32
+  PLATFORM_LIBS := -lws2_32 -liphlpapi -lsetupapi -lcfgmgr32 -lpdh -lpowrprof
 else
   EXE           :=
   PLATFORM_DEFS :=
