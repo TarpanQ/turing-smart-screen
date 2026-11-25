@@ -18,7 +18,8 @@
 
 /**
  * @file serial_port.cpp
- * @brief Linux serial port (termios), providing the subset of pyserial needed by the program.
+ * @brief Serial port (termios on Linux, not supported yet on Windows), providing the subset of pyserial needed by the
+ * program.
  */
 
 #include "library/lcd/serial_port.h"
@@ -30,13 +31,70 @@
 #include <filesystem>
 #include <fstream>
 
+#ifndef _WIN32
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
+#endif
 
 namespace fs = std::filesystem;
+
+#ifdef _WIN32
+
+// The serial ports are not supported on Windows yet: opening a port fails, and no port is listed
+
+SerialPort::SerialPort(const std::string &port, int, double timeout_s, bool) : port_name(port), timeout(timeout_s)
+{
+    throw SerialException("could not open port " + port + ": serial ports are not supported on Windows yet");
+}
+
+SerialPort::~SerialPort() = default;
+
+void SerialPort::close()
+{
+}
+
+bool SerialPort::wait(bool, double)
+{
+    return false;
+}
+
+void SerialPort::write(const std::vector<uint8_t> &)
+{
+    throw SerialException("Attempting to use a port that is not open");
+}
+
+std::vector<uint8_t> SerialPort::read(size_t)
+{
+    throw SerialException("Attempting to use a port that is not open");
+}
+
+std::vector<uint8_t> SerialPort::readall()
+{
+    throw SerialException("Attempting to use a port that is not open");
+}
+
+void SerialPort::flush()
+{
+}
+
+size_t SerialPort::in_waiting()
+{
+    return 0;
+}
+
+void SerialPort::reset_input_buffer()
+{
+}
+
+std::vector<ListPortInfo> comports()
+{
+    return {};
+}
+
+#else  // Linux
 
 namespace {
 
@@ -286,3 +344,5 @@ std::vector<ListPortInfo> comports()
     std::sort(ports.begin(), ports.end(), [](const auto &a, const auto &b) { return a.device < b.device; });
     return ports;
 }
+
+#endif

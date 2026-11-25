@@ -27,6 +27,15 @@
 #include <chrono>
 #include <cstring>
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#include <iphlpapi.h>
+#include <icmpapi.h>
+
+#include <vector>
+#else
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -34,8 +43,52 @@
 #include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#endif
 
 #include "library/log.h"
+#include "library/platform.h"
+
+#ifdef _WIN32
+
+std::optional<double> ping(const std::string &dest_addr, double timeout_s)
+{
+    platform::init_sockets();
+    addrinfo hints{};
+    hints.ai_family = AF_INET;
+    addrinfo *res = nullptr;
+    if (getaddrinfo(dest_addr.c_str(), nullptr, &hints, &res) != 0 || !res) {
+        logger.debug("Ping: cannot resolve host {}", dest_addr);
+        return std::nullopt;
+    }
+    sockaddr_in addr{};
+    std::memcpy(&addr, res->ai_addr, sizeof(addr));
+    freeaddrinfo(res);
+
+    // The ICMP helper API of Windows does not need administrator rights
+    HANDLE icmp = IcmpCreateFile();
+    if (icmp == INVALID_HANDLE_VALUE) {
+        logger.debug("Ping: cannot create ICMP handle: error {}", GetLastError());
+        return std::nullopt;
+    }
+    char data[32];
+    std::memset(data, 'Q', sizeof(data));
+    std::vector<unsigned char> reply_buffer(sizeof(ICMP_ECHO_REPLY) + sizeof(data) + 8);
+
+    const auto start = std::chrono::steady_clock::now();
+    const DWORD replies = IcmpSendEcho(icmp, addr.sin_addr.s_addr, data, sizeof(data), nullptr, reply_buffer.data(),
+                                       static_cast<DWORD>(reply_buffer.size()), static_cast<DWORD>(timeout_s * 1000));
+    const auto end = std::chrono::steady_clock::now();
+    IcmpCloseHandle(icmp);
+
+    const auto *reply = reinterpret_cast<const ICMP_ECHO_REPLY *>(reply_buffer.data());
+    if (replies == 0 || reply->Status != IP_SUCCESS) {
+        return std::nullopt;  // timeout or error
+    }
+    // Measured here: RoundTripTime of the reply is in whole milliseconds only
+    return std::chrono::duration<double, std::milli>(end - start).count();
+}
+
+#else  // Linux
 
 namespace {
 
@@ -139,3 +192,5 @@ std::optional<double> ping(const std::string &dest_addr, double timeout_s)
     ::close(fd);
     return result;
 }
+
+#endif

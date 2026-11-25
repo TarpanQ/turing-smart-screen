@@ -30,6 +30,7 @@
 #include <fstream>
 
 #include "library/log.h"
+#include "library/platform.h"
 
 namespace fs = std::filesystem;
 
@@ -86,9 +87,8 @@ void create_user_config(const fs::path &dir)
 
 fs::path find_main_directory()
 {
-    std::error_code ec;
-    const fs::path exe = fs::read_symlink("/proc/self/exe", ec);
-    if (!ec) {
+    const fs::path exe = platform::executable_path();
+    if (!exe.empty()) {
         for (fs::path dir = exe.parent_path(); !dir.empty(); dir = dir.parent_path()) {
             if (is_main_directory(dir)) {
                 return dir;

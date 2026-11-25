@@ -28,26 +28,93 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
+#include <system_error>
+#else
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#endif
 
 #include "library/log.h"
+#include "library/platform.h"
 
 namespace {
 
+// The sockets are kept in an intptr_t: an int on Linux, a SOCKET on Windows (INVALID_SOCKET is then -1)
+#ifdef _WIN32
+SOCKET as_socket(intptr_t fd)
+{
+    return static_cast<SOCKET>(fd);
+}
 
-void send_all(int fd, const std::string &data)
+constexpr int SEND_FLAGS = 0;
+
+std::string last_socket_error()
+{
+    return std::system_category().message(WSAGetLastError());
+}
+
+void close_socket(intptr_t fd)
+{
+    ::closesocket(as_socket(fd));
+}
+
+int poll_socket(intptr_t fd, int timeout_ms)
+{
+    WSAPOLLFD pfd{as_socket(fd), POLLIN, 0};
+    return ::WSAPoll(&pfd, 1, timeout_ms);
+}
+
+intptr_t accept_client(intptr_t server_fd)
+{
+    return static_cast<intptr_t>(::accept(as_socket(server_fd), nullptr, nullptr));
+}
+#else
+int as_socket(intptr_t fd)
+{
+    return static_cast<int>(fd);
+}
+
+constexpr int SEND_FLAGS = MSG_NOSIGNAL;
+
+std::string last_socket_error()
+{
+    return std::strerror(errno);
+}
+
+void close_socket(intptr_t fd)
+{
+    ::close(as_socket(fd));
+}
+
+int poll_socket(intptr_t fd, int timeout_ms)
+{
+    pollfd pfd{as_socket(fd), POLLIN, 0};
+    return ::poll(&pfd, 1, timeout_ms);
+}
+
+intptr_t accept_client(intptr_t server_fd)
+{
+    return ::accept4(as_socket(server_fd), nullptr, nullptr, SOCK_CLOEXEC);
+}
+#endif
+
+void send_all(intptr_t fd, const std::string &data)
 {
     size_t sent = 0;
     while (sent < data.size()) {
-        const ssize_t n = ::send(fd, data.data() + sent, data.size() - sent, MSG_NOSIGNAL);
+        const auto n = ::send(as_socket(fd), data.data() + sent, static_cast<int>(data.size() - sent), SEND_FLAGS);
         if (n <= 0) {
             return;
         }
@@ -62,22 +129,31 @@ void send_all(int fd, const std::string &data)
 
 SimulatedLcdWebServer::SimulatedLcdWebServer(const std::string &host, int port)
 {
+    platform::init_sockets();
+#ifdef _WIN32
+    server_fd = static_cast<intptr_t>(::socket(AF_INET, SOCK_STREAM, 0));
+#else
     server_fd = ::socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+#endif
     if (server_fd < 0) {
-        throw std::runtime_error(std::strerror(errno));
+        throw std::runtime_error(last_socket_error());
     }
+#ifndef _WIN32
+    // On Windows, SO_REUSEADDR would let another program use the same port: not needed to bind again at once
     const int reuse = 1;
-    ::setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+    ::setsockopt(as_socket(server_fd), SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+#endif
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(static_cast<uint16_t>(port));
     ::inet_pton(AF_INET, host == "localhost" ? "127.0.0.1" : host.c_str(), &addr.sin_addr);
-    if (::bind(server_fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0 || ::listen(server_fd, 8) != 0) {
-        const int err = errno;
-        ::close(server_fd);
+    if (::bind(as_socket(server_fd), reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0 ||
+        ::listen(as_socket(server_fd), 8) != 0) {
+        const std::string error = last_socket_error();
+        close_socket(server_fd);
         server_fd = -1;
-        throw std::runtime_error(std::strerror(err));
+        throw std::runtime_error(error);
     }
 
     thread = std::thread(&SimulatedLcdWebServer::serve_forever, this);
@@ -95,7 +171,7 @@ void SimulatedLcdWebServer::shutdown()
         thread.join();
     }
     if (server_fd >= 0) {
-        ::close(server_fd);
+        close_socket(server_fd);
         server_fd = -1;
     }
 }
@@ -104,28 +180,26 @@ void SimulatedLcdWebServer::serve_forever()
 {
     while (!stopping) {
         // Wake up regularly to check if the server must stop
-        pollfd pfd{server_fd, POLLIN, 0};
-        if (::poll(&pfd, 1, 250) <= 0) {
+        if (poll_socket(server_fd, 250) <= 0) {
             continue;
         }
-        const int client_fd = ::accept4(server_fd, nullptr, nullptr, SOCK_CLOEXEC);
+        const intptr_t client_fd = accept_client(server_fd);
         if (client_fd < 0) {
             continue;
         }
         handle_client(client_fd);
-        ::close(client_fd);
+        close_socket(client_fd);
     }
 }
 
-void SimulatedLcdWebServer::handle_client(int client_fd)
+void SimulatedLcdWebServer::handle_client(intptr_t client_fd)
 {
     // Read the request line: "GET <path> HTTP/1.x"
-    pollfd pfd{client_fd, POLLIN, 0};
-    if (::poll(&pfd, 1, 1000) <= 0) {
+    if (poll_socket(client_fd, 1000) <= 0) {
         return;
     }
     char buffer[2048];
-    const ssize_t n = ::recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+    const auto n = ::recv(as_socket(client_fd), buffer, sizeof(buffer) - 1, 0);
     if (n <= 0) {
         return;
     }
@@ -278,10 +352,13 @@ void LcdSimulated::DisplayPILImage(const Image &input, int x, int y, int image_w
 
 void LcdSimulated::save_screenshot()
 {
-    // Written to a temporary file first, so that the screenshot is never read while it is being written
+    // Written to a temporary file first, so that the screenshot is never read while it is being written.
+    // std::filesystem::rename replaces the existing file on Windows too (std::rename does not).
     const std::string tmp_file = screenshot_file_name + ".tmp";
     screen_image.save(tmp_file);
-    if (std::rename(tmp_file.c_str(), screenshot_file_name.c_str()) != 0) {
-        logger.error("Cannot write {}: {}", screenshot_file_name, std::strerror(errno));
+    std::error_code ec;
+    std::filesystem::rename(tmp_file, screenshot_file_name, ec);
+    if (ec) {
+        logger.error("Cannot write {}: {}", screenshot_file_name, ec.message());
     }
 }

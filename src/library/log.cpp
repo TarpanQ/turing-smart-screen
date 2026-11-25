@@ -29,6 +29,8 @@
 #include <ctime>
 #include <iostream>
 
+#include "library/platform.h"
+
 namespace {
 /** @brief Log in text file, max 1MB: the file is truncated when it gets bigger */
 constexpr std::streamoff LOG_FILE_MAX_BYTES = 1000000;
@@ -75,8 +77,7 @@ void Logger::log(LogLevel msg_level, std::string_view message)
     // Same format as Python: "%(asctime)s [%(levelname)s] %(message)s" with datefmt '%x %X'
     char date[64];
     const std::time_t now = std::time(nullptr);
-    std::tm tm{};
-    localtime_r(&now, &tm);
+    const std::tm tm = platform::local_time(now);
     std::strftime(date, sizeof(date), "%x %X", &tm);
 
     const std::string line = std::format("{} [{}] {}\n", date, level_name(msg_level), message);

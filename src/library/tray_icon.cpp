@@ -26,12 +26,12 @@
 #include <future>
 #include <map>
 #include <optional>
-#include <unistd.h>
 
 #include <gio/gio.h>
 #include <png.h>
 
 #include "library/log.h"
+#include "library/platform.h"
 
 namespace {
 
@@ -434,6 +434,12 @@ TrayIcon::~TrayIcon()
 
 bool TrayIcon::run_detached()
 {
+#ifdef _WIN32
+    // StatusNotifierItem is a D-Bus protocol of the Linux desktops: Windows has no session bus to register to
+    logger.warning("Tray icon is not supported on Windows yet");
+    return false;
+#endif
+
     std::promise<bool> started;
     auto started_future = started.get_future();
 
@@ -461,7 +467,7 @@ bool TrayIcon::run_detached()
             &VTABLE, d, nullptr, nullptr);
 
         // Well-known name of the item, then registration with the watcher as soon as it is available
-        d->bus_name = "org.kde.StatusNotifierItem-" + std::to_string(::getpid()) + "-1";
+        d->bus_name = "org.kde.StatusNotifierItem-" + std::to_string(platform::process_id()) + "-1";
         d->own_id = g_bus_own_name_on_connection(d->connection, d->bus_name.c_str(), G_BUS_NAME_OWNER_FLAGS_NONE,
                                                  nullptr, nullptr, nullptr, nullptr);
         d->watch_id = g_bus_watch_name_on_connection(

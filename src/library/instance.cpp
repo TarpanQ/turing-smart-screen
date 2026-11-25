@@ -22,15 +22,99 @@
 
 #include "library/instance.h"
 
-#include <csignal>
+#include <cstdint>
 #include <cstdlib>
-#include <fcntl.h>
+#include <filesystem>
 #include <fstream>
-#include <sys/file.h>
 #include <thread>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <sys/file.h>
 #include <unistd.h>
+#endif
+
+#include "library/platform.h"
 
 namespace instance {
+
+#ifdef _WIN32
+
+namespace {
+
+// Windows file locks are mandatory: the lock covers a byte far after the PID, so that the PID can still be read
+constexpr DWORD LOCK_OFFSET = 1u << 30;
+
+HANDLE open_lock_file(DWORD creation)
+{
+    return CreateFileW(std::filesystem::path(lock_path()).c_str(), GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, creation,
+                       FILE_ATTRIBUTE_NORMAL, nullptr);
+}
+
+bool try_lock(HANDLE file)
+{
+    OVERLAPPED overlapped{};
+    overlapped.Offset = LOCK_OFFSET;
+    return LockFileEx(file, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY, 0, 1, 0, &overlapped);
+}
+
+void unlock(HANDLE file)
+{
+    OVERLAPPED overlapped{};
+    overlapped.Offset = LOCK_OFFSET;
+    UnlockFileEx(file, 0, 1, 0, &overlapped);
+}
+
+}  // namespace
+
+std::string lock_path()
+{
+    return (std::filesystem::temp_directory_path() / "turing-system-monitor.lock").string();
+}
+
+int acquire_lock()
+{
+    HANDLE file = open_lock_file(OPEN_ALWAYS);
+    if (file == INVALID_HANDLE_VALUE) {
+        return -2;
+    }
+    if (!try_lock(file)) {
+        CloseHandle(file);
+        return -1;
+    }
+    // The PID is written so that the configuration program can stop this instance
+    if (SetFilePointer(file, 0, nullptr, FILE_BEGIN) == 0 && SetEndOfFile(file)) {
+        const std::string pid = std::to_string(platform::process_id()) + "\n";
+        DWORD written = 0;
+        WriteFile(file, pid.data(), static_cast<DWORD>(pid.size()), &written, nullptr);
+    }
+    // The handle is kept open (and locked) until the process exits; Windows handles fit in an int
+    return static_cast<int>(reinterpret_cast<intptr_t>(file));
+}
+
+namespace {
+
+// True if an instance holds the lock. The lock is only tested here: it is released at once if nobody holds it.
+bool is_running()
+{
+    HANDLE file = open_lock_file(OPEN_EXISTING);
+    if (file == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    const bool running = !try_lock(file);
+    if (!running) {
+        unlock(file);
+    }
+    CloseHandle(file);
+    return running;
+}
+
+}  // namespace
+
+#else  // Linux
 
 std::string lock_path()
 {
@@ -75,6 +159,8 @@ bool is_running()
 
 }  // namespace
 
+#endif
+
 bool stop_running(std::chrono::seconds timeout)
 {
     if (!is_running()) {
@@ -82,10 +168,10 @@ bool stop_running(std::chrono::seconds timeout)
     }
 
     std::ifstream file(lock_path());
-    pid_t pid = 0;
+    int pid = 0;
     file >> pid;
     if (pid > 0) {
-        kill(pid, SIGTERM);
+        platform::send_stop_request(pid);
     }
 
     const auto deadline = std::chrono::steady_clock::now() + timeout;

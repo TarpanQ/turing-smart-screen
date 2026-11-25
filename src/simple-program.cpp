@@ -42,6 +42,7 @@
 #include "library/lcd/lcd_comm_weact_b.h"
 #include "library/lcd/lcd_simulated.h"
 #include "library/log.h"
+#include "library/platform.h"
 
 /** @brief Set your COM port e.g. "/dev/ttyACM0", or "AUTO" for auto-discovery */
 const std::string COM_PORT = "AUTO";
@@ -89,8 +90,7 @@ std::string time_now()
     // Same format as Python str(datetime.now().time()): HH:MM:SS.ffffff
     const auto now = std::chrono::system_clock::now();
     const std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm{};
-    localtime_r(&t, &tm);
+    const std::tm tm = platform::local_time(t);
     const auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count() % 1000000;
     return std::format("{:02}:{:02}:{:02}.{:06}", tm.tm_hour, tm.tm_min, tm.tm_sec, micros);
 }
@@ -108,7 +108,9 @@ int main()
     // Set the signal handlers, to send a complete frame to the LCD before exit
     std::signal(SIGINT, sighandler);
     std::signal(SIGTERM, sighandler);
-    std::signal(SIGQUIT, sighandler);
+#ifdef SIGQUIT
+    std::signal(SIGQUIT, sighandler);  // No SIGQUIT on Windows
+#endif
 
     // Resources (fonts, backgrounds) are in the res/ directory of the project
     const std::string res = (config::find_main_directory() / "res").string() + "/";

@@ -18,7 +18,8 @@
 
 /**
  * @file serial_port.h
- * @brief Linux serial port (termios), providing the subset of pyserial needed by the program.
+ * @brief Serial port (termios on Linux, not supported yet on Windows), providing the subset of pyserial needed by the
+ * program.
  */
 
 #pragma once

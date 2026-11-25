@@ -28,18 +28,22 @@
 
 namespace instance {
 
-/** @brief Path of the lock file of the system monitor (in XDG_RUNTIME_DIR, or /tmp) */
+/**
+ * @brief Path of the lock file of the system monitor (in XDG_RUNTIME_DIR or /tmp; in the temporary directory on
+ * Windows)
+ */
 std::string lock_path();
 
 /**
  * @brief Take the lock for the whole run of the process; the PID of the process is written in the lock file.
- * Returns the file descriptor of the lock (keep it open), -1 if another instance is already running, or -2 if the lock
- * file cannot be used (the program then runs anyway).
+ * Returns the file descriptor of the lock (the file handle on Windows; keep it open), -1 if another instance is
+ * already running, or -2 if the lock file cannot be used (the program then runs anyway).
  */
 int acquire_lock();
 
 /**
- * @brief Stop the running instance (SIGTERM, so that it turns the screens off) and wait until it has exited.
+ * @brief Stop the running instance (platform::send_stop_request(), so that it turns the screens off) and wait until it
+ * has exited.
  * Returns true if no instance is running anymore.
  */
 bool stop_running(std::chrono::seconds timeout);

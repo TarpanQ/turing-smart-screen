@@ -50,7 +50,10 @@ public:
     TrayIcon(const TrayIcon &) = delete;
     TrayIcon &operator=(const TrayIcon &) = delete;
 
-    /** @brief Display the tray icon from a background thread. Returns false if there is no D-Bus session bus. */
+    /**
+     * @brief Display the tray icon from a background thread. Returns false if there is no D-Bus session bus (always on
+     * Windows, not supported yet).
+     */
     bool run_detached();
 
     /** @brief Remove the tray icon */

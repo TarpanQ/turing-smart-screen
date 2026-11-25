@@ -26,6 +26,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <string>
 #include <thread>
 
@@ -49,9 +50,9 @@ public:
 
 private:
     void serve_forever();
-    void handle_client(int client_fd);
+    void handle_client(intptr_t client_fd);
 
-    int server_fd = -1;
+    intptr_t server_fd = -1;  ///< Listening socket (a SOCKET on Windows), -1 if closed
     std::atomic<bool> stopping = false;
     std::thread thread;
 };

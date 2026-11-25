@@ -12,7 +12,7 @@
   
 A C++ system monitor program and an abstraction library for **small IPS USB-C displays.**    
 
-Supported operating system : Linux (Ubuntu 26.04 LTS target). Windows and macOS are not supported by the C++ version.  
+Supported operating system : Linux (Ubuntu 26.04 LTS target). Windows 11 support is in progress: the programs build with MSYS2, but the serial screens and the hardware sensors are not supported yet (see [Build on Windows](#build-on-windows-in-progress)). macOS is not supported by the C++ version.  
 
 ### ✅ Supported smart screens models:
 
@@ -94,6 +94,21 @@ make test                     # unit tests
 
 `make deps` checks that all build dependencies are installed. The header of the `Makefile` lists all targets and options (for example `make DEBUG=1`).
 
+### Build on Windows (in progress)
+
+The same `Makefile` builds the programs on Windows 11 with [MSYS2](https://www.msys2.org/). Install MSYS2, then from the **MSYS2 UCRT64** shell:
+
+```bash
+pacman -S make mingw-w64-ucrt-x86_64-{gcc,pkgconf,yaml-cpp,nlohmann-json,freetype,harfbuzz,glib2,libpng,libjpeg-turbo,libusb,curl,icu,gtkmm-4.0,gtest}
+make                          # build into build/bin/ (main.exe, configure.exe...)
+make test                     # unit tests
+```
+
+Run the programs from the same shell (the DLLs of the dependencies are in the MSYS2 `ucrt64/bin` directory). Current state on Windows:
+* Supported: simulated screen (`REVISION: SIMU`) with the themes rendering, ping, single instance and clean stop (Ctrl+C).
+* Not supported yet: serial screens (revisions A, B, C, D, WeAct), Turing USB screens, hardware sensors (`HW_SENSORS: AUTO` uses stub sensors), tray icon.
+* The configuration GUI and the theme editor build, but are not tested on Windows yet.
+
 ## System monitor
 
 This project is mainly a complete standalone program to use your screen as a system monitor, like the original vendor app.  
@@ -101,7 +116,7 @@ Some themes are already included for a quick start!
 ### [> Configure and start system monitor](https://github.com/mathoudebine/turing-smart-screen-python/wiki/System-monitor-:-how-to-start)
 <img src="res/docs/config_wizard.png"/>  
 
-* Linux only: tested on Ubuntu 26.04 LTS. Built from source with `make`.
+* Linux: tested on Ubuntu 26.04 LTS. Built from source with `make`. Windows 11: in progress, see [Build on Windows](#build-on-windows-in-progress).
 * Display configuration using GUI configuration wizard or `config.json` file: no code to edit. Every key is described in [README.config](README.config).
 * Compatible with [multiple smart screen models (Turing, XuanFang...)](https://github.com/mathoudebine/turing-smart-screen-python/wiki/Hardware-revisions). Backplate RGB LEDs are also supported for available models!
 * Support [multiple hardware sensors and metrics (CPU/GPU usage, temperatures, memory, disks, etc)](https://github.com/mathoudebine/turing-smart-screen-python/wiki/System-monitor-:-themes#stats-entry) with configurable refresh intervals.
