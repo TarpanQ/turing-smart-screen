@@ -56,6 +56,11 @@ double uptime_seconds();
 /** @brief Local time of t (thread-safe localtime). */
 std::tm local_time(std::time_t t);
 
+#ifdef _WIN32
+/** @brief Conversion of a UTF-16 string of the Windows API to UTF-8. */
+std::string to_utf8(const wchar_t *text);
+#endif
+
 /** @brief Names of the network interfaces of the system, without duplicates. */
 std::vector<std::string> network_interface_names();
 

@@ -18,8 +18,8 @@
 
 /**
  * @file serial_port.h
- * @brief Serial port (termios on Linux, not supported yet on Windows), providing the subset of pyserial needed by the
- * program.
+ * @brief Serial port (termios on Linux, Win32 communications API on Windows), providing the subset of pyserial needed
+ * by the program.
  */
 
 #pragma once
@@ -45,7 +45,7 @@ public:
     using SerialException::SerialException;
 };
 
-/** @brief Serial port (termios) used to communicate with the screens. */
+/** @brief Serial port (termios on Linux, Win32 on Windows) used to communicate with the screens. */
 class SerialPort
 {
 public:
@@ -63,9 +63,9 @@ public:
     virtual void close();
 
     /** @brief True if the serial port is open. */
-    virtual bool is_open() const { return fd >= 0; }
+    virtual bool is_open() const;
 
-    /** @brief Name of the serial port, for example /dev/ttyACM0. */
+    /** @brief Name of the serial port, for example /dev/ttyACM0 (COM3 on Windows). */
     const std::string &port() const { return port_name; }
 
     /** @brief Write all data. Throws SerialTimeoutException / SerialException */
@@ -91,18 +91,25 @@ protected:
     SerialPort() = default;
 
 private:
-    bool wait(bool for_write, double timeout_s);
-
     std::string port_name;
     double timeout;
+#ifdef _WIN32
+    /** @brief Wait for the end of an overlapped read or write, returns the number of bytes transferred. */
+    size_t transfer(bool for_write, void *data, size_t size);
+
+    void *handle = nullptr;  ///< HANDLE of the port, nullptr if closed
+#else
+    bool wait(bool for_write, double timeout_s);
+
     int fd = -1;
+#endif
 };
 
 /** @brief Information about a serial port, like serial.tools.list_ports_common.ListPortInfo */
 struct ListPortInfo
 {
-    std::string device;  ///< e.g. "/dev/ttyACM0"
-    std::string name;  ///< e.g. "ttyACM0"
+    std::string device;  ///< e.g. "/dev/ttyACM0", or "COM3" on Windows
+    std::string name;  ///< e.g. "ttyACM0", or "COM3" on Windows
     std::string serial_number;  ///< USB serial number, empty if unknown
     std::optional<uint16_t> vid;  ///< USB vendor ID, if USB device
     std::optional<uint16_t> pid;  ///< USB product ID, if USB device
@@ -110,3 +117,10 @@ struct ListPortInfo
 
 /** @brief List the serial ports of the system (like serial.tools.list_ports.comports()) */
 std::vector<ListPortInfo> comports();
+
+/**
+ * @brief Fill the USB vendor ID, product ID and serial number of info from a Windows device instance ID, for example
+ * "USB\VID_1A86&PID_5722\0000001" or "FTDIBUS\VID_0403+PID_6001+A50285BIA\0000" (used by comports() on Windows).
+ * Nothing is changed if the ID is not the one of a USB device. The serial number is empty if Windows generated it.
+ */
+void parse_device_instance_id(const std::string &instance_id, ListPortInfo &info);
