@@ -8,6 +8,7 @@
 ## Layout
 - C++ sources live in `src/`. `src/library/` holds the shared library, linked into every program; `src/tools/` holds one program per file.
 - Entry points: `src/main.cpp`, `src/configure.cpp`, `src/theme-editor.cpp`, `src/simple-program.cpp` (no header).
+- `src/lhm-bridge/lhm-bridge.cs`: Windows-only C# 5 helper program reading the sensors with `LibreHardwareMonitorLib.dll`, built by `make` on Windows with the C# compiler of the .NET Framework 4.x (`csc.exe`).
 - Each other `.cpp` file has a `.h` file with the same base name, in the same directory.
 - Unit tests live in `tests/cpp/` (GoogleTest), with the same layout as `src/library/`.
 - `config.json` and `res/` (themes, fonts, images) are user data and resources, used as-is by the programs. The keys of `config.json` are described in `README.config`.
@@ -30,7 +31,7 @@
 - **Scheduling**: `src/library/scheduler.cpp` runs one thread per periodic job, plus a queue thread that serializes writes to the display.
 - **Platform layer**: `src/library/platform` holds the services that differ between Linux and Windows (program path, process id, uptime, local time, network interfaces, shared libraries, starting a program, stop requests). Put new OS-specific code there or behind `#ifdef _WIN32` in the module concerned, never in the business logic.
 - **Helpers replacing third-party dependencies**: `src/library/lcd/image` (image drawing, PNG/JPEG), `src/library/lcd/font` (FreeType + HarfBuzz text shaping), `src/library/lcd/serial_port` (termios), `src/library/ping` (ICMP socket), `src/library/tray_icon` (StatusNotifierItem + dbusmenu over D-Bus with GIO).
-- **Sensors**: `sensors_python` (selected by `HW_SENSORS: PYTHON` or `AUTO`) reads Linux `/proc` and `/sys` directly, plus NVIDIA NVML loaded at runtime. Custom sensors (`sensors_custom`) are C++ classes registered in `custom_data_sources()`: adding one requires rebuilding.
+- **Sensors**: `sensors_python` (selected by `HW_SENSORS: PYTHON` or `AUTO`) reads Linux `/proc` and `/sys` directly, plus NVIDIA NVML loaded at runtime. On Windows, `sensors_windows` reads the Windows API, and `sensors_lhm` adds the CPU temperature and fan speed through `lhm-bridge.exe` (`HW_SENSORS: LHM`, or `AUTO` as administrator). Custom sensors (`sensors_custom`) are C++ classes registered in `custom_data_sources()`: adding one requires rebuilding.
 
 ## Data flow (practical)
 - `config.json` selects the hardware, the theme and the options.

@@ -47,6 +47,14 @@ jobs:
     - name: Run unit tests
       run: make test
 
+    - name: Run the LibreHardwareMonitor helper
+      run: |
+        # The runner has administrator rights: the helper must open the sensors and list the CPU ones
+        printf 'update\nquit\n' | build/bin/lhm-bridge.exe external/LibreHardwareMonitor | tee lhm-bridge.log
+        head -1 lhm-bridge.log | grep -qx ready
+        grep -q "^Cpu$(printf '\t')" lhm-bridge.log
+        tail -1 lhm-bridge.log | grep -qx end
+
     - name: Configure system monitor
       run: |
         # config.json is not versioned: start from the example

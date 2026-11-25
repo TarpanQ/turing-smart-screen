@@ -9,6 +9,7 @@
 #   make main         build only the system monitor (src/main.cpp)
 #   make configure    build only the configuration GUI (src/configure.cpp)
 #   make tools        build only the tools (src/tools/)
+#   make lhm-bridge   Windows only: build the LibreHardwareMonitor helper (src/lhm-bridge/, C# compiler of .NET 4.x)
 #   make test         build and run the unit tests
 #   make deps         check that all build dependencies are installed
 #   make clean        remove build/
@@ -93,6 +94,14 @@ SIMPLE_PROGRAM_OBJS := $(OBJ_DIR)/simple-program.o
 
 PROGRAMS := $(BIN_DIR)/main$(EXE) $(BIN_DIR)/configure$(EXE) $(BIN_DIR)/theme-editor$(EXE) $(BIN_DIR)/simple-program$(EXE)
 
+# Windows: helper program reading the sensors with LibreHardwareMonitorLib.dll (.NET Framework 4.7.2), built with the
+# C# compiler of the .NET Framework 4.x installed with Windows (C# 5)
+LHM_DIR := external/LibreHardwareMonitor
+ifeq ($(PLATFORM),windows)
+  CSC        ?= /c/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe
+  LHM_BRIDGE := $(BIN_DIR)/lhm-bridge.exe
+endif
+
 # Tools: one program per source file in src/tools/
 TOOL_SRCS := $(wildcard $(SRC_DIR)/tools/*.cpp)
 TOOLS     := $(TOOL_SRCS:$(SRC_DIR)/tools/%.cpp=$(BIN_DIR)/%$(EXE))
@@ -102,9 +111,11 @@ TEST_SRCS := $(shell find $(TEST_DIR) -name '*.cpp' 2>/dev/null)
 TEST_OBJS := $(TEST_SRCS:$(TEST_DIR)/%.cpp=$(OBJ_DIR)/tests/%.o)
 TEST_BIN  := $(BIN_DIR)/unit-tests$(EXE)
 
-.PHONY: all main configure theme-editor simple-program tools test deps clean
+.PHONY: all main configure theme-editor simple-program tools lhm-bridge test deps clean
 
-all: $(PROGRAMS) $(TOOLS)
+all: $(PROGRAMS) $(TOOLS) $(LHM_BRIDGE)
+
+lhm-bridge: $(LHM_BRIDGE)
 
 tools: $(TOOLS)
 
@@ -136,6 +147,11 @@ $(BIN_DIR)/theme-editor$(EXE): $(THEME_EDITOR_OBJS) $(LIB_A)
 $(BIN_DIR)/%$(EXE): $(OBJ_DIR)/tools/%.o $(LIB_A)
 	@mkdir -p $(@D)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(ALL_LDLIBS)
+
+$(BIN_DIR)/lhm-bridge.exe: $(SRC_DIR)/lhm-bridge/lhm-bridge.cs $(LHM_DIR)/LibreHardwareMonitorLib.dll
+	@mkdir -p $(@D)
+	"$(CSC)" -nologo -optimize+ -target:exe -platform:anycpu -lib:$(LHM_DIR) -reference:LibreHardwareMonitorLib.dll \
+		-out:$@ $<
 
 # GUI programs need the gtkmm include paths
 $(CONFIGURE_OBJS) $(THEME_EDITOR_OBJS): ALL_CXXFLAGS += $(GUI_CFLAGS)
