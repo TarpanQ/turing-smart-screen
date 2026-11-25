@@ -18,10 +18,248 @@
 
 /**
  * @file tray_icon.cpp
- * @brief System tray icon with a menu (StatusNotifierItem + com.canonical.dbusmenu over D-Bus).
+ * @brief System tray icon with a menu: StatusNotifierItem + com.canonical.dbusmenu over D-Bus on Linux, notification
+ * area icon (Shell_NotifyIcon) on Windows.
  */
 
 #include "library/tray_icon.h"
+
+#ifdef _WIN32
+
+#include <windows.h>
+#include <shellapi.h>
+
+#include <algorithm>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <future>
+#include <iterator>
+
+#include "library/log.h"
+
+namespace {
+
+/** @brief Message sent by the notification area to the window of the icon (mouse events). */
+constexpr UINT WM_TRAY_ICON = WM_APP + 1;
+/** @brief Message sent by TrayIcon::stop() to remove the icon and end the thread. */
+constexpr UINT WM_TRAY_STOP = WM_APP + 2;
+constexpr UINT ICON_ID = 1;
+constexpr const wchar_t *WINDOW_CLASS = L"TuringSmartScreenTrayIcon";
+
+std::wstring to_wide(const std::string &text)
+{
+    const int size = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
+    if (size <= 1) {
+        return {};
+    }
+    std::wstring result(static_cast<size_t>(size - 1), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, result.data(), size);
+    return result;
+}
+
+// Size of a PNG icon file, from the name of the file: "24.png" is 24x24 (0 if unknown)
+int icon_size(const std::string &path)
+{
+    return std::atoi(std::filesystem::path(path).stem().string().c_str());
+}
+
+}  // namespace
+
+/** @brief Private implementation of the tray icon: window receiving the events of the notification area. */
+struct TrayIcon::Private
+{
+    /** @brief Name of the application. */
+    std::string name;
+    /** @brief Title of the tray icon, shown as its tooltip. */
+    std::string title;
+    /** @brief PNG files of the icon, in several sizes. */
+    std::vector<std::string> icon_paths;
+    /** @brief Items of the menu. */
+    std::vector<MenuItem> menu;
+
+    /** @brief Hidden window of the tray icon thread, receiving the notification area messages. */
+    HWND window = nullptr;
+    /** @brief Icon displayed in the notification area. */
+    HICON icon = nullptr;
+    /** @brief Message broadcast when the taskbar is created again (Explorer restarted): the icon is added again. */
+    UINT taskbar_created = 0;
+
+    /** @brief Load the icon from the PNG file closest to the size of the small icons (PNG icons: Windows Vista+). */
+    void load_icon()
+    {
+        const int size = GetSystemMetrics(SM_CXSMICON);
+        std::vector<std::string> paths = icon_paths;
+        // The smallest icon at least as large as needed, else the largest one
+        std::sort(paths.begin(), paths.end(), [](const auto &a, const auto &b) { return icon_size(a) < icon_size(b); });
+        const auto it = std::find_if(paths.begin(), paths.end(), [&](const auto &p) { return icon_size(p) >= size; });
+        if (!paths.empty()) {
+            const std::string &path = it != paths.end() ? *it : paths.back();
+            std::ifstream file(std::filesystem::path(path), std::ios::binary);
+            std::vector<BYTE> png((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            if (!png.empty()) {
+                icon = CreateIconFromResourceEx(png.data(), static_cast<DWORD>(png.size()), TRUE, 0x00030000, size,
+                                                size, LR_DEFAULTCOLOR);
+            }
+            if (!icon) {
+                logger.warning("Cannot load tray icon {}", path);
+            }
+        }
+        if (!icon) {
+            icon = LoadIconW(nullptr, MAKEINTRESOURCEW(32512));  // IDI_APPLICATION (its macro is not wide)
+        }
+    }
+
+    /** @brief Add the icon to the notification area, or remove it. */
+    bool notify(DWORD message)
+    {
+        NOTIFYICONDATAW data{};
+        data.cbSize = sizeof(data);
+        data.hWnd = window;
+        data.uID = ICON_ID;
+        data.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+        data.uCallbackMessage = WM_TRAY_ICON;
+        data.hIcon = icon;
+        const std::wstring tip = to_wide(title).substr(0, std::size(data.szTip) - 1);
+        std::copy(tip.begin(), tip.end(), data.szTip);
+        return Shell_NotifyIconW(message, &data);
+    }
+
+    /** @brief Show the menu at the mouse position, and run the action of the chosen item. */
+    void show_menu()
+    {
+        HMENU popup = CreatePopupMenu();
+        for (size_t i = 0; i < menu.size(); i++) {
+            if (menu[i].label.empty()) {
+                AppendMenuW(popup, MF_SEPARATOR, 0, nullptr);
+            } else {
+                AppendMenuW(popup, MF_STRING, i + 1, to_wide(menu[i].label).c_str());
+            }
+        }
+        POINT position{};
+        GetCursorPos(&position);
+        // Needed so that the menu closes when the user clicks outside of it
+        SetForegroundWindow(window);
+        const UINT id = static_cast<UINT>(TrackPopupMenu(popup, TPM_RIGHTBUTTON | TPM_RETURNCMD | TPM_NONOTIFY,
+                                                         position.x, position.y, 0, window, nullptr));
+        PostMessageW(window, WM_NULL, 0, 0);
+        DestroyMenu(popup);
+        if (id >= 1 && id <= menu.size() && menu[id - 1].action) {
+            menu[id - 1].action();
+        }
+    }
+
+    static LRESULT CALLBACK window_procedure(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+    {
+        if (message == WM_NCCREATE) {
+            const auto *create = reinterpret_cast<const CREATESTRUCTW *>(lparam);
+            SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+        }
+        auto *d = reinterpret_cast<Private *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+        if (d) {
+            if (message == WM_TRAY_ICON && (lparam == WM_LBUTTONUP || lparam == WM_RBUTTONUP)) {
+                // Like the Linux version (ItemIsMenu): a click on the icon shows the menu
+                d->show_menu();
+                return 0;
+            }
+            if (message == WM_TRAY_STOP) {
+                d->notify(NIM_DELETE);
+                DestroyWindow(window);
+                return 0;
+            }
+            if (message == WM_DESTROY) {
+                PostQuitMessage(0);
+                return 0;
+            }
+            if (d->taskbar_created != 0 && message == d->taskbar_created) {
+                d->notify(NIM_ADD);
+                return 0;
+            }
+        }
+        return DefWindowProcW(window, message, wparam, lparam);
+    }
+};
+
+TrayIcon::TrayIcon(std::string name, std::string title, std::vector<std::string> icon_paths,
+                   std::vector<MenuItem> menu)
+    : d(new Private)
+{
+    d->name = std::move(name);
+    d->title = std::move(title);
+    d->icon_paths = std::move(icon_paths);
+    d->menu = std::move(menu);
+}
+
+TrayIcon::~TrayIcon()
+{
+    stop();
+    delete d;
+}
+
+bool TrayIcon::run_detached()
+{
+    std::promise<bool> started;
+    auto started_future = started.get_future();
+
+    // The window receiving the messages of the notification area belongs to the thread running its message loop
+    thread = std::thread([this, &started] {
+        const HINSTANCE instance = GetModuleHandleW(nullptr);
+        WNDCLASSEXW window_class{};
+        window_class.cbSize = sizeof(window_class);
+        window_class.lpfnWndProc = Private::window_procedure;
+        window_class.hInstance = instance;
+        window_class.lpszClassName = WINDOW_CLASS;
+        RegisterClassExW(&window_class);
+        // A hidden top-level window (not a message-only window: those do not receive the TaskbarCreated broadcast)
+        d->taskbar_created = RegisterWindowMessageW(L"TaskbarCreated");
+        d->window = CreateWindowExW(0, WINDOW_CLASS, to_wide(d->title).c_str(), 0, 0, 0, 0, 0, nullptr, nullptr,
+                                    instance, d);
+        if (!d->window) {
+            logger.warning("Tray icon is not supported: cannot create its window (error {})", GetLastError());
+            started.set_value(false);
+            return;
+        }
+        d->load_icon();
+        if (!d->notify(NIM_ADD)) {
+            // The taskbar may not be ready yet (program started at login): added on TaskbarCreated
+            logger.debug("Tray icon not added yet: no notification area");
+        }
+        started.set_value(true);
+
+        MSG message;
+        while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+        d->window = nullptr;
+        DestroyIcon(d->icon);
+        d->icon = nullptr;
+    });
+
+    const bool result = started_future.get();
+    if (!result) {
+        thread.join();
+    }
+    return result;
+}
+
+void TrayIcon::stop()
+{
+    if (!thread.joinable()) {
+        return;
+    }
+    if (d->window) {
+        PostMessageW(d->window, WM_TRAY_STOP, 0, 0);
+    }
+    if (thread.get_id() == std::this_thread::get_id()) {
+        // Stopped from a menu action: the thread ends by itself once the action returns
+        thread.detach();
+        return;
+    }
+    thread.join();
+}
+
+#else  // Linux: StatusNotifierItem over D-Bus
 
 #include <future>
 #include <map>
@@ -434,12 +672,6 @@ TrayIcon::~TrayIcon()
 
 bool TrayIcon::run_detached()
 {
-#ifdef _WIN32
-    // StatusNotifierItem is a D-Bus protocol of the Linux desktops: Windows has no session bus to register to
-    logger.warning("Tray icon is not supported on Windows yet");
-    return false;
-#endif
-
     std::promise<bool> started;
     auto started_future = started.get_future();
 
@@ -530,3 +762,5 @@ void TrayIcon::stop()
         d->context = nullptr;
     }
 }
+
+#endif
