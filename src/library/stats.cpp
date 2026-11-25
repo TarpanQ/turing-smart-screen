@@ -52,6 +52,7 @@
 #include "library/ping.h"
 #include "library/sensors/sensors_custom.h"
 #include "library/platform.h"
+#include "library/sensors/sensors_lhm.h"
 #include "library/sensors/sensors_python.h"
 #include "library/sensors/sensors_windows.h"
 #include "library/sensors/sensors_stub_random.h"
@@ -262,10 +263,17 @@ void init()
     CPU_FAN = config::get(config::section(cfg, "config"), "CPU_FAN", "AUTO");
     PING_DEST = config::get(config::section(cfg, "config"), "PING", "127.0.0.1");
 
-    // sensors_python reads the Linux /proc and /sys files: on Windows, AUTO uses the Windows API instead
+    // sensors_python reads the Linux /proc and /sys files: on Windows, AUTO uses the Windows API instead, with
+    // LibreHardwareMonitor for the temperatures and fans if the program runs as administrator
     if (HW_SENSORS == "AUTO") {
 #ifdef _WIN32
-        sensors = sensors_windows::create();
+        if (platform::is_elevated() && sensors_lhm::is_available()) {
+            sensors = sensors_lhm::create();
+        } else {
+            logger.warning("Temperatures and fans are read with LibreHardwareMonitor: run as administrator to see "
+                           "them");
+            sensors = sensors_windows::create();
+        }
 #else
         sensors = sensors_python::create();
 #endif
@@ -276,8 +284,21 @@ void init()
 #endif
         sensors = sensors_python::create();
     } else if (HW_SENSORS == "LHM") {
+#ifdef _WIN32
+        if (!platform::is_elevated()) {
+            logger.error("Program is not running as administrator. Please run with admin rights or choose another "
+                         "HW_SENSORS option in config.json");
+            std::_Exit(1);
+        }
+        if (!sensors_lhm::is_available()) {
+            logger.error("lhm-bridge.exe is missing next to this program: build it with make");
+            std::_Exit(1);
+        }
+        sensors = sensors_lhm::create();
+#else
         logger.error("LibreHardwareMonitor integration is only available on Windows");
         std::_Exit(1);
+#endif
     } else if (HW_SENSORS == "STUB") {
         logger.warning("Stub sensors, not real HW sensors");
         sensors = sensors_stub_random::create();

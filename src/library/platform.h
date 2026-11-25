@@ -50,6 +50,9 @@ std::filesystem::path program_path(const std::string &name);
 /** @brief Identifier of the running process. */
 int process_id();
 
+/** @brief True if this program runs with administrator rights (elevated on Windows, root on Linux). */
+bool is_elevated();
+
 /** @brief Time elapsed since the system was started, in seconds. */
 double uptime_seconds();
 

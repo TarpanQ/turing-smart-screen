@@ -105,8 +105,8 @@ make test                     # unit tests
 ```
 
 Run the programs from the same shell (the DLLs of the dependencies are in the MSYS2 `ucrt64/bin` directory). Current state on Windows:
-* Supported: simulated screen (`REVISION: SIMU`) with the themes rendering, serial screens (revisions A, B, C, D, WeAct: COM ports, with auto-detection), hardware sensors (`HW_SENSORS: AUTO`: CPU, RAM, disk, network, NVIDIA GPU), ping, single instance and clean stop (Ctrl+C).
-* Not supported yet: Turing USB screens, temperatures and fans, AMD GPUs, tray icon.
+* Supported: simulated screen (`REVISION: SIMU`) with the themes rendering, serial screens (revisions A, B, C, D, WeAct: COM ports, with auto-detection), hardware sensors (`HW_SENSORS: AUTO`: CPU, RAM, disk, network, NVIDIA GPU; CPU temperature and fan with LibreHardwareMonitor when run as administrator, see `HW_SENSORS` in [README.config](README.config)), ping, single instance and clean stop (Ctrl+C).
+* Not supported yet: Turing USB screens, AMD GPUs, tray icon.
 * The configuration GUI and the theme editor build, but are not tested on Windows yet.
 
 ## System monitor

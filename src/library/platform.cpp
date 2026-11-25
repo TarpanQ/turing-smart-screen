@@ -121,6 +121,20 @@ int process_id()
     return static_cast<int>(GetCurrentProcessId());
 }
 
+bool is_elevated()
+{
+    HANDLE token = nullptr;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
+        return false;
+    }
+    TOKEN_ELEVATION elevation{};
+    DWORD size = 0;
+    const bool elevated = GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &size) &&
+                          elevation.TokenIsElevated != 0;
+    CloseHandle(token);
+    return elevated;
+}
+
 double uptime_seconds()
 {
     return static_cast<double>(GetTickCount64()) / 1000.0;
@@ -261,6 +275,11 @@ fs::path executable_path()
 int process_id()
 {
     return static_cast<int>(::getpid());
+}
+
+bool is_elevated()
+{
+    return ::geteuid() == 0;
 }
 
 double uptime_seconds()

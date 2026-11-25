@@ -28,6 +28,10 @@
 #include <set>
 #include <string>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include <gtest/gtest.h>
 
 #include "library/platform.h"
@@ -56,6 +60,14 @@ TEST(Platform, ProcessAndUptime)
     EXPECT_GT(platform::process_id(), 0);
     EXPECT_GT(platform::uptime_seconds(), 0);
 }
+
+#ifndef _WIN32
+/** @brief Administrator rights: root on Linux. */
+TEST(Platform, IsElevated)
+{
+    EXPECT_EQ(platform::is_elevated(), ::geteuid() == 0);
+}
+#endif
 
 /** @brief The local time is the inverse of mktime. */
 TEST(Platform, LocalTime)
