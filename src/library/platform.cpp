@@ -58,9 +58,6 @@ fs::path program_path(const std::string &name)
 
 #ifdef _WIN32
 
-namespace {
-
-/** @brief Conversion of a UTF-16 string of Windows to UTF-8. */
 std::string to_utf8(const wchar_t *text)
 {
     const int size = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
@@ -71,6 +68,8 @@ std::string to_utf8(const wchar_t *text)
     WideCharToMultiByte(CP_UTF8, 0, text, -1, result.data(), size, nullptr, nullptr);
     return result;
 }
+
+namespace {
 
 /** @brief Value of stop_reason when the stop was requested by request_stop(). */
 constexpr int STOP_FROM_THIS_PROGRAM = -1;

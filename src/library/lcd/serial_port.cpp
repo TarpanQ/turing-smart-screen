@@ -18,8 +18,8 @@
 
 /**
  * @file serial_port.cpp
- * @brief Serial port (termios on Linux, not supported yet on Windows), providing the subset of pyserial needed by the
- * program.
+ * @brief Serial port (termios on Linux, Win32 communications API on Windows), providing the subset of pyserial needed
+ * by the program.
  */
 
 #include "library/lcd/serial_port.h"
@@ -31,7 +31,14 @@
 #include <filesystem>
 #include <fstream>
 
-#ifndef _WIN32
+#include <regex>
+#include <system_error>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <cfgmgr32.h>
+#include <setupapi.h>
+#else
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/ioctl.h>
@@ -39,59 +46,259 @@
 #include <unistd.h>
 #endif
 
+#include "library/platform.h"
+
 namespace fs = std::filesystem;
 
 #ifdef _WIN32
 
-// The serial ports are not supported on Windows yet: opening a port fails, and no port is listed
+namespace {
 
-SerialPort::SerialPort(const std::string &port, int, double timeout_s, bool) : port_name(port), timeout(timeout_s)
+// Device setup classes of the serial ports: "Ports (COM & LPT)" and "Modem"
+constexpr GUID PORTS_CLASS = {0x4d36e978, 0xe325, 0x11ce, {0xbf, 0xc1, 0x08, 0x00, 0x2b, 0xe1, 0x03, 0x18}};
+constexpr GUID MODEM_CLASS = {0x4d36e96d, 0xe325, 0x11ce, {0xbf, 0xc1, 0x08, 0x00, 0x2b, 0xe1, 0x03, 0x18}};
+
+std::string last_error_message()
 {
-    throw SerialException("could not open port " + port + ": serial ports are not supported on Windows yet");
+    return std::system_category().message(static_cast<int>(GetLastError()));
 }
 
-SerialPort::~SerialPort() = default;
+// "COM10" and above can only be opened with the device path "\\.\COM10": used for all the ports, like pyserial
+std::string device_path(const std::string &port)
+{
+    return port.starts_with("\\\\.\\") ? port : "\\\\.\\" + port;
+}
+
+DWORD to_milliseconds(double seconds)
+{
+    return seconds <= 0 ? 0 : static_cast<DWORD>(std::min(seconds * 1000, 4.0e9));
+}
+
+std::optional<std::string> device_instance_id(DEVINST devinst)
+{
+    wchar_t id[MAX_DEVICE_ID_LEN] = {};
+    if (CM_Get_Device_IDW(devinst, id, MAX_DEVICE_ID_LEN, 0) != CR_SUCCESS) {
+        return std::nullopt;
+    }
+    return platform::to_utf8(id);
+}
+
+// Name of the port of a device ("COM3"), from its registry key; empty if none
+std::string port_name_of(HDEVINFO devices, SP_DEVINFO_DATA &device)
+{
+    HKEY key = SetupDiOpenDevRegKey(devices, &device, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
+    if (key == INVALID_HANDLE_VALUE) {
+        return {};
+    }
+    wchar_t name[256] = {};
+    DWORD size = sizeof(name) - sizeof(wchar_t);  // Room for the terminating null, not always stored
+    DWORD type = 0;
+    const LONG ret = RegQueryValueExW(key, L"PortName", nullptr, &type, reinterpret_cast<BYTE *>(name), &size);
+    RegCloseKey(key);
+    return ret == ERROR_SUCCESS && type == REG_SZ ? platform::to_utf8(name) : std::string();
+}
+
+}  // namespace
+
+SerialPort::SerialPort(const std::string &port, int baudrate, double timeout_s, bool rtscts)
+    : port_name(port), timeout(timeout_s)
+{
+    // Exclusive access (no sharing), overlapped I/O so that a pending read does not block a write, like pyserial
+    HANDLE h = CreateFileA(device_path(port).c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
+                           FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr);
+    if (h == INVALID_HANDLE_VALUE) {
+        throw SerialException("could not open port " + port + ": " + last_error_message());
+    }
+    handle = h;
+
+    const auto fail = [&] {
+        const std::string error = last_error_message();
+        SerialPort::close();
+        throw SerialException("could not configure port " + port + ": " + error);
+    };
+
+    SetupComm(h, 4096, 4096);
+
+    // Reads return after the timeout with the bytes received; writes fail after the timeout. A timeout of 0 makes the
+    // reads return at once (and the writes wait 1 ms, since 0 would mean no timeout)
+    COMMTIMEOUTS timeouts{};
+    if (timeout_s <= 0) {
+        timeouts.ReadIntervalTimeout = MAXDWORD;
+    } else {
+        timeouts.ReadTotalTimeoutConstant = to_milliseconds(timeout_s);
+    }
+    timeouts.WriteTotalTimeoutConstant = std::max<DWORD>(1, to_milliseconds(timeout_s));
+    if (!SetCommTimeouts(h, &timeouts)) {
+        fail();
+    }
+
+    // Raw 8N1, DTR on, RTS on or hardware flow control (RTS/CTS)
+    DCB dcb{};
+    dcb.DCBlength = sizeof(dcb);
+    if (!GetCommState(h, &dcb)) {
+        fail();
+    }
+    dcb.BaudRate = static_cast<DWORD>(baudrate);
+    dcb.ByteSize = 8;
+    dcb.Parity = NOPARITY;
+    dcb.StopBits = ONESTOPBIT;
+    dcb.fBinary = TRUE;
+    dcb.fParity = FALSE;
+    dcb.fOutxCtsFlow = rtscts;
+    dcb.fRtsControl = rtscts ? RTS_CONTROL_HANDSHAKE : RTS_CONTROL_ENABLE;
+    dcb.fOutxDsrFlow = FALSE;
+    dcb.fDtrControl = DTR_CONTROL_ENABLE;
+    dcb.fDsrSensitivity = FALSE;
+    dcb.fOutX = FALSE;
+    dcb.fInX = FALSE;
+    dcb.fErrorChar = FALSE;
+    dcb.fNull = FALSE;
+    dcb.fAbortOnError = FALSE;
+    if (!SetCommState(h, &dcb)) {
+        fail();
+    }
+    PurgeComm(h, PURGE_RXCLEAR | PURGE_RXABORT);
+}
+
+SerialPort::~SerialPort()
+{
+    close();
+}
+
+bool SerialPort::is_open() const
+{
+    return handle != nullptr;
+}
 
 void SerialPort::close()
 {
+    if (handle) {
+        CloseHandle(static_cast<HANDLE>(handle));
+        handle = nullptr;
+    }
 }
 
-bool SerialPort::wait(bool, double)
+size_t SerialPort::transfer(bool for_write, void *data, size_t size)
 {
-    return false;
+    OVERLAPPED overlapped{};
+    overlapped.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (!overlapped.hEvent) {
+        throw SerialException("CreateEvent failed: " + last_error_message());
+    }
+    const auto h = static_cast<HANDLE>(handle);
+    const auto count = static_cast<DWORD>(size);
+    BOOL ok = for_write ? WriteFile(h, data, count, nullptr, &overlapped)
+                        : ReadFile(h, data, count, nullptr, &overlapped);
+    DWORD transferred = 0;
+    if (ok || GetLastError() == ERROR_IO_PENDING) {
+        // Waits until the transfer is complete or the timeout of the port expires
+        ok = GetOverlappedResult(h, &overlapped, &transferred, TRUE);
+    }
+    const DWORD error = GetLastError();
+    CloseHandle(overlapped.hEvent);
+    if (!ok && error != ERROR_OPERATION_ABORTED) {  // Aborted by reset_input_buffer(): returns what was transferred
+        SetLastError(error);
+        throw SerialException(std::string(for_write ? "write" : "read") + " failed: " + last_error_message() +
+                              " (device disconnected or multiple access on port?)");
+    }
+    return transferred;
 }
 
-void SerialPort::write(const std::vector<uint8_t> &)
+void SerialPort::write(const std::vector<uint8_t> &buffer)
 {
-    throw SerialException("Attempting to use a port that is not open");
+    if (!handle) {
+        throw SerialException("Attempting to use a port that is not open");
+    }
+    if (buffer.empty()) {
+        return;
+    }
+    const size_t written = transfer(true, const_cast<uint8_t *>(buffer.data()), buffer.size());
+    if (written != buffer.size()) {
+        throw SerialTimeoutException("Write timeout");
+    }
 }
 
-std::vector<uint8_t> SerialPort::read(size_t)
+std::vector<uint8_t> SerialPort::read(size_t size)
 {
-    throw SerialException("Attempting to use a port that is not open");
-}
-
-std::vector<uint8_t> SerialPort::readall()
-{
-    throw SerialException("Attempting to use a port that is not open");
+    if (!handle) {
+        throw SerialException("Attempting to use a port that is not open");
+    }
+    std::vector<uint8_t> result(size);
+    if (size > 0) {
+        result.resize(transfer(false, result.data(), size));
+    }
+    return result;
 }
 
 void SerialPort::flush()
 {
+    if (handle) {
+        FlushFileBuffers(static_cast<HANDLE>(handle));
+    }
 }
 
 size_t SerialPort::in_waiting()
 {
-    return 0;
+    COMSTAT status{};
+    DWORD errors = 0;
+    if (!handle || !ClearCommError(static_cast<HANDLE>(handle), &errors, &status)) {
+        return 0;
+    }
+    return status.cbInQue;
 }
 
 void SerialPort::reset_input_buffer()
 {
+    if (handle) {
+        PurgeComm(static_cast<HANDLE>(handle), PURGE_RXCLEAR | PURGE_RXABORT);
+    }
 }
 
 std::vector<ListPortInfo> comports()
 {
-    return {};
+    std::vector<ListPortInfo> ports;
+    for (const GUID &device_class: {PORTS_CLASS, MODEM_CLASS}) {
+        HDEVINFO devices = SetupDiGetClassDevsW(&device_class, nullptr, nullptr, DIGCF_PRESENT);
+        if (devices == INVALID_HANDLE_VALUE) {
+            continue;
+        }
+        SP_DEVINFO_DATA device{};
+        device.cbSize = sizeof(device);
+        for (DWORD i = 0; SetupDiEnumDeviceInfo(devices, i, &device); i++) {
+            const std::string name = port_name_of(devices, device);
+            if (name.empty() || name.starts_with("LPT")) {
+                continue;  // Parallel ports are in the same class
+            }
+            ListPortInfo info;
+            info.device = name;
+            info.name = name;
+            if (const auto id = device_instance_id(device.DevInst)) {
+                parse_device_instance_id(*id, info);
+            }
+
+            // Interface of a composite USB device: the serial number is in the instance ID of a parent device
+            DEVINST child = device.DevInst;
+            DEVINST parent = 0;
+            for (int depth = 0; info.vid && info.serial_number.empty() && depth < 3 &&
+                                CM_Get_Parent(&parent, child, 0) == CR_SUCCESS;
+                 depth++, child = parent) {
+                ListPortInfo parent_info;
+                if (const auto id = device_instance_id(parent)) {
+                    parse_device_instance_id(*id, parent_info);
+                }
+                if (parent_info.vid != info.vid || parent_info.pid != info.pid) {
+                    break;
+                }
+                info.serial_number = parent_info.serial_number;
+            }
+
+            ports.push_back(info);
+        }
+        SetupDiDestroyDeviceInfoList(devices);
+    }
+
+    std::sort(ports.begin(), ports.end(), [](const auto &a, const auto &b) { return a.device < b.device; });
+    return ports;
 }
 
 #else  // Linux
@@ -177,6 +384,11 @@ SerialPort::~SerialPort()
     close();
 }
 
+bool SerialPort::is_open() const
+{
+    return fd >= 0;
+}
+
 void SerialPort::close()
 {
     if (fd >= 0) {
@@ -252,19 +464,6 @@ std::vector<uint8_t> SerialPort::read(size_t size)
         } else if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
             throw SerialException(std::string("read failed: ") + std::strerror(errno));
         }
-    }
-    return result;
-}
-
-std::vector<uint8_t> SerialPort::readall()
-{
-    std::vector<uint8_t> result;
-    while (true) {
-        const auto chunk = read(4096);
-        if (chunk.empty()) {
-            break;
-        }
-        result.insert(result.end(), chunk.begin(), chunk.end());
     }
     return result;
 }
@@ -346,3 +545,37 @@ std::vector<ListPortInfo> comports()
 }
 
 #endif
+
+std::vector<uint8_t> SerialPort::readall()
+{
+    std::vector<uint8_t> result;
+    while (true) {
+        const auto chunk = read(4096);
+        if (chunk.empty()) {
+            break;
+        }
+        result.insert(result.end(), chunk.begin(), chunk.end());
+    }
+    return result;
+}
+
+void parse_device_instance_id(const std::string &instance_id, ListPortInfo &info)
+{
+    // Same patterns as pyserial: "USB\VID_1A86&PID_5722\0000001", "USB\VID_0525&PID_A4A7&MI_00\6&2C1F2B&0&0000",
+    // "FTDIBUS\VID_0403+PID_6001+A50285BIA\0000"
+    static const std::regex usb(R"(VID_([0-9A-F]{4})&PID_([0-9A-F]{4})(&MI_\d{2})?(\\(.*))?)", std::regex::icase);
+    static const std::regex ftdi(R"(VID_([0-9A-F]{4})\+PID_([0-9A-F]{4})(\+(\w+))?)", std::regex::icase);
+    std::smatch match;
+    std::string serial_number;
+    if (instance_id.starts_with("USB") && std::regex_search(instance_id, match, usb)) {
+        serial_number = match[5];
+    } else if (instance_id.starts_with("FTDIBUS") && std::regex_search(instance_id, match, ftdi)) {
+        serial_number = match[4];
+    } else {
+        return;
+    }
+    info.vid = static_cast<uint16_t>(std::stoi(match[1], nullptr, 16));
+    info.pid = static_cast<uint16_t>(std::stoi(match[2], nullptr, 16));
+    // Windows generates an instance ID with '&' when the device has no usable serial number: not a serial number
+    info.serial_number = serial_number.find('&') == std::string::npos ? serial_number : std::string();
+}

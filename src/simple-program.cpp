@@ -44,7 +44,7 @@
 #include "library/log.h"
 #include "library/platform.h"
 
-/** @brief Set your COM port e.g. "/dev/ttyACM0", or "AUTO" for auto-discovery */
+/** @brief Set your COM port e.g. "/dev/ttyACM0" ("COM3" on Windows), or "AUTO" for auto-discovery */
 const std::string COM_PORT = "AUTO";
 
 /**
