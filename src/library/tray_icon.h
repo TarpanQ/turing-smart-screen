@@ -20,7 +20,8 @@
  * @file tray_icon.h
  * @brief System tray icon with a menu.
  *
- * Uses the freedesktop StatusNotifierItem D-Bus protocol (with a com.canonical.dbusmenu menu), supported by KDE, Xfce, Cinnamon, MATE, Budgie... and by GNOME with the AppIndicator extension (installed by default on Ubuntu).
+ * On Linux, uses the freedesktop StatusNotifierItem D-Bus protocol (with a com.canonical.dbusmenu menu), supported by KDE, Xfce, Cinnamon, MATE, Budgie... and by GNOME with the AppIndicator extension (installed by default on Ubuntu).
+ * On Windows, uses an icon of the notification area (Shell_NotifyIcon) with a popup menu.
  */
 
 #pragma once
@@ -30,7 +31,7 @@
 #include <thread>
 #include <vector>
 
-/** @brief System tray icon with a menu, as a StatusNotifierItem. */
+/** @brief System tray icon with a menu (StatusNotifierItem on Linux, notification area icon on Windows). */
 class TrayIcon
 {
 public:
@@ -51,15 +52,15 @@ public:
     TrayIcon &operator=(const TrayIcon &) = delete;
 
     /**
-     * @brief Display the tray icon from a background thread. Returns false if there is no D-Bus session bus (always on
-     * Windows, not supported yet).
+     * @brief Display the tray icon from a background thread. Returns false if the icon cannot be displayed (no D-Bus
+     * session bus on Linux, no window on Windows).
      */
     bool run_detached();
 
     /** @brief Remove the tray icon */
     void stop();
 
-    /** @brief Called from the D-Bus thread */
+    /** @brief Private implementation, used from the thread of the tray icon */
     struct Private;
 
 private:
