@@ -1,0 +1,102 @@
+name: System monitor (Windows)
+
+on:
+  push:
+    branches:
+      - main
+      - 'releases/**'
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  system-monitor:
+    name: System monitor (Windows)
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        theme: [ "3.5inchTheme2" ]
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Install MSYS2 and build dependencies
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        install: >-
+          make
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-pkgconf
+          mingw-w64-ucrt-x86_64-yaml-cpp
+          mingw-w64-ucrt-x86_64-nlohmann-json
+          mingw-w64-ucrt-x86_64-freetype
+          mingw-w64-ucrt-x86_64-harfbuzz
+          mingw-w64-ucrt-x86_64-glib2
+          mingw-w64-ucrt-x86_64-libpng
+          mingw-w64-ucrt-x86_64-libjpeg-turbo
+          mingw-w64-ucrt-x86_64-libusb
+          mingw-w64-ucrt-x86_64-curl
+          mingw-w64-ucrt-x86_64-icu
+          mingw-w64-ucrt-x86_64-gtkmm-4.0
+          mingw-w64-ucrt-x86_64-gtest
+          mingw-w64-ucrt-x86_64-jq
+
+    - name: Check build dependencies
+      run: make deps
+
+    - name: Build
+      run: make -j4
+
+    - name: Run unit tests
+      run: make test
+
+    - name: Configure system monitor
+      run: |
+        # config.json is not versioned: start from the example
+        cp config.json.example config.json
+
+        # For tests there is no real HW: use simulated LCD mode
+        jq '.displays[0].REVISION = "SIMU"' config.json > config.json.tmp && mv config.json.tmp config.json
+
+        # Setup selected theme in config.json
+        echo "Using theme ${{ matrix.theme }}"
+        jq --arg theme "${{ matrix.theme }}" '.displays[0].THEME = $theme' config.json > config.json.tmp && mv config.json.tmp config.json
+
+    - name: Run system monitor for 20 seconds
+      run: |
+        build/bin/main.exe > output.log 2>&1 &
+        sleep 20
+        taskkill //F //IM main.exe || true
+
+    - name: Check output for errors
+      run: |
+        echo "######## Output : ########"
+        cat output.log
+
+        if grep -qi "error" output.log; then
+          echo "Program failed to run, see output above"
+          false
+        elif grep -qi "exception" output.log; then
+          echo "Program failed to run, see output above"
+          false
+        fi
+
+    - name: Prepare screenshot for archiving
+      run: |
+        cp screencap.png screenshot-windows-${{ matrix.theme }}.png
+
+    - name: Archive a screenshot
+      uses: actions/upload-artifact@v7
+      with:
+        name: screenshot-windows-${{ matrix.theme }}
+        path: screenshot-*.png

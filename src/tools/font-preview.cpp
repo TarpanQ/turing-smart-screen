@@ -81,7 +81,8 @@ int main()
         for (const auto &font_file: sorted_entries(font_dir)) {
             const std::string ext = font_file.extension().string();
             if (fs::is_regular_file(font_file) && (ext == ".ttf" || ext == ".otf" || ext == ".TTF" || ext == ".OTF")) {
-                std::printf("Found font %s/%s\n", font_dir.filename().c_str(), font_file.filename().c_str());
+                std::printf("Found font %s/%s\n", font_dir.filename().string().c_str(),
+                            font_file.filename().string().c_str());
                 try {
                     generate_preview(font_dir, font_file.filename().string(), "40%", 60);
                 } catch (const std::exception &e) {

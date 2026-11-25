@@ -36,6 +36,7 @@
 
 #include "library/config.h"
 #include "library/log.h"
+#include "library/platform.h"
 #include "library/weather25.h"
 #include "library/weather30.h"
 
@@ -131,8 +132,7 @@ std::string Weather::http_get(const std::string &url, long &status_code)
 std::string Weather::time_now()
 {
     const std::time_t now = std::time(nullptr);
-    std::tm tm{};
-    localtime_r(&now, &tm);
+    const std::tm tm = platform::local_time(now);
     return std::format("@{:02}:{:02}", tm.tm_hour, tm.tm_min);
 }
 

@@ -27,7 +27,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -35,7 +34,6 @@
 
 #include <curl/curl.h>
 #include <graphene.h>
-#include <ifaddrs.h>
 #include <unicode/locid.h>
 #include <unicode/unistr.h>
 
@@ -43,6 +41,7 @@
 #include "library/instance.h"
 #include "library/lcd/serial_port.h"
 #include "library/log.h"
+#include "library/platform.h"
 #include "library/sensors/sensors_python.h"
 
 namespace fs = std::filesystem;
@@ -204,14 +203,6 @@ fs::path themes_dir()
     return main_directory() / "res" / "themes";
 }
 
-/** @brief Directory containing this program (build/bin/), where the other programs are */
-fs::path program_directory()
-{
-    std::error_code ec;
-    const fs::path exe = fs::read_symlink("/proc/self/exe", ec);
-    return ec ? fs::current_path() : exe.parent_path();
-}
-
 std::optional<YAML::Node> get_theme_data(const std::string &name)
 {
     const fs::path theme = themes_dir() / name / "theme.yaml";
@@ -269,14 +260,10 @@ std::vector<std::string> get_com_ports()
 std::vector<std::string> get_net_if()
 {
     std::vector<std::string> if_list = {"None"};  // Add manual entry on top for unavailable/not selected interface
-    ifaddrs *addresses = nullptr;
-    if (getifaddrs(&addresses) == 0) {
-        for (ifaddrs *a = addresses; a; a = a->ifa_next) {
-            if (a->ifa_name && std::find(if_list.begin(), if_list.end(), a->ifa_name) == if_list.end()) {
-                if_list.emplace_back(a->ifa_name);
-            }
+    for (const std::string &name: platform::network_interface_names()) {
+        if (std::find(if_list.begin(), if_list.end(), name) == if_list.end()) {
+            if_list.push_back(name);
         }
-        freeifaddrs(addresses);
     }
     return if_list;
 }
@@ -305,14 +292,17 @@ std::string get_version()
     if (version_file && std::getline(version_file, version) && !version.empty()) {
         return version;
     }
-    const std::string command = "git -C '" + main_directory().string() + "' rev-parse --short HEAD 2>/dev/null";
-    if (FILE *pipe = popen(command.c_str(), "r")) {
-        char buffer[64] = {};
-        if (fgets(buffer, sizeof(buffer), pipe)) {
-            version = buffer;
-            version.erase(version.find_last_not_of(" \n\r") + 1);
+    try {
+        std::string output;
+        int wait_status = 0;
+        Glib::spawn_sync(main_directory().string(), {"git", "rev-parse", "--short", "HEAD"},
+                         Glib::SpawnFlags::SEARCH_PATH | Glib::SpawnFlags::STDERR_TO_DEV_NULL, {}, &output, nullptr,
+                         &wait_status);
+        if (wait_status == 0) {
+            version = output.substr(0, output.find_first_of(" \n\r"));
         }
-        pclose(pipe);
+    } catch (const Glib::Error &) {
+        // git is not installed: no version
     }
     return version.empty() ? "0.0.0" : version;
 }
@@ -320,7 +310,7 @@ std::string get_version()
 /** @brief Start a program of this project (built in the same directory) without waiting for it */
 void start_program(const std::string &program, const std::vector<std::string> &args = {})
 {
-    std::vector<std::string> argv = {(program_directory() / program).string()};
+    std::vector<std::string> argv = {platform::program_path(program).string()};
     argv.insert(argv.end(), args.begin(), args.end());
     try {
         Glib::spawn_async(main_directory().string(), argv);

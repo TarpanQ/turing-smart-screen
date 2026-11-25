@@ -23,6 +23,9 @@
 
 #include <gtest/gtest.h>
 
+// These tests use fork(): Linux only. On Windows, the stop requests are tested in test_platform.cpp
+#ifndef _WIN32
+
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
@@ -79,3 +82,5 @@ TEST(Instance, StopRunningInstance)
         close(fd);
     }
 }
+
+#endif

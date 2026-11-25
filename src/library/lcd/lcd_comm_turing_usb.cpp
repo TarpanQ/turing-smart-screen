@@ -34,6 +34,7 @@
 #include <libusb.h>
 
 #include "library/log.h"
+#include "library/platform.h"
 
 namespace turing_usb {
 
@@ -202,8 +203,7 @@ Bytes build_command_packet_header(uint8_t a0)
     // Milliseconds since local midnight
     const auto now = std::chrono::system_clock::now();
     const std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm{};
-    localtime_r(&t, &tm);
+    std::tm tm = platform::local_time(t);
     tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
     tm.tm_isdst = -1;
     const auto midnight = std::chrono::system_clock::from_time_t(std::mktime(&tm));

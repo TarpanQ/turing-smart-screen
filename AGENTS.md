@@ -2,7 +2,7 @@
 
 ## Project
 - System monitor for USB-C/TFT displays (Turing, XuanFang, Kipye, WeAct) with 3 programs: the system monitor (`main`), the configuration GUI (`configure`) and the theme editor (`theme-editor`), plus a display API example (`simple-program`).
-- Target platform: **Linux only (Ubuntu 26.04 LTS)**. Windows and macOS are not supported.
+- Target platforms: **Linux (Ubuntu 26.04 LTS)**, and **Windows 11** (in progress, built with MSYS2 UCRT64 and the same `Makefile`). Linux must keep working: every change is built and tested on both. macOS is not supported.
 - The design separates **sensor collection**, **theme rendering** and **hardware driver**, so display revisions can be added without changing business logic.
 
 ## Layout
@@ -14,7 +14,7 @@
 - Not converted and kept: `library/pythoncheck.py`, `library/sensors/sensors_librehardwaremonitor.py` (Windows only), `tools/windows-installer/`, `external/LibreHardwareMonitor/`.
 
 ## Build and tests
-- Build with the root `Makefile` (C++20, g++, dependencies found with `pkg-config`): `make deps` checks the dependencies, `make` builds everything, `make test` runs the unit tests, `make clean` removes `build/`.
+- Build with the root `Makefile` (C++20, g++, dependencies found with `pkg-config`; `PLATFORM=linux|windows` is detected): `make deps` checks the dependencies, `make` builds everything, `make test` runs the unit tests, `make clean` removes `build/`.
 - Programs are built into `build/bin/`: `main`, `configure`, `theme-editor`, `simple-program`, and the tools (`make tools`).
 - `make DEBUG=1` builds without optimizations and with debug symbols.
 - GUI programs (`configure`, `theme-editor`) use GTK 4 through gtkmm-4.0.
@@ -28,6 +28,7 @@
 - **Hardware drivers**: `src/library/lcd/` contains the `LcdComm*` classes (serial/USB) with a common API (`InitializeComm`, `DisplayBitmap`, `DisplayText`, `SetBrightness`, etc.).
 - **Sensors and stats rendering**: `src/library/stats.cpp` collects metrics (CPU/GPU/RAM/disk/net/weather) and applies theme styles. Sensors are in `src/library/sensors/`.
 - **Scheduling**: `src/library/scheduler.cpp` runs one thread per periodic job, plus a queue thread that serializes writes to the display.
+- **Platform layer**: `src/library/platform` holds the services that differ between Linux and Windows (program path, process id, uptime, local time, network interfaces, shared libraries, starting a program, stop requests). Put new OS-specific code there or behind `#ifdef _WIN32` in the module concerned, never in the business logic.
 - **Helpers replacing third-party dependencies**: `src/library/lcd/image` (image drawing, PNG/JPEG), `src/library/lcd/font` (FreeType + HarfBuzz text shaping), `src/library/lcd/serial_port` (termios), `src/library/ping` (ICMP socket), `src/library/tray_icon` (StatusNotifierItem + dbusmenu over D-Bus with GIO).
 - **Sensors**: `sensors_python` (selected by `HW_SENSORS: PYTHON` or `AUTO`) reads Linux `/proc` and `/sys` directly, plus NVIDIA NVML loaded at runtime. Custom sensors (`sensors_custom`) are C++ classes registered in `custom_data_sources()`: adding one requires rebuilding.
 

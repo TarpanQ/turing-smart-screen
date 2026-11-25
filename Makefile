@@ -3,7 +3,7 @@
 # turing-smart-screen - C++ port of turing-smart-screen-python, a system monitor and library for USB-C displays
 # https://github.com/mathoudebine/turing-smart-screen-python/
 #
-# Build system for the C++ port (target platform: Ubuntu 26.04 LTS).
+# Build system for the C++ port (target platforms: Ubuntu 26.04 LTS, and Windows 11 with MSYS2 UCRT64).
 #
 #   make              build every program into build/bin/
 #   make main         build only the system monitor (src/main.cpp)
@@ -14,12 +14,25 @@
 #   make clean        remove build/
 #   make DEBUG=1      build without optimizations, with debug symbols
 #
+# The platform is detected (PLATFORM=linux or windows); it can be given to cross-compile, e.g.:
+#   make PLATFORM=windows CXX=x86_64-w64-mingw32-g++ PKG_CONFIG=x86_64-w64-mingw32-pkg-config
+#
 # CPPFLAGS, CXXFLAGS, LDFLAGS and LDLIBS given on the command line are added to the project flags, e.g.:
 #   make CXXFLAGS=-fsanitize=address LDFLAGS=-fsanitize=address
 #
 # Build dependencies (Ubuntu packages):
 #   build-essential pkg-config libyaml-cpp-dev nlohmann-json3-dev libfreetype-dev libharfbuzz-dev libglib2.0-dev libpng-dev libjpeg-dev
 #   libusb-1.0-0-dev libcurl4-openssl-dev libicu-dev libgtkmm-4.0-dev libgtest-dev
+#
+# Build dependencies (Windows, MSYS2 UCRT64 packages, to build from the "MSYS2 UCRT64" shell):
+#   pacman -S make mingw-w64-ucrt-x86_64-{gcc,pkgconf,yaml-cpp,nlohmann-json,freetype,harfbuzz,glib2,libpng,libjpeg-turbo,libusb,
+#   curl,icu,gtkmm-4.0,gtest}
+
+ifeq ($(OS),Windows_NT)
+  PLATFORM ?= windows
+else
+  PLATFORM ?= linux
+endif
 
 CXX      ?= g++
 CXXSTD   := -std=c++20
@@ -51,9 +64,21 @@ GUI_LIBS    := $(shell $(PKG_CONFIG) --libs $(GUI_PKGS) 2>/dev/null)
 TEST_CFLAGS := $(patsubst -I%,-isystem %,$(shell $(PKG_CONFIG) --cflags $(TEST_PKGS) 2>/dev/null))
 TEST_LIBS   := $(shell $(PKG_CONFIG) --libs $(TEST_PKGS) 2>/dev/null)
 
-ALL_CPPFLAGS = -I$(SRC_DIR) -MMD -MP $(CPPFLAGS)
+# Platform-specific settings. Windows: Windows 10 API or later, without the GDI macros of <windows.h> (ERROR...) and
+# the min/max macros, with M_PI; system libraries for sockets and network interfaces
+ifeq ($(PLATFORM),windows)
+  EXE           := .exe
+  PLATFORM_DEFS := -D_WIN32_WINNT=0x0A00 -DWIN32_LEAN_AND_MEAN -DNOMINMAX -DNOGDI -D_USE_MATH_DEFINES
+  PLATFORM_LIBS := -lws2_32 -liphlpapi
+else
+  EXE           :=
+  PLATFORM_DEFS :=
+  PLATFORM_LIBS :=
+endif
+
+ALL_CPPFLAGS = -I$(SRC_DIR) -MMD -MP $(PLATFORM_DEFS) $(CPPFLAGS)
 ALL_CXXFLAGS = $(CXXSTD) $(WARNINGS) $(OPTFLAGS) $(LIB_CFLAGS) $(CXXFLAGS)
-ALL_LDLIBS   = $(LDLIBS) $(LIB_LIBS) -pthread
+ALL_LDLIBS   = $(LDLIBS) $(LIB_LIBS) $(PLATFORM_LIBS) -pthread
 
 # Shared library code (src/library/), linked into every program
 LIB_SRCS := $(shell find $(SRC_DIR)/library -name '*.cpp' 2>/dev/null)
@@ -66,16 +91,16 @@ CONFIGURE_OBJS      := $(OBJ_DIR)/configure.o
 THEME_EDITOR_OBJS   := $(OBJ_DIR)/theme-editor.o
 SIMPLE_PROGRAM_OBJS := $(OBJ_DIR)/simple-program.o
 
-PROGRAMS := $(BIN_DIR)/main $(BIN_DIR)/configure $(BIN_DIR)/theme-editor $(BIN_DIR)/simple-program
+PROGRAMS := $(BIN_DIR)/main$(EXE) $(BIN_DIR)/configure$(EXE) $(BIN_DIR)/theme-editor$(EXE) $(BIN_DIR)/simple-program$(EXE)
 
 # Tools: one program per source file in src/tools/
 TOOL_SRCS := $(wildcard $(SRC_DIR)/tools/*.cpp)
-TOOLS     := $(TOOL_SRCS:$(SRC_DIR)/tools/%.cpp=$(BIN_DIR)/%)
+TOOLS     := $(TOOL_SRCS:$(SRC_DIR)/tools/%.cpp=$(BIN_DIR)/%$(EXE))
 
 # Unit tests (tests/cpp/)
 TEST_SRCS := $(shell find $(TEST_DIR) -name '*.cpp' 2>/dev/null)
 TEST_OBJS := $(TEST_SRCS:$(TEST_DIR)/%.cpp=$(OBJ_DIR)/tests/%.o)
-TEST_BIN  := $(BIN_DIR)/unit-tests
+TEST_BIN  := $(BIN_DIR)/unit-tests$(EXE)
 
 .PHONY: all main configure theme-editor simple-program tools test deps clean
 
@@ -83,32 +108,32 @@ all: $(PROGRAMS) $(TOOLS)
 
 tools: $(TOOLS)
 
-main: $(BIN_DIR)/main
-configure: $(BIN_DIR)/configure
-theme-editor: $(BIN_DIR)/theme-editor
-simple-program: $(BIN_DIR)/simple-program
+main: $(BIN_DIR)/main$(EXE)
+configure: $(BIN_DIR)/configure$(EXE)
+theme-editor: $(BIN_DIR)/theme-editor$(EXE)
+simple-program: $(BIN_DIR)/simple-program$(EXE)
 
 $(LIB_A): $(LIB_OBJS)
 	@mkdir -p $(@D)
 	$(AR) rcs $@ $^
 
-$(BIN_DIR)/main: $(MAIN_OBJS) $(LIB_A)
+$(BIN_DIR)/main$(EXE): $(MAIN_OBJS) $(LIB_A)
 	@mkdir -p $(@D)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(ALL_LDLIBS)
 
-$(BIN_DIR)/simple-program: $(SIMPLE_PROGRAM_OBJS) $(LIB_A)
+$(BIN_DIR)/simple-program$(EXE): $(SIMPLE_PROGRAM_OBJS) $(LIB_A)
 	@mkdir -p $(@D)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(ALL_LDLIBS)
 
-$(BIN_DIR)/configure: $(CONFIGURE_OBJS) $(LIB_A)
+$(BIN_DIR)/configure$(EXE): $(CONFIGURE_OBJS) $(LIB_A)
 	@mkdir -p $(@D)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(GUI_LIBS) $(ALL_LDLIBS)
 
-$(BIN_DIR)/theme-editor: $(THEME_EDITOR_OBJS) $(LIB_A)
+$(BIN_DIR)/theme-editor$(EXE): $(THEME_EDITOR_OBJS) $(LIB_A)
 	@mkdir -p $(@D)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(GUI_LIBS) $(ALL_LDLIBS)
 
-$(BIN_DIR)/%: $(OBJ_DIR)/tools/%.o $(LIB_A)
+$(BIN_DIR)/%$(EXE): $(OBJ_DIR)/tools/%.o $(LIB_A)
 	@mkdir -p $(@D)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(ALL_LDLIBS)
 
@@ -145,7 +170,11 @@ deps:
 			printf "  %-12s MISSING\n" $$pkg; missing=1; \
 		fi; \
 	done; \
-	if [ $$missing -eq 1 ]; then \
+	if [ $$missing -eq 1 ] && [ "$(PLATFORM)" = windows ]; then \
+		echo "Install them with: pacman -S make mingw-w64-ucrt-x86_64-{gcc,pkgconf,yaml-cpp,nlohmann-json,freetype,harfbuzz,glib2,\
+libpng,libjpeg-turbo,libusb,curl,icu,gtkmm-4.0,gtest}"; \
+		exit 1; \
+	elif [ $$missing -eq 1 ]; then \
 		echo "Install them with: sudo apt install build-essential pkg-config libyaml-cpp-dev nlohmann-json3-dev libfreetype-dev libharfbuzz-dev libglib2.0-dev \
 libpng-dev libjpeg-dev libusb-1.0-0-dev libcurl4-openssl-dev libicu-dev libgtkmm-4.0-dev libgtest-dev"; \
 		exit 1; \

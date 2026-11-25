@@ -41,10 +41,12 @@
 #include <limits>
 #include <thread>
 
-#include <dlfcn.h>
+#ifndef _WIN32
 #include <sys/statvfs.h>
+#endif
 
 #include "library/log.h"
+#include "library/platform.h"
 
 namespace fs = std::filesystem;
 
@@ -238,22 +240,27 @@ public:
 private:
     Nvml()
     {
-        handle = dlopen("libnvidia-ml.so.1", RTLD_NOW);
+#ifdef _WIN32
+        handle = platform::load_library("nvml.dll");
+#else
+        handle = platform::load_library("libnvidia-ml.so.1");
+#endif
         if (!handle) {
             return;
         }
-        auto init = reinterpret_cast<nvmlReturn_t (*)()>(dlsym(handle, "nvmlInit_v2"));
-        DeviceGetCount = reinterpret_cast<decltype(DeviceGetCount)>(dlsym(handle, "nvmlDeviceGetCount_v2"));
+        const auto symbol = [this](const char *name) { return platform::find_symbol(handle, name); };
+        auto init = reinterpret_cast<nvmlReturn_t (*)()>(symbol("nvmlInit_v2"));
+        DeviceGetCount = reinterpret_cast<decltype(DeviceGetCount)>(symbol("nvmlDeviceGetCount_v2"));
         DeviceGetHandleByIndex =
-            reinterpret_cast<decltype(DeviceGetHandleByIndex)>(dlsym(handle, "nvmlDeviceGetHandleByIndex_v2"));
+            reinterpret_cast<decltype(DeviceGetHandleByIndex)>(symbol("nvmlDeviceGetHandleByIndex_v2"));
         DeviceGetUtilizationRates =
-            reinterpret_cast<decltype(DeviceGetUtilizationRates)>(dlsym(handle, "nvmlDeviceGetUtilizationRates"));
-        DeviceGetMemoryInfo = reinterpret_cast<decltype(DeviceGetMemoryInfo)>(dlsym(handle, "nvmlDeviceGetMemoryInfo"));
+            reinterpret_cast<decltype(DeviceGetUtilizationRates)>(symbol("nvmlDeviceGetUtilizationRates"));
+        DeviceGetMemoryInfo = reinterpret_cast<decltype(DeviceGetMemoryInfo)>(symbol("nvmlDeviceGetMemoryInfo"));
         DeviceGetTemperature =
-            reinterpret_cast<decltype(DeviceGetTemperature)>(dlsym(handle, "nvmlDeviceGetTemperature"));
-        DeviceGetClockInfo = reinterpret_cast<decltype(DeviceGetClockInfo)>(dlsym(handle, "nvmlDeviceGetClockInfo"));
-        DeviceGetFanSpeed = reinterpret_cast<decltype(DeviceGetFanSpeed)>(dlsym(handle, "nvmlDeviceGetFanSpeed"));
-        DeviceGetName = reinterpret_cast<decltype(DeviceGetName)>(dlsym(handle, "nvmlDeviceGetName"));
+            reinterpret_cast<decltype(DeviceGetTemperature)>(symbol("nvmlDeviceGetTemperature"));
+        DeviceGetClockInfo = reinterpret_cast<decltype(DeviceGetClockInfo)>(symbol("nvmlDeviceGetClockInfo"));
+        DeviceGetFanSpeed = reinterpret_cast<decltype(DeviceGetFanSpeed)>(symbol("nvmlDeviceGetFanSpeed"));
+        DeviceGetName = reinterpret_cast<decltype(DeviceGetName)>(symbol("nvmlDeviceGetName"));
         initialized = init && DeviceGetCount && DeviceGetHandleByIndex && DeviceGetUtilizationRates &&
                       DeviceGetMemoryInfo && DeviceGetTemperature && DeviceGetClockInfo && DeviceGetFanSpeed &&
                       init() == NVML_SUCCESS;
@@ -389,6 +396,18 @@ struct DiskUsage
 
 std::optional<DiskUsage> disk_usage(const char *path)
 {
+#ifdef _WIN32
+    // No blocks reserved for root on Windows: the space available is the free space
+    std::error_code ec;
+    const fs::space_info space = fs::space(path, ec);
+    if (ec) {
+        return std::nullopt;
+    }
+    const auto used = static_cast<int64_t>(space.capacity - space.free);
+    const auto available = static_cast<int64_t>(space.available);
+    const int64_t total_user = used + available;
+    return DiskUsage{used, available, total_user > 0 ? round1(100.0 * used / total_user) : 0.0};
+#else
     struct statvfs st{};
     if (statvfs(path, &st) != 0) {
         return std::nullopt;
@@ -398,6 +417,7 @@ std::optional<DiskUsage> disk_usage(const char *path)
     const int64_t used = static_cast<int64_t>(st.f_blocks - st.f_bfree) * st.f_frsize;
     const int64_t total_user = used + avail_to_user;
     return DiskUsage{used, avail_to_user, total_user > 0 ? round1(100.0 * used / total_user) : 0.0};
+#endif
 }
 
 }  // namespace

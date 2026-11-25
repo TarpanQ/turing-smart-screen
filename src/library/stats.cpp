@@ -51,6 +51,7 @@
 #include "library/log.h"
 #include "library/ping.h"
 #include "library/sensors/sensors_custom.h"
+#include "library/platform.h"
 #include "library/sensors/sensors_python.h"
 #include "library/sensors/sensors_stub_random.h"
 #include "library/sensors/sensors_stub_static.h"
@@ -259,6 +260,17 @@ void init()
     HW_SENSORS = config::get(config::section(cfg, "config"), "HW_SENSORS", "AUTO");
     CPU_FAN = config::get(config::section(cfg, "config"), "CPU_FAN", "AUTO");
     PING_DEST = config::get(config::section(cfg, "config"), "PING", "127.0.0.1");
+
+#ifdef _WIN32
+    // The hardware sensors of Windows are not supported yet: sensors_python reads Linux /proc and /sys
+    if (HW_SENSORS == "AUTO") {
+        logger.warning("Hardware sensors are not supported on Windows yet: using stub sensors");
+        HW_SENSORS = "STUB";
+    } else if (HW_SENSORS == "PYTHON") {
+        logger.error("HW_SENSORS: PYTHON is only available on Linux");
+        std::_Exit(1);
+    }
+#endif
 
     if (HW_SENSORS == "PYTHON" || HW_SENSORS == "AUTO") {
         sensors = sensors_python::create();
@@ -985,10 +997,7 @@ void SystemUptime::stats()
         // For static or stubbed sensors, use predefined uptime
         uptimesec = 4294036;
     } else {
-        std::ifstream file("/proc/uptime");
-        double seconds = 0;
-        file >> seconds;
-        uptimesec = static_cast<long long>(seconds);
+        uptimesec = static_cast<long long>(platform::uptime_seconds());
     }
 
     // Same format as Python str(datetime.timedelta(seconds=...)): "49 days, 16:47:16" or "16:47:16"

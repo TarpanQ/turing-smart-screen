@@ -121,6 +121,7 @@ TEST(SensorsPython, PciDeviceName)
     EXPECT_EQ(sensors_python::pci_device_name(unknown, 0x1002, 0x2717), "");
 }
 
+#ifndef _WIN32
 /** @brief Linux sensors return consistent values. */
 TEST(SensorsPython, LinuxValues)
 {
@@ -150,6 +151,7 @@ TEST(SensorsPython, LinuxValues)
     // Unknown interface: zeros
     EXPECT_EQ(s.net->stats("does-not-exist", 1.0).uploaded, 0);
 }
+#endif
 
 /** @brief CPU fan detection from the fan label. */
 TEST(SensorsPython, CpuFanDetection)

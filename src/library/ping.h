@@ -18,7 +18,7 @@
 
 /**
  * @file ping.h
- * @brief ICMP echo ("ping"), Uses an unprivileged ICMP socket (allowed by default on Ubuntu, see sysctl net.ipv4.ping_group_range), or a raw socket if the program has the permission.
+ * @brief ICMP echo ("ping"), Uses an unprivileged ICMP socket (allowed by default on Ubuntu, see sysctl net.ipv4.ping_group_range), or a raw socket if the program has the permission. On Windows, uses the ICMP helper API (IcmpSendEcho).
  */
 
 #pragma once
