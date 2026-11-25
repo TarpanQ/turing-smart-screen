@@ -1,0 +1,79 @@
+name: Generate Windows Packages
+
+on:
+  release:
+    types: [ published ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  generate-windows-packages:
+    name: Generate Windows Packages
+    runs-on: windows-latest
+
+    # MSYS2 is preinstalled on the Windows runners (C:\msys64): its UCRT64 shell is used directly
+    env:
+      MSYSTEM: UCRT64
+      CHERE_INVOKING: 1
+
+    defaults:
+      run:
+        shell: C:\msys64\usr\bin\bash.exe --login -eo pipefail {0}
+
+    steps:
+    - name: Git Checkout ${{github.event.release.tag_name}}
+      uses: actions/checkout@v7
+
+    - name: Install build dependencies
+      run: |
+        packages="gcc pkgconf yaml-cpp nlohmann-json freetype harfbuzz glib2 libpng libjpeg-turbo libusb curl icu gtkmm-4.0 gtest"
+        pacman -Sy --noconfirm --needed make $(printf 'mingw-w64-ucrt-x86_64-%s ' $packages)
+
+    - name: Build programs and create the distribution
+      run: make -j4 dist VERSION="${{github.event.release.tag_name}}"
+
+    - name: Create InnoSetup installer from the distribution
+      shell: pwsh
+      run: |
+        $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+        if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+        & $iscc /Q /O+ "/DMyAppVersion=${{github.event.release.tag_name}}" tools\windows-installer\turing-system-monitor.iss
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    - name: Create portable zip archive from the distribution
+      shell: pwsh
+      run: |
+        7z a -tzip turing-system-monitor-${{github.event.release.tag_name}}-portable-windows.zip ".\dist\turing-system-monitor"
+
+    - name: '📦 Archive Windows installer'
+      uses: actions/upload-artifact@v7
+      with:
+        name: turing-system-monitor-${{github.event.release.tag_name}}-windows
+        path: tools\windows-installer\Output\turing-system-monitor-${{github.event.release.tag_name}}-windows.exe
+        if-no-files-found: error
+
+    - name: '📦 Archive Windows portable archive'
+      uses: actions/upload-artifact@v7
+      with:
+        name: turing-system-monitor-${{github.event.release.tag_name}}-portable-windows
+        path: turing-system-monitor-${{github.event.release.tag_name}}-portable-windows.zip
+        if-no-files-found: error
+
+    - name: '📩 Publish Windows installer to Release'
+      shell: pwsh
+      run: |
+        gh release upload ${{github.event.release.tag_name}} tools\windows-installer\Output\turing-system-monitor-${{github.event.release.tag_name}}-windows.exe
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: '📩 Publish Windows portable zip to Release'
+      shell: pwsh
+      run: |
+        gh release upload ${{github.event.release.tag_name}} turing-system-monitor-${{github.event.release.tag_name}}-portable-windows.zip
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

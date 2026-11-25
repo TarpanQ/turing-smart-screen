@@ -10,6 +10,7 @@
 #   make configure    build only the configuration GUI (src/configure.cpp)
 #   make tools        build only the tools (src/tools/)
 #   make lhm-bridge   Windows only: build the LibreHardwareMonitor helper (src/lhm-bridge/, C# compiler of .NET 4.x)
+#   make dist         Windows only: programs, DLLs and resources in dist/turing-system-monitor/ for the installer
 #   make test         build and run the unit tests
 #   make deps         check that all build dependencies are installed
 #   make clean        remove build/
@@ -104,6 +105,16 @@ endif
 # csc.exe takes Windows paths: with '/', it only keeps the name of the source file
 winpath = $(subst /,\,$(1))
 
+# Windows: the system monitor and the GUI programs are Windows applications, without a console window (their messages
+# are still written to log.log, and to the standard error output when it is redirected)
+ifeq ($(PLATFORM),windows)
+  WINDOWS_APP_LDFLAGS := -mwindows
+endif
+
+# Windows distribution (make dist): programs, DLLs and resources, packaged by tools/windows-installer/
+DIST_DIR := dist/turing-system-monitor
+VERSION  ?= $(shell git describe --tags --always 2>/dev/null || echo 0.0.0)
+
 # Tools: one program per source file in src/tools/
 TOOL_SRCS := $(wildcard $(SRC_DIR)/tools/*.cpp)
 TOOLS     := $(TOOL_SRCS:$(SRC_DIR)/tools/%.cpp=$(BIN_DIR)/%$(EXE))
@@ -113,7 +124,7 @@ TEST_SRCS := $(shell find $(TEST_DIR) -name '*.cpp' 2>/dev/null)
 TEST_OBJS := $(TEST_SRCS:$(TEST_DIR)/%.cpp=$(OBJ_DIR)/tests/%.o)
 TEST_BIN  := $(BIN_DIR)/unit-tests$(EXE)
 
-.PHONY: all main configure theme-editor simple-program tools lhm-bridge test deps clean
+.PHONY: all main configure theme-editor simple-program tools lhm-bridge dist test deps clean
 
 all: $(PROGRAMS) $(TOOLS) $(LHM_BRIDGE)
 
@@ -132,7 +143,7 @@ $(LIB_A): $(LIB_OBJS)
 
 $(BIN_DIR)/main$(EXE): $(MAIN_OBJS) $(LIB_A)
 	@mkdir -p $(@D)
-	$(CXX) $(LDFLAGS) -o $@ $^ $(ALL_LDLIBS)
+	$(CXX) $(LDFLAGS) $(WINDOWS_APP_LDFLAGS) -o $@ $^ $(ALL_LDLIBS)
 
 $(BIN_DIR)/simple-program$(EXE): $(SIMPLE_PROGRAM_OBJS) $(LIB_A)
 	@mkdir -p $(@D)
@@ -140,11 +151,11 @@ $(BIN_DIR)/simple-program$(EXE): $(SIMPLE_PROGRAM_OBJS) $(LIB_A)
 
 $(BIN_DIR)/configure$(EXE): $(CONFIGURE_OBJS) $(LIB_A)
 	@mkdir -p $(@D)
-	$(CXX) $(LDFLAGS) -o $@ $^ $(GUI_LIBS) $(ALL_LDLIBS)
+	$(CXX) $(LDFLAGS) $(WINDOWS_APP_LDFLAGS) -o $@ $^ $(GUI_LIBS) $(ALL_LDLIBS)
 
 $(BIN_DIR)/theme-editor$(EXE): $(THEME_EDITOR_OBJS) $(LIB_A)
 	@mkdir -p $(@D)
-	$(CXX) $(LDFLAGS) -o $@ $^ $(GUI_LIBS) $(ALL_LDLIBS)
+	$(CXX) $(LDFLAGS) $(WINDOWS_APP_LDFLAGS) -o $@ $^ $(GUI_LIBS) $(ALL_LDLIBS)
 
 $(BIN_DIR)/%$(EXE): $(OBJ_DIR)/tools/%.o $(LIB_A)
 	@mkdir -p $(@D)
@@ -197,6 +208,15 @@ libpng,libjpeg-turbo,libusb,curl,icu,gtkmm-4.0,gtest}"; \
 libpng-dev libjpeg-dev libusb-1.0-0-dev libcurl4-openssl-dev libicu-dev libgtkmm-4.0-dev libgtest-dev"; \
 		exit 1; \
 	fi
+
+# Windows: copy the programs, their DLLs and the resources into $(DIST_DIR), for the installer
+ifeq ($(PLATFORM),windows)
+dist: $(PROGRAMS) $(LHM_BRIDGE)
+	sh tools/windows-installer/make-dist.sh "$(DIST_DIR)" "$(BIN_DIR)" "$(VERSION)"
+else
+dist:
+	@echo "make dist is only available on Windows (MSYS2 UCRT64): Linux packages are made by the CI"; exit 1
+endif
 
 clean:
 	rm -rf $(BUILD_DIR)

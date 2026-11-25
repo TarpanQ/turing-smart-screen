@@ -88,7 +88,8 @@ bool start_program(const std::filesystem::path &program);
 
 /**
  * @brief Prepare the stop requests of this process: Ctrl+C, SIGTERM and SIGQUIT on Linux (blocked in all the
- * threads created afterwards), Ctrl+C, closing of the console and stop requests from send_stop_request() on Windows.
+ * threads created afterwards); on Windows Ctrl+C, closing of the console, end of the session (logoff, shutdown) and
+ * stop requests from send_stop_request().
  * Call it once, in the main thread, before creating other threads.
  */
 void prepare_stop_requests();

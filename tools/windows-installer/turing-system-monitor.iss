@@ -6,7 +6,12 @@
 #define WizardDir "..\..\tools\windows-installer\"
 
 #define MyAppName "Turing System Monitor"
-#define MyAppVersion GetStringFileInfo(SourceDir + "main.exe", PRODUCT_VERSION)
+; Version given on the command line (ISCC /DMyAppVersion=...), else read from version.txt written by "make dist"
+#ifndef MyAppVersion
+  #define VersionFile FileOpen(SourceDir + "version.txt")
+  #define MyAppVersion Trim(FileRead(VersionFile))
+  #expr FileClose(VersionFile)
+#endif
 #define MyAppPublisher "Matthieu Houdebine"
 #define MyAppURL "https://github.com/mathoudebine/turing-smart-screen-python"
 
@@ -70,15 +75,15 @@ Name: "themes"; Description: "Default themes (local changes will be lost! - cust
 Name: "config"; Description: "Default configuration"; Types: default; Flags: disablenouninstallwarning
 
 [Files]
-Source: "{#SourceDir}*"; Excludes: "config.yaml,themes"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs; Components: program
-Source: "{#SourceDir}config.yaml"; DestDir: "{app}"; Flags: ignoreversion; Components: config
+Source: "{#SourceDir}*"; Excludes: "\config.json,\res\themes"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs; Components: program
+Source: "{#SourceDir}config.json"; DestDir: "{app}"; Flags: ignoreversion; Components: config
 Source: "{#SourceDir}res\themes\*"; Excludes: "--Theme examples"; DestDir: "{app}\res\themes\"; Flags: ignoreversion recursesubdirs; Components: themes
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
 Name: "{group}\{cm:ProgramOnTheWeb,{#MyAppName}}"; Filename: "{#MyAppURL}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{group}\Turing System Monitor"; Filename: "{app}\configure.exe"
+Name: "{group}\Turing System Monitor"; Filename: "{app}\bin\configure.exe"; WorkingDir: "{app}"
 
 [Code]
 (* Detect if the program is already installed or if it is the first installation *)
