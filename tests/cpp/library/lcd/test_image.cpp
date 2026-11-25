@@ -21,6 +21,12 @@
  * @brief Unit tests of src/library/lcd/image and src/library/lcd/font (replacement of Pillow)
  */
 
+#include <cstdint>
+#include <fstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include "library/lcd/font.h"
@@ -82,6 +88,37 @@ TEST(Image, SaveAndOpenPng)
     EXPECT_EQ(loaded.getpixel(2, 3), red);
     EXPECT_EQ(loaded.getpixel(0, 0), white);
     EXPECT_THROW(Image::open(::testing::TempDir() + "does-not-exist.png"), std::runtime_error);
+}
+
+/** @brief A JPEG encoded by encode_jpeg() is opened again with the same size and close colors. */
+TEST(Image, EncodeAndOpenJpeg)
+{
+    const Image image(16, 8, red);
+    const std::vector<uint8_t> jpeg = image.encode_jpeg(95, 0);
+    ASSERT_GT(jpeg.size(), 2u);
+    EXPECT_EQ(jpeg[0], 0xFF);  // JPEG start of image marker
+    EXPECT_EQ(jpeg[1], 0xD8);
+
+    const std::string path = ::testing::TempDir() + "test_image.jpg";
+    std::ofstream(path, std::ios::binary).write(reinterpret_cast<const char *>(jpeg.data()),
+                                                static_cast<std::streamsize>(jpeg.size()));
+    const Image loaded = Image::open(path);
+    EXPECT_EQ(loaded.size(), std::make_pair(16, 8));
+    const RGBColor pixel = loaded.getpixel(4, 4);
+    EXPECT_NEAR(pixel.r, 255, 8);
+    EXPECT_NEAR(pixel.g, 0, 8);
+    EXPECT_NEAR(pixel.b, 0, 8);
+}
+
+/** @brief A corrupt JPEG file throws std::runtime_error: libjpeg reports the error with longjmp. */
+TEST(Image, OpenCorruptJpeg)
+{
+    const std::string path = ::testing::TempDir() + "test_corrupt.jpg";
+    const unsigned char data[] = {0xFF, 0xD8, 0xFF, 0x00, 0x12, 0x34, 0x56, 0x78};  // JPEG markers, then garbage
+    std::ofstream(path, std::ios::binary).write(reinterpret_cast<const char *>(data), sizeof(data));
+    for (int i = 0; i < 20; i++) {
+        EXPECT_THROW(Image::open(path), std::runtime_error);
+    }
 }
 
 /** @brief Rectangle outline includes its corners. */
