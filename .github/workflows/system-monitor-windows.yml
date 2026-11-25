@@ -16,9 +16,14 @@ jobs:
     name: System monitor (Windows)
     runs-on: windows-latest
 
+    # MSYS2 is preinstalled on the Windows runners (C:\msys64): its UCRT64 shell is used directly
+    env:
+      MSYSTEM: UCRT64
+      CHERE_INVOKING: 1
+
     defaults:
       run:
-        shell: msys2 {0}
+        shell: C:\msys64\usr\bin\bash.exe --login -eo pipefail {0}
 
     strategy:
       fail-fast: false
@@ -28,28 +33,10 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
-    - name: Install MSYS2 and build dependencies
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: UCRT64
-        update: true
-        install: >-
-          make
-          mingw-w64-ucrt-x86_64-gcc
-          mingw-w64-ucrt-x86_64-pkgconf
-          mingw-w64-ucrt-x86_64-yaml-cpp
-          mingw-w64-ucrt-x86_64-nlohmann-json
-          mingw-w64-ucrt-x86_64-freetype
-          mingw-w64-ucrt-x86_64-harfbuzz
-          mingw-w64-ucrt-x86_64-glib2
-          mingw-w64-ucrt-x86_64-libpng
-          mingw-w64-ucrt-x86_64-libjpeg-turbo
-          mingw-w64-ucrt-x86_64-libusb
-          mingw-w64-ucrt-x86_64-curl
-          mingw-w64-ucrt-x86_64-icu
-          mingw-w64-ucrt-x86_64-gtkmm-4.0
-          mingw-w64-ucrt-x86_64-gtest
-          mingw-w64-ucrt-x86_64-jq
+    - name: Install build dependencies
+      run: |
+        packages="gcc pkgconf yaml-cpp nlohmann-json freetype harfbuzz glib2 libpng libjpeg-turbo libusb curl icu gtkmm-4.0 gtest jq"
+        pacman -Sy --noconfirm --needed make $(printf 'mingw-w64-ucrt-x86_64-%s ' $packages)
 
     - name: Check build dependencies
       run: make deps
