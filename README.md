@@ -102,10 +102,13 @@ The same `Makefile` builds the programs on Windows 11 with [MSYS2](https://www.m
 pacman -S make mingw-w64-ucrt-x86_64-{gcc,pkgconf,yaml-cpp,nlohmann-json,freetype,harfbuzz,glib2,libpng,libjpeg-turbo,libusb,curl,icu,gtkmm-4.0,gtest}
 make                          # build into build/bin/ (main.exe, configure.exe...)
 make test                     # unit tests
+make dist                     # programs, DLLs and resources in dist/turing-system-monitor/
 ```
 
-Run the programs from the same shell (the DLLs of the dependencies are in the MSYS2 `ucrt64/bin` directory). Current state on Windows:
-* Supported: simulated screen (`REVISION: SIMU`) with the themes rendering, serial screens (revisions A, B, C, D, WeAct: COM ports, with auto-detection), Turing USB screens (`TUR_USB`, with the WinUSB driver installed with [Zadig](https://zadig.akeo.ie)), hardware sensors (`HW_SENSORS: AUTO`: CPU, RAM, disk, network, NVIDIA GPU; CPU temperature and fan with LibreHardwareMonitor when run as administrator, see `HW_SENSORS` in [README.config](README.config)), ping, single instance and clean stop (Ctrl+C).
+Run the programs from the same shell (the DLLs of the dependencies are in the MSYS2 `ucrt64/bin` directory), or from `dist/turing-system-monitor/bin/`, which has all the DLLs. The installer is built from `dist/` with [Inno Setup](https://jrsoftware.org/isinfo.php) (`tools/windows-installer/turing-system-monitor.iss`); the Windows CI builds it for every pull request, and the release workflow publishes it with a portable zip archive.
+
+The system monitor, the configuration GUI and the theme editor are Windows applications: they open no console window. The messages of the system monitor are written to `log.log` in its working directory (the installation directory when it is started from the configuration GUI). Current state on Windows:
+* Supported: simulated screen (`REVISION: SIMU`) with the themes rendering, serial screens (revisions A, B, C, D, WeAct: COM ports, with auto-detection), Turing USB screens (`TUR_USB`, with the WinUSB driver installed with [Zadig](https://zadig.akeo.ie)), hardware sensors (`HW_SENSORS: AUTO`: CPU, RAM, disk, network, NVIDIA GPU; CPU temperature and fan with LibreHardwareMonitor when run as administrator, see `HW_SENSORS` in [README.config](README.config)), ping, single instance and clean stop (tray icon, configuration GUI, end of the Windows session).
 * Tray icon in the notification area, with the Configure and Exit menu.
 * Not supported yet: AMD GPUs.
 * The configuration GUI and the theme editor build, but are not tested on Windows yet.

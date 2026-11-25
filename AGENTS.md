@@ -15,7 +15,7 @@
 - Not converted and kept: `library/pythoncheck.py`, `library/sensors/sensors_librehardwaremonitor.py` (Windows only), `tools/windows-installer/`, `external/LibreHardwareMonitor/`.
 
 ## Build and tests
-- Build with the root `Makefile` (C++20, g++, dependencies found with `pkg-config`; `PLATFORM=linux|windows` is detected): `make deps` checks the dependencies, `make` builds everything, `make test` runs the unit tests, `make clean` removes `build/`.
+- Build with the root `Makefile` (C++20, g++, dependencies found with `pkg-config`; `PLATFORM=linux|windows` is detected): `make deps` checks the dependencies, `make` builds everything, `make test` runs the unit tests, `make clean` removes `build/`. On Windows, `make dist` assembles `dist/turing-system-monitor/` (programs in `bin/` with their DLLs, resources), packaged by `tools/windows-installer/turing-system-monitor.iss` (Inno Setup).
 - Programs are built into `build/bin/`: `main`, `configure`, `theme-editor`, `simple-program`, and the tools (`make tools`).
 - `make DEBUG=1` builds without optimizations and with debug symbols.
 - GUI programs (`configure`, `theme-editor`) use GTK 4 through gtkmm-4.0.

@@ -55,12 +55,22 @@ jobs:
         grep -q "^Cpu$(printf '\t')" lhm-bridge.log
         tail -1 lhm-bridge.log | grep -qx end
 
+    - name: Create the distribution
+      run: make dist
+
+    - name: Create the installer
+      shell: pwsh
+      run: |
+        $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+        if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+        & $iscc /Q /O+ tools\windows-installer\turing-system-monitor.iss
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Get-ChildItem tools\windows-installer\Output
+
     - name: Configure system monitor
       run: |
-        # config.json is not versioned: start from the example
-        cp config.json.example config.json
-
-        # For tests there is no real HW: use simulated LCD mode
+        # The distribution has the default config.json: use simulated LCD mode, there is no real HW
+        cd dist/turing-system-monitor
         jq '.displays[0].REVISION = "SIMU"' config.json > config.json.tmp && mv config.json.tmp config.json
 
         # Setup selected theme in config.json
@@ -68,27 +78,46 @@ jobs:
         jq --arg theme "${{ matrix.theme }}" '.displays[0].THEME = $theme' config.json > config.json.tmp && mv config.json.tmp config.json
 
     - name: Run system monitor for 20 seconds
+      shell: pwsh
       run: |
-        build/bin/main.exe > output.log 2>&1 &
-        sleep 20
-        taskkill //F //IM main.exe || true
+        # Run from the distribution, without the MSYS2 directories in PATH: every DLL needed must be in its bin/
+        $env:PATH = "C:\Windows\System32;C:\Windows"
+        $dist = "dist\turing-system-monitor"
+        $main = Start-Process -FilePath "$dist\bin\main.exe" -WorkingDirectory $dist -PassThru `
+          -RedirectStandardError "$dist\output.log"
+        Start-Sleep -Seconds 20
+        if ($main.HasExited) {
+          Write-Output "main.exe stopped early, exit code $($main.ExitCode)"
+          exit 1
+        }
+        Stop-Process -Id $main.Id -Force
 
     - name: Check output for errors
       run: |
+        cd dist/turing-system-monitor
         echo "######## Output : ########"
         cat output.log
+        echo "######## log.log : ########"
+        cat log.log
 
-        if grep -qi "error" output.log; then
+        if grep -qi "error" output.log log.log; then
           echo "Program failed to run, see output above"
           false
-        elif grep -qi "exception" output.log; then
+        elif grep -qi "exception" output.log log.log; then
           echo "Program failed to run, see output above"
           false
         fi
 
     - name: Prepare screenshot for archiving
       run: |
-        cp screencap.png screenshot-windows-${{ matrix.theme }}.png
+        cp dist/turing-system-monitor/screencap.png screenshot-windows-${{ matrix.theme }}.png
+
+    - name: Archive the installer
+      uses: actions/upload-artifact@v7
+      with:
+        name: turing-system-monitor-windows-installer
+        path: tools/windows-installer/Output/*.exe
+        if-no-files-found: error
 
     - name: Archive a screenshot
       uses: actions/upload-artifact@v7

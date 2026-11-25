@@ -33,6 +33,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <thread>
 #else
 #include <csignal>
 #include <dlfcn.h>
@@ -75,10 +76,12 @@ namespace {
 constexpr int STOP_FROM_THIS_PROGRAM = -1;
 /** @brief Value of stop_reason when the stop was requested by send_stop_request() from another program. */
 constexpr int STOP_FROM_OTHER_PROGRAM = -2;
+/** @brief Value of stop_reason when the Windows session ends (logoff, shutdown), for programs without console. */
+constexpr int STOP_FROM_SESSION_END = -3;
 
 /** @brief Event set to stop this program (manual reset), created by prepare_stop_requests(). */
 HANDLE stop_event = nullptr;
-/** @brief Console control event (CTRL_C_EVENT...), or STOP_FROM_THIS_PROGRAM / STOP_FROM_OTHER_PROGRAM. */
+/** @brief Console control event (CTRL_C_EVENT...), or one of the STOP_FROM_... values. */
 std::atomic<int> stop_reason = STOP_FROM_OTHER_PROGRAM;
 
 /** @brief Name of the stop event of a process: other programs of the session open it to stop the process. */
@@ -96,6 +99,44 @@ BOOL WINAPI console_handler(DWORD type)
         Sleep(INFINITE);
     }
     return TRUE;
+}
+
+LRESULT CALLBACK session_window_procedure(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
+{
+    if (message == WM_QUERYENDSESSION) {
+        return TRUE;
+    }
+    if (message == WM_ENDSESSION && wparam) {
+        stop_reason = STOP_FROM_SESSION_END;
+        SetEvent(stop_event);
+        // Windows ends the process when this function returns: the main thread stops the program and exits first
+        Sleep(INFINITE);
+    }
+    return DefWindowProcW(window, message, wparam, lparam);
+}
+
+/**
+ * @brief The programs without console (system monitor) do not receive the console events: the end of the session is
+ * sent to their top-level windows. A hidden window, in its own thread, receives it.
+ */
+void watch_session_end()
+{
+    std::thread([] {
+        const HINSTANCE instance = GetModuleHandleW(nullptr);
+        WNDCLASSEXW window_class{};
+        window_class.cbSize = sizeof(window_class);
+        window_class.lpfnWndProc = session_window_procedure;
+        window_class.hInstance = instance;
+        window_class.lpszClassName = L"TuringSmartScreenSessionEnd";
+        RegisterClassExW(&window_class);
+        if (!CreateWindowExW(0, window_class.lpszClassName, L"", 0, 0, 0, 0, 0, nullptr, nullptr, instance, nullptr)) {
+            return;
+        }
+        MSG message;
+        while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+            DispatchMessageW(&message);
+        }
+    }).detach();
 }
 
 }  // namespace
@@ -212,6 +253,7 @@ void prepare_stop_requests()
 {
     stop_event = CreateEventW(nullptr, TRUE, FALSE, stop_event_name(process_id()).c_str());
     SetConsoleCtrlHandler(console_handler, TRUE);
+    watch_session_end();
 }
 
 std::string wait_for_stop_request()
@@ -223,6 +265,9 @@ std::string wait_for_stop_request()
     }
     if (reason == STOP_FROM_OTHER_PROGRAM) {
         return "Stop requested by another program";
+    }
+    if (reason == STOP_FROM_SESSION_END) {
+        return "Windows session ending";
     }
     return "Caught console event " + std::to_string(reason);
 }
