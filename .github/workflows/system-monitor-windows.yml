@@ -56,7 +56,11 @@ jobs:
         tail -1 lhm-bridge.log | grep -qx end
 
     - name: Create the distribution
-      run: make dist
+      run: |
+        make dist
+        # configure starts main and theme-editor with Glib::spawn_async, which needs the GLib helper programs
+        test -f dist/turing-system-monitor/bin/gspawn-win64-helper.exe
+        test -f dist/turing-system-monitor/bin/gspawn-win64-helper-console.exe
 
     - name: Create the installer
       shell: pwsh
