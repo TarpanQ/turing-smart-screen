@@ -113,7 +113,11 @@ struct ListPortInfo
     std::string serial_number;  ///< USB serial number, empty if unknown
     std::optional<uint16_t> vid;  ///< USB vendor ID, if USB device
     std::optional<uint16_t> pid;  ///< USB product ID, if USB device
+    std::string location;  ///< USB ports from the root hub to the device, e.g. "5.1.4"; empty if not a USB device
 };
+
+/** @brief Prefix of the COM_PORT values that designate a serial port by its USB location, e.g. "USB:5.1.4". */
+inline constexpr const char *USB_LOCATION_PREFIX = "USB:";
 
 /** @brief List the serial ports of the system (like serial.tools.list_ports.comports()) */
 std::vector<ListPortInfo> comports();
@@ -124,3 +128,28 @@ std::vector<ListPortInfo> comports();
  * Nothing is changed if the ID is not the one of a USB device. The serial number is empty if Windows generated it.
  */
 void parse_device_instance_id(const std::string &instance_id, ListPortInfo &info);
+
+/**
+ * @brief USB location of a device from its Windows location path, for example "5.1.4" from
+ * "PCIROOT(0)#PCI(1400)#USBROOT(0)#USB(5)#USB(1)#USB(4)" (port 5 of the root hub, port 1 of a hub, port 4).
+ * Empty if the path is not the one of a USB device.
+ */
+std::string usb_location_from_location_path(const std::string &path);
+
+/**
+ * @brief USB location of a device from the name of its Linux sysfs directory, for example "5.1.4" from "1-5.1.4"
+ * (bus 1). Empty if the name is not the one of a USB device.
+ */
+std::string usb_location_from_sysfs_name(const std::string &name);
+
+/**
+ * @brief Name of a port for COM_PORT: "USB:<location>" for a USB device (it does not change when the COM port numbers
+ * change), its device otherwise.
+ */
+std::string port_config_name(const ListPortInfo &port);
+
+/**
+ * @brief Device of a configured port (COM_PORT other than AUTO): for "USB:<location>", the device of the port at this
+ * USB location among ports (std::nullopt if no port is there); otherwise the configured port, unchanged.
+ */
+std::optional<std::string> resolve_port(const std::string &configured, const std::vector<ListPortInfo> &ports);

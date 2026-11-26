@@ -98,6 +98,18 @@ std::string port_name_of(HDEVINFO devices, SP_DEVINFO_DATA &device)
     return ret == ERROR_SUCCESS && type == REG_SZ ? platform::to_utf8(name) : std::string();
 }
 
+// First location path of a device ("PCIROOT(0)#PCI(1400)#USBROOT(0)#USB(5)#..."), empty if none
+std::string location_path_of(HDEVINFO devices, SP_DEVINFO_DATA &device)
+{
+    wchar_t paths[1024] = {};  // REG_MULTI_SZ: the first path ends with a NUL character
+    if (!SetupDiGetDeviceRegistryPropertyW(devices, &device, SPDRP_LOCATION_PATHS, nullptr,
+                                           reinterpret_cast<BYTE *>(paths), sizeof(paths) - 2 * sizeof(wchar_t),
+                                           nullptr)) {
+        return {};
+    }
+    return platform::to_utf8(paths);
+}
+
 }  // namespace
 
 SerialPort::SerialPort(const std::string &port, int baudrate, double timeout_s, bool rtscts)
@@ -275,6 +287,7 @@ std::vector<ListPortInfo> comports()
             if (const auto id = device_instance_id(device.DevInst)) {
                 parse_device_instance_id(*id, info);
             }
+            info.location = usb_location_from_location_path(location_path_of(devices, device));
 
             // Interface of a composite USB device: the serial number is in the instance ID of a parent device
             DEVINST child = device.DevInst;
@@ -532,6 +545,7 @@ std::vector<ListPortInfo> comports()
                     info.pid.reset();
                 }
                 info.serial_number = read_sysfs(p / "serial");
+                info.location = usb_location_from_sysfs_name(p.filename().string());
                 break;
             }
             p = p.parent_path();
@@ -578,4 +592,64 @@ void parse_device_instance_id(const std::string &instance_id, ListPortInfo &info
     info.pid = static_cast<uint16_t>(std::stoi(match[2], nullptr, 16));
     // Windows generates an instance ID with '&' when the device has no usable serial number: not a serial number
     info.serial_number = serial_number.find('&') == std::string::npos ? serial_number : std::string();
+}
+
+std::string usb_location_from_location_path(const std::string &path)
+{
+    // Elements separated by '#': the ports are the "USB(n)" elements after "USBROOT(n)"
+    std::string location;
+    bool after_root = false;
+    size_t start = 0;
+    while (start <= path.size()) {
+        const size_t end = std::min(path.find('#', start), path.size());
+        const std::string element = path.substr(start, end - start);
+        if (element.starts_with("USBROOT(")) {
+            after_root = true;
+        } else if (after_root && element.starts_with("USB(") && element.ends_with(")")) {
+            const std::string port = element.substr(4, element.size() - 5);
+            if (port.empty() || port.find_first_not_of("0123456789") != std::string::npos) {
+                return {};
+            }
+            location += (location.empty() ? "" : ".") + port;
+        } else if (after_root) {
+            break;  // Interface of a composite device (USBMI) or other element: end of the ports
+        }
+        start = end + 1;
+    }
+    return location;
+}
+
+std::string usb_location_from_sysfs_name(const std::string &name)
+{
+    // "<bus>-<port>.<port>...", without the ":<configuration>.<interface>" of the interfaces
+    const size_t dash = name.find('-');
+    if (dash == std::string::npos || dash == 0) {
+        return {};
+    }
+    const std::string location = name.substr(dash + 1, name.find(':') == std::string::npos ? std::string::npos
+                                                                                           : name.find(':') - dash - 1);
+    if (location.empty() || location.find_first_not_of("0123456789.") != std::string::npos ||
+        name.substr(0, dash).find_first_not_of("0123456789") != std::string::npos) {
+        return {};
+    }
+    return location;
+}
+
+std::string port_config_name(const ListPortInfo &port)
+{
+    return port.location.empty() ? port.device : USB_LOCATION_PREFIX + port.location;
+}
+
+std::optional<std::string> resolve_port(const std::string &configured, const std::vector<ListPortInfo> &ports)
+{
+    if (!configured.starts_with(USB_LOCATION_PREFIX)) {
+        return configured;
+    }
+    const std::string location = configured.substr(std::string(USB_LOCATION_PREFIX).size());
+    for (const ListPortInfo &port: ports) {
+        if (!port.location.empty() && port.location == location) {
+            return port.device;
+        }
+    }
+    return std::nullopt;
 }

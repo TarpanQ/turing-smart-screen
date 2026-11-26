@@ -32,9 +32,10 @@ int main()
 {
     for (const auto &com_port: comports()) {
         if (com_port.vid && com_port.pid) {
-            std::printf("Serial=%s VID=%x PID=%x\n",
+            // COM_PORT value: the USB location designates the screen whatever its COM port number
+            std::printf("Serial=%s VID=%x PID=%x Port=%s COM_PORT=%s\n",
                         com_port.serial_number.empty() ? "None" : com_port.serial_number.c_str(), *com_port.vid,
-                        *com_port.pid);
+                        *com_port.pid, com_port.device.c_str(), port_config_name(com_port).c_str());
         }
     }
     return 0;

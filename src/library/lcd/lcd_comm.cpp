@@ -158,8 +158,8 @@ void LcdComm::openSerial()
         return;
     }
 
-    // com_port is kept as configured ("AUTO" or a port name): on AUTO the port is
-    // detected again at every attempt, since it can change while the screen resets.
+    // com_port is kept as configured ("AUTO", "USB:<location>" or a port name): on AUTO and USB:<location> the port
+    // is found again at every attempt, since it can change while the screen resets.
     for (int attempt = 1; attempt <= SERIAL_OPEN_ATTEMPTS; attempt++) {
         std::string port = com_port;
         if (port == "AUTO") {
@@ -171,6 +171,17 @@ void LcdComm::openSerial()
             }
             port = *detected;
             logger.debug("Auto detected COM port: {}", port);
+        } else if (port.starts_with(USB_LOCATION_PREFIX)) {
+            // The screen plugged at this USB location, whatever its COM port number
+            const auto found = resolve_port(port, comports());
+            if (!found) {
+                logger.warning("No COM port at USB location {}, retrying ({}/{})", port, attempt,
+                               SERIAL_OPEN_ATTEMPTS);
+                std::this_thread::sleep_for(std::chrono::seconds(SERIAL_OPEN_RETRY_DELAY));
+                continue;
+            }
+            logger.debug("COM port at USB location {}: {}", port, *found);
+            port = *found;
         } else {
             logger.debug("Static COM port: {}", port);
         }
