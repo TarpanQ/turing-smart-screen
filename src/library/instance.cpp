@@ -85,9 +85,11 @@ int acquire_lock()
         CloseHandle(file);
         return -1;
     }
-    // The PID is written so that the configuration program can stop this instance
+    // The PID is written so that the configuration program can stop this instance, and "elevated" when it runs as
+    // administrator, so that the configuration program starts it again as administrator
     if (SetFilePointer(file, 0, nullptr, FILE_BEGIN) == 0 && SetEndOfFile(file)) {
-        const std::string pid = std::to_string(platform::process_id()) + "\n";
+        const std::string pid =
+            std::to_string(platform::process_id()) + (platform::is_elevated() ? " elevated" : "") + "\n";
         DWORD written = 0;
         WriteFile(file, pid.data(), static_cast<DWORD>(pid.size()), &written, nullptr);
     }
@@ -160,6 +162,18 @@ bool is_running()
 }  // namespace
 
 #endif
+
+bool running_elevated()
+{
+    if (!is_running()) {
+        return false;
+    }
+    std::ifstream file(lock_path());
+    int pid = 0;
+    std::string flag;
+    file >> pid >> flag;
+    return flag == "elevated";
+}
 
 bool stop_running(std::chrono::seconds timeout)
 {

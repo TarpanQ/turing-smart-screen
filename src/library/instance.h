@@ -42,6 +42,12 @@ std::string lock_path();
 int acquire_lock();
 
 /**
+ * @brief True if an instance is running as administrator (Windows only: written in the lock file by acquire_lock()).
+ * Always false on Linux.
+ */
+bool running_elevated();
+
+/**
  * @brief Stop the running instance (platform::send_stop_request(), so that it turns the screens off) and wait until it
  * has exited.
  * Returns true if no instance is running anymore.
