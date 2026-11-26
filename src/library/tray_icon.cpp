@@ -219,6 +219,12 @@ bool TrayIcon::run_detached()
             started.set_value(false);
             return;
         }
+        // When the program runs as administrator (for the temperatures), Windows blocks the messages that Explorer,
+        // which is not elevated, sends to its windows (User Interface Privilege Isolation): the clicks on the icon
+        // and TaskbarCreated would never arrive. They are allowed explicitly for this window.
+        for (const UINT message: {WM_TRAY_ICON, d->taskbar_created}) {
+            ChangeWindowMessageFilterEx(d->window, message, MSGFLT_ALLOW, nullptr);
+        }
         d->load_icon();
         if (!d->notify(NIM_ADD)) {
             // The taskbar may not be ready yet (program started at login): added on TaskbarCreated
