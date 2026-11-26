@@ -29,6 +29,12 @@ for program in main configure theme-editor lhm-bridge; do
     cp "$BIN/$program.exe" "$DIST/bin/"
 done
 
+# Helper programs of GLib, needed by Glib::spawn_async() on Windows: configure starts main and theme-editor with it
+# ("Failed to execute helper program" without them). Copied before ldd, so that their DLLs are copied too.
+for helper in gspawn-win64-helper gspawn-win64-helper-console; do
+    cp "$PREFIX/bin/$helper.exe" "$DIST/bin/"
+done
+
 # Files of GTK and libcurl, from the MSYS2 environment
 copy_from_prefix() {
     if [ -e "$PREFIX/$1" ]; then
