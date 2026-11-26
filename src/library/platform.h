@@ -86,6 +86,16 @@ void *find_symbol(void *library, const char *name);
  */
 bool start_program(const std::filesystem::path &program);
 
+#ifdef _WIN32
+/**
+ * @brief Start a program as administrator (the user confirms it in the UAC prompt of Windows), without waiting for it.
+ * @param program Path of the program.
+ * @param directory Working directory of the program.
+ * @return False if the program cannot be started, or if the user refused the administrator rights.
+ */
+bool start_program_as_administrator(const std::filesystem::path &program, const std::filesystem::path &directory);
+#endif
+
 /**
  * @brief Prepare the stop requests of this process: Ctrl+C, SIGTERM and SIGQUIT on Linux (blocked in all the
  * threads created afterwards); on Windows Ctrl+C, closing of the console, end of the session (logoff, shutdown) and

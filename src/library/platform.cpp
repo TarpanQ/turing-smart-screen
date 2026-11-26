@@ -30,6 +30,8 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <iphlpapi.h>
+#include <sddl.h>
+#include <shellapi.h>
 
 #include <atomic>
 #include <mutex>
@@ -249,9 +251,65 @@ bool start_program(const fs::path &program)
     return true;
 }
 
+namespace {
+
+/**
+ * @brief Security descriptor of the stop event: by default, an event created by a program running as administrator
+ * cannot be set by the programs of the same user that are not elevated (the configuration program). The user of this
+ * program is allowed to set it (EVENT_MODIFY_STATE | SYNCHRONIZE), also from the medium integrity level; the
+ * administrators and SYSTEM keep all the rights. Freed with LocalFree; nullptr if it cannot be built (default rights).
+ */
+PSECURITY_DESCRIPTOR stop_event_security()
+{
+    HANDLE token = nullptr;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
+        return nullptr;
+    }
+    DWORD size = 0;
+    GetTokenInformation(token, TokenUser, nullptr, 0, &size);
+    std::vector<unsigned char> buffer(size);
+    wchar_t *user = nullptr;
+    if (size > 0 && GetTokenInformation(token, TokenUser, buffer.data(), size, &size)) {
+        ConvertSidToStringSidW(reinterpret_cast<TOKEN_USER *>(buffer.data())->User.Sid, &user);
+    }
+    CloseHandle(token);
+    if (!user) {
+        return nullptr;
+    }
+    const std::wstring sddl = L"D:(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x100002;;;" + std::wstring(user) + L")S:(ML;;NW;;;ME)";
+    LocalFree(user);
+    PSECURITY_DESCRIPTOR descriptor = nullptr;
+    if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl.c_str(), SDDL_REVISION_1, &descriptor, nullptr)) {
+        return nullptr;
+    }
+    return descriptor;
+}
+
+}  // namespace
+
+bool start_program_as_administrator(const fs::path &program, const fs::path &directory)
+{
+    SHELLEXECUTEINFOW info{};
+    info.cbSize = sizeof(info);
+    info.fMask = SEE_MASK_NOASYNC;
+    info.lpVerb = L"runas";
+    const std::wstring file = program.wstring();
+    const std::wstring working_directory = directory.wstring();
+    info.lpFile = file.c_str();
+    info.lpDirectory = working_directory.c_str();
+    info.nShow = SW_SHOWNORMAL;
+    return ShellExecuteExW(&info);
+}
+
 void prepare_stop_requests()
 {
-    stop_event = CreateEventW(nullptr, TRUE, FALSE, stop_event_name(process_id()).c_str());
+    // The configuration program, which is not elevated, must be able to stop this program running as administrator
+    PSECURITY_DESCRIPTOR descriptor = stop_event_security();
+    SECURITY_ATTRIBUTES attributes{sizeof(SECURITY_ATTRIBUTES), descriptor, FALSE};
+    stop_event = CreateEventW(descriptor ? &attributes : nullptr, TRUE, FALSE, stop_event_name(process_id()).c_str());
+    if (descriptor) {
+        LocalFree(descriptor);
+    }
     SetConsoleCtrlHandler(console_handler, TRUE);
     watch_session_end();
 }

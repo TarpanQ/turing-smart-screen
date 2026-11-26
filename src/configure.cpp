@@ -1017,11 +1017,27 @@ void TuringConfigWindow::on_saverun_click()
     if (!save_config_values()) {
         return;
     }
-    // A running system monitor is stopped first, so that the new configuration is used
+    // A running system monitor is stopped first, so that the new configuration is used. It is started again with the
+    // same rights: as administrator if it was (Windows only, for the temperatures read with LibreHardwareMonitor).
+    const bool elevated = instance::running_elevated();
     if (!instance::stop_running(std::chrono::seconds(15))) {
         show_error("The running system monitor did not stop: the new configuration was saved but not applied.");
         return;
     }
+#ifdef _WIN32
+    if (elevated) {
+        // Windows asks the user to confirm the administrator rights (UAC)
+        if (!platform::start_program_as_administrator(platform::program_path("main"), main_directory())) {
+            show_error("The system monitor was not started again as administrator: the new configuration was saved, "
+                       "start the system monitor again to apply it.");
+            return;
+        }
+        close();
+        return;
+    }
+#else
+    (void)elevated;  // Always false on Linux: the system monitor does not need the administrator rights
+#endif
     start_program("main");
     close();
 }

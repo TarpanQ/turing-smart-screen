@@ -29,6 +29,7 @@
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
@@ -81,6 +82,27 @@ TEST(Instance, StopRunningInstance)
     if (fd >= 0) {
         close(fd);
     }
+}
+
+/**
+ * @brief The "elevated" flag that Windows writes after the PID is read back; without it, the instance is not elevated.
+ */
+TEST(Instance, RunningElevated)
+{
+    use_temporary_runtime_dir();
+
+    // Nothing running
+    EXPECT_FALSE(instance::running_elevated());
+
+    // This process holds the lock: the flag is read from the lock file
+    const int fd = instance::acquire_lock();
+    ASSERT_GE(fd, 0);
+    EXPECT_FALSE(instance::running_elevated());  // Linux never writes the flag
+    std::ofstream(instance::lock_path()) << ::getpid() << " elevated\n";
+    EXPECT_TRUE(instance::running_elevated());
+    std::ofstream(instance::lock_path()) << ::getpid() << "\n";
+    EXPECT_FALSE(instance::running_elevated());
+    close(fd);
 }
 
 #endif
