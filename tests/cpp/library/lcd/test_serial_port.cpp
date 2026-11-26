@@ -21,7 +21,9 @@
  * @brief Unit tests of the serial port helpers (src/library/lcd/serial_port), on all platforms.
  */
 
+#include <optional>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -89,4 +91,55 @@ TEST(SerialPort, InstanceIdNotUsb)
         EXPECT_FALSE(info.pid.has_value()) << id;
         EXPECT_EQ(info.serial_number, "") << id;
     }
+}
+
+/** @brief USB location from a Windows location path: the ports after the root hub. */
+TEST(SerialPort, UsbLocationFromWindowsPath)
+{
+    EXPECT_EQ(usb_location_from_location_path("PCIROOT(0)#PCI(1400)#USBROOT(0)#USB(5)#USB(1)#USB(4)"), "5.1.4");
+    EXPECT_EQ(usb_location_from_location_path("PCIROOT(0)#PCI(1400)#USBROOT(0)#USB(5)#USB(1)#USB(1)"), "5.1.1");
+    EXPECT_EQ(usb_location_from_location_path("PCIROOT(0)#PCI(1400)#USBROOT(0)#USB(2)"), "2");
+    // Interface of a composite device: the ports only
+    EXPECT_EQ(usb_location_from_location_path("PCIROOT(0)#PCI(1400)#USBROOT(0)#USB(3)#USBMI(0)"), "3");
+    // Not a USB device
+    EXPECT_EQ(usb_location_from_location_path("ACPI(_SB_)#ACPI(PCI0)#ACPI(UAR1)"), "");
+    EXPECT_EQ(usb_location_from_location_path(""), "");
+}
+
+/** @brief USB location from a Linux sysfs name: the ports after the bus number. */
+TEST(SerialPort, UsbLocationFromSysfsName)
+{
+    EXPECT_EQ(usb_location_from_sysfs_name("1-5.1.4"), "5.1.4");
+    EXPECT_EQ(usb_location_from_sysfs_name("3-2"), "2");
+    EXPECT_EQ(usb_location_from_sysfs_name("1-5.1.4:1.0"), "5.1.4");  // Interface
+    EXPECT_EQ(usb_location_from_sysfs_name("usb1"), "");                // Root hub
+    EXPECT_EQ(usb_location_from_sysfs_name("0000:00:14.0"), "");        // PCI device
+}
+
+/** @brief Ports are configured by their USB location, which designates the same screen whatever its COM number. */
+TEST(SerialPort, ResolveUsbLocation)
+{
+    ListPortInfo first;
+    first.device = "COM5";
+    first.location = "5.1.1";
+    ListPortInfo second;
+    second.device = "COM3";
+    second.location = "5.1.4";
+    ListPortInfo motherboard;
+    motherboard.device = "COM1";
+    const std::vector<ListPortInfo> ports = {first, second, motherboard};
+
+    EXPECT_EQ(port_config_name(first), "USB:5.1.1");
+    EXPECT_EQ(port_config_name(motherboard), "COM1");
+
+    EXPECT_EQ(resolve_port("USB:5.1.4", ports), "COM3");
+    EXPECT_EQ(resolve_port("USB:5.1.1", ports), "COM5");
+    // The screens swapped their COM numbers: each location still designates the same screen
+    first.device = "COM3";
+    second.device = "COM5";
+    EXPECT_EQ(resolve_port("USB:5.1.4", {first, second}), "COM5");
+    // No screen at this location; a port name is kept unchanged
+    EXPECT_EQ(resolve_port("USB:9", ports), std::nullopt);
+    EXPECT_EQ(resolve_port("COM7", ports), "COM7");
+    EXPECT_EQ(resolve_port("/dev/ttyACM0", ports), "/dev/ttyACM0");
 }

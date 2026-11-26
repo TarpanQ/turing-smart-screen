@@ -252,9 +252,34 @@ std::vector<std::string> get_com_ports()
 {
     std::vector<std::string> com_ports_names = {"Automatic detection"};  // Add manual entry on top for auto-detection
     for (const auto &com_port: comports()) {
-        com_ports_names.push_back(com_port.device);
+        // USB ports are named by their USB location ("USB:5.1.4"): unlike the COM port numbers, it does not change
+        // when identical screens are plugged in another order
+        com_ports_names.push_back(port_config_name(com_port));
     }
     return com_ports_names;
+}
+
+/**
+ * @brief Entry of the COM port list for a COM_PORT value: "AUTO" and "USB:<location>" are kept, a port name is
+ * converted to the entry of its port ("COM3" or "ttyACM0" to "USB:5.1.4"), and kept if no port has this name.
+ */
+std::string port_entry(const std::string &configured)
+{
+    if (configured == "AUTO" || configured.starts_with(USB_LOCATION_PREFIX)) {
+        return configured;
+    }
+#ifdef _WIN32
+    const std::string &device = configured;
+#else
+    // Port name without directory (written by the Python version): devices are listed with their full path
+    const std::string device = configured.find('/') == std::string::npos ? "/dev/" + configured : configured;
+#endif
+    for (const auto &port: comports()) {
+        if (port.device == device) {
+            return port_config_name(port);
+        }
+    }
+    return device;
 }
 
 std::vector<std::string> get_net_if()
@@ -771,14 +796,10 @@ void TuringConfigWindow::apply_display(DisplayTab &tab, const config::DisplayCon
     }
     tab.theme_cb.set_text(theme);
 
-    std::string com_port = display.com_port;
+    const std::string com_port = port_entry(display.com_port);
     if (com_port == "AUTO") {
         tab.com_cb.set_current(0);
     } else {
-        // Port name without directory (written by the Python version): devices are listed with their full path
-        if (com_port.find('/') == std::string::npos) {
-            com_port = "/dev/" + com_port;
-        }
         // A port that is not in the list is not added to it: it is replaced when the displays are validated
         const auto ports = get_com_ports();
         if (std::find(ports.begin(), ports.end(), com_port) != ports.end()) {
@@ -835,15 +856,12 @@ bool TuringConfigWindow::validate_com_ports(const std::vector<config::DisplayCon
 {
     // The first entry of the list is automatic detection, which is not a port
     const auto ports = get_com_ports();
-    const auto port_path = [](const std::string &port) {
-        return port == "AUTO" || port.find('/') != std::string::npos ? port : "/dev/" + port;
-    };
 
     // A COM port that exists is kept, and it is used by its display (a single display can also use automatic detection)
     std::vector<std::string> used;
     std::vector<size_t> to_choose;
     for (size_t i = 0; i < tabs.size(); i++) {
-        const std::string configured = port_path(displays[i].com_port);
+        const std::string configured = port_entry(displays[i].com_port);
         const bool listed = std::find(ports.begin(), ports.end(), configured) != ports.end();
         const bool kept = configured == "AUTO" ? tabs.size() == 1 : listed;
         if (kept) {
